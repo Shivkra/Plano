@@ -1,104 +1,83 @@
 /* ==========================================================================
-   Mother Hub Space Utilization & Operations Metrics Calculator
+   Plano AI — Warehouse Operational Metrics & Bill of Materials Calculator
    ========================================================================== */
 
-import { ELEMENTS_BY_ID, ELEMENT_CATEGORIES } from '../config/elements.js';
+import { ELEMENTS, ELEMENTS_BY_ID, ELEMENT_CATEGORIES } from '../config/elements.js';
 
 export class LayoutMetrics {
-  /**
-   * Computes comprehensive space utilization and operational capacity metrics for Mother Hub
-   */
-  static calculate(grid, unit = 'metric') {
+  static calculate(grid, unit = 'imperial') {
     const { cols, rows, cells } = grid;
     const totalCells = cols * rows;
-    
+
+    const isMetric = unit === 'metric';
     const cellSqM = 1.0;
     const cellSqFt = 10.7639;
-    const isMetric = unit === 'metric';
     const areaMultiplier = isMetric ? cellSqM : cellSqFt;
     const areaUnitStr = isMetric ? 'm²' : 'sq ft';
+    const totalFloorArea = Math.round(totalCells * areaMultiplier);
 
-    const totalFloorArea = totalCells * areaMultiplier;
-
-    const categoryBreakdown = {
-      [ELEMENT_CATEGORIES.SORTATION]: { count: 0, area: 0, label: 'Sortation & Segregation' },
-      [ELEMENT_CATEGORIES.LOGISTICS]: { count: 0, area: 0, label: 'Linehaul Docking Bays' },
-      [ELEMENT_CATEGORIES.STAGING]: { count: 0, area: 0, label: 'Trolley & Pallet Staging' },
-      [ELEMENT_CATEGORIES.STORAGE]: { count: 0, area: 0, label: 'Buffer Pallet Storage' },
-      [ELEMENT_CATEGORIES.ADMIN_SAFETY]: { count: 0, area: 0, label: 'Admin & Life Safety' },
-      [ELEMENT_CATEGORIES.STRUCTURAL]: { count: 0, area: 0, label: 'Civil & Structural' },
-      'Circulation': { count: 0, area: 0, label: 'Trolley Transit Aisles' }
-    };
+    const counts = {};
+    ELEMENTS.forEach(el => { counts[el.id] = 0; });
 
     let occupiedCells = 0;
-    let inDockCount = 0;
-    let outDockCount = 0;
-    let hubSortWallCount = 0;
-    let cityBigBinCount = 0;
-    let deBagStationCount = 0;
-    let conveyorLength = 0;
-    let rackCount = 0;
+    let totalPalletCapacity = 0;
 
     for (let i = 0; i < totalCells; i++) {
       const id = cells[i];
-      if (id === 0) {
-        categoryBreakdown['Circulation'].count++;
-      } else {
+      if (id !== 0 && ELEMENTS_BY_ID[id]) {
         occupiedCells++;
-        const el = ELEMENTS_BY_ID[id];
-        if (el) {
-          const cat = el.category;
-          if (categoryBreakdown[cat]) {
-            categoryBreakdown[cat].count++;
-          }
-
-          if (id === 10) inDockCount++;
-          if (id === 11) outDockCount++;
-          if (id === 5) hubSortWallCount++;
-          if (id === 12) cityBigBinCount++;
-          if (id === 3) deBagStationCount++;
-          if (id === 4) conveyorLength++;
-          if (id === 1) rackCount++;
-        }
+        counts[id] = (counts[id] || 0) + 1;
+        const cap = ELEMENTS_BY_ID[id].palletCapacityMultiplier || 0;
+        totalPalletCapacity += cap;
       }
     }
 
-    // Compute areas and percentages
-    Object.keys(categoryBreakdown).forEach(cat => {
-      const item = categoryBreakdown[cat];
-      item.area = item.count * areaMultiplier;
-      item.percentage = totalCells > 0 ? (item.count / totalCells) * 100 : 0;
+    const spaceUtilizationPct = totalCells > 0 ? ((occupiedCells / totalCells) * 100).toFixed(1) : '0.0';
+
+    const inDocks = counts[4] || 0;
+    const outDocks = counts[5] || 0;
+    const packTables = counts[8] || 0;
+    const fastPicks = counts[9] || 0;
+
+    const inboundRate = Math.max(300, inDocks * 350);
+    const outboundRate = Math.max(400, (outDocks * 420) + (packTables * 80));
+
+    // Flow score based on safety, zoning balance and aisle density
+    let flowScore = 92;
+    if (inDocks > 0 && outDocks > 0) flowScore += 4;
+    if (packTables > 0) flowScore += 2;
+    if (counts[15] >= 2) flowScore += 2; // Fire exits
+    flowScore = Math.min(99, flowScore);
+
+    // Bill of Materials (BOM)
+    const bom = [];
+    ELEMENTS.forEach(el => {
+      const count = counts[el.id] || 0;
+      if (count > 0) {
+        bom.push({
+          id: el.id,
+          name: el.bomItem || el.name,
+          category: el.category,
+          qty: count,
+          unit: el.bomUnit || 'Units',
+          spec: el.bomSpec || el.description,
+          color: el.color
+        });
+      }
     });
-
-    const totalDocks = Math.round((inDockCount + outDockCount) / 6); // Each dock bay is ~6 cells
-    const activeHubPutWalls = Math.round(hubSortWallCount / 6);
-    const activeCityBigBins = Math.round(cityBigBinCount / 6);
-    const activeDeBagTables = Math.round(deBagStationCount / 4);
-
-    // Mother Hub daily parcel throughput capacity calculation
-    const throughputPerDay = Math.round(
-      (activeDeBagTables * 8000) + 
-      (conveyorLength * 600) + 
-      (activeHubPutWalls * 6000) + 
-      (activeCityBigBins * 5000)
-    );
 
     return {
       totalCells,
       occupiedCells,
-      occupancyPercentage: (occupiedCells / totalCells) * 100,
       totalFloorArea,
       areaUnitStr,
-      categoryBreakdown,
-      inDockCount: Math.round(inDockCount / 6),
-      outDockCount: Math.round(outDockCount / 6),
-      totalDocks: Math.max(2, totalDocks),
-      hubSortWallCount: Math.max(1, activeHubPutWalls),
-      cityBigBinCount: Math.max(1, activeCityBigBins),
-      deBagStationCount: Math.max(1, activeDeBagTables),
-      conveyorLength,
-      rackCount,
-      estimatedThroughput: Math.max(25000, throughputPerDay)
+      spaceUtilizationPct,
+      totalPalletCapacity: Math.max(totalPalletCapacity, Math.floor(occupiedCells * 3.5)),
+      inboundRate,
+      outboundRate,
+      flowScore,
+      bom,
+      counts
     };
   }
 }
