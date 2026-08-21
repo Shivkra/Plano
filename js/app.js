@@ -25,7 +25,7 @@ class BlitzPlanogramApp {
     this.lengthFt = 150;
     this.widthFt = 100;
     this.heightFt = 32;
-    this.operationalModel = 'ecommerce';
+    this.operationalModel = 'mother_hub';
     this.inboundDocks = 4;
     this.outboundDocks = 4;
     
@@ -245,10 +245,14 @@ class BlitzPlanogramApp {
       const pallets = site.summary?.totalCapacityPallets || Math.floor((site.cols || 46) * (site.rows || 30) * 1.8);
       const sqFt = Math.round((site.lengthFt || 150) * (site.widthFt || 100));
 
+      const modelLabel = site.operationalModel === 'darkstore' 
+        ? '⚡ DARKSTORE (NEXT)' 
+        : (site.operationalModel === 'regional_hub' ? '📦 REGIONAL HUB' : '🏭 MOTHER HUB');
+
       html += `
         <div class="layout-card" data-site-id="${site.id}">
           <div class="layout-thumb">
-            <span class="pill emerald layout-card-badge">${(site.operationalModel || 'E-Commerce').toUpperCase()}</span>
+            <span class="pill emerald layout-card-badge">${modelLabel}</span>
             <canvas id="thumb-${site.id}" width="340" height="170"></canvas>
           </div>
           <div class="layout-meta">

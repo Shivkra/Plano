@@ -297,15 +297,15 @@ const server = http.createServer(async (req, res) => {
 
         // Seed 2 initial sample layouts for the manager
         const siteId1 = 'site-' + Date.now();
-        const demoLayout1 = generateArchitectLayout({ cols: 46, rows: 30, inboundDocks: 4, outboundDocks: 4, operationalModel: 'ecommerce' });
+        const demoLayout1 = generateArchitectLayout({ cols: 46, rows: 30, inboundDocks: 4, outboundDocks: 4, operationalModel: 'mother_hub' });
         const demoData1 = {
-          name: "Bengaluru Central Mother Hub",
+          name: "Blitz Mother Hub — Bengaluru South (BLR-01)",
           city: "Bengaluru",
           lengthFt: 150,
           widthFt: 100,
           inboundDocks: 4,
           outboundDocks: 4,
-          operationalModel: 'ecommerce',
+          operationalModel: 'mother_hub',
           cells: demoLayout1.cells,
           rots: demoLayout1.rots,
           summary: demoLayout1.summary,
@@ -315,19 +315,19 @@ const server = http.createServer(async (req, res) => {
           INSERT INTO sites (id, user_email, name, city, length_ft, width_ft, cols, rows, inbound_docks, outbound_docks, operational_model, data_json, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
-          siteId1, cleanEmail, demoData1.name, demoData1.city, 150, 100, 46, 30, 4, 4, 'ecommerce', JSON.stringify(demoData1), now, now
+          siteId1, cleanEmail, demoData1.name, demoData1.city, 150, 100, 46, 30, 4, 4, 'mother_hub', JSON.stringify(demoData1), now, now
         );
 
         const siteId2 = 'site-' + (Date.now() + 100);
-        const demoLayout2 = generateArchitectLayout({ cols: 36, rows: 24, inboundDocks: 3, outboundDocks: 3, operationalModel: 'b2b_pallet' });
+        const demoLayout2 = generateArchitectLayout({ cols: 36, rows: 24, inboundDocks: 3, outboundDocks: 3, operationalModel: 'regional_hub' });
         const demoData2 = {
-          name: "Hyderabad High-Velocity Distribution Center",
+          name: "Blitz Regional Hub — Hyderabad Central (HYD-01)",
           city: "Hyderabad",
           lengthFt: 120,
           widthFt: 80,
           inboundDocks: 3,
           outboundDocks: 3,
-          operationalModel: 'b2b_pallet',
+          operationalModel: 'regional_hub',
           cells: demoLayout2.cells,
           rots: demoLayout2.rots,
           summary: demoLayout2.summary,
@@ -337,7 +337,7 @@ const server = http.createServer(async (req, res) => {
           INSERT INTO sites (id, user_email, name, city, length_ft, width_ft, cols, rows, inbound_docks, outbound_docks, operational_model, data_json, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
-          siteId2, cleanEmail, demoData2.name, demoData2.city, 120, 80, 36, 24, 3, 3, 'b2b_pallet', JSON.stringify(demoData2), now, now
+          siteId2, cleanEmail, demoData2.name, demoData2.city, 120, 80, 36, 24, 3, 3, 'regional_hub', JSON.stringify(demoData2), now, now
         );
       }
 

@@ -602,9 +602,8 @@
         </div>
         <div class="hub-filters">
           <button class="filter-btn active" data-filter="all">All Facilities</button>
-          <button class="filter-btn" data-filter="ecommerce">E-Commerce</button>
-          <button class="filter-btn" data-filter="b2b_pallet">B2B Pallet</button>
-          <button class="filter-btn" data-filter="cold_chain">Cold Chain</button>
+          <button class="filter-btn" data-filter="mother_hub">🏭 Mother Hubs</button>
+          <button class="filter-btn" data-filter="darkstore">⚡ Darkstores (Next)</button>
         </div>
       </div>
 
@@ -612,8 +611,8 @@
         <!-- New Layout Card -->
         <div class="new-layout-card" id="card-new-layout">
           <div class="plus-icon">+</div>
-          <strong style="font-family:var(--font-brand); font-size:var(--fs-md);">Create New Warehouse Layout</strong>
-          <span style="font-size:12px; color:var(--ink-soft); max-width:240px;">Guided AI Architect flow with sketch upload or interactive sketching</span>
+          <strong style="font-family:var(--font-brand); font-size:var(--fs-md);">Create New Mother Hub Layout</strong>
+          <span style="font-size:12px; color:var(--ink-soft); max-width:240px;">Guided AI Architect flow for Blitz Mother Hubs &amp; Darkstores</span>
         </div>
       </div>
     </div>
@@ -639,7 +638,7 @@
           <div class="node-num">1</div>
           <div class="node-txt">
             <h4>Facility Basics</h4>
-            <p>Dimensions &amp; Operations</p>
+            <p>Mother Hub Dimensions</p>
           </div>
         </div>
         <div class="wizard-step-node" id="wizard-rail-2">
@@ -662,8 +661,8 @@
       <div class="wizard-content-area">
         <!-- Step 1: Basic Details -->
         <div class="wizard-pane on" id="wizard-pane-1">
-          <h2 style="font-family:var(--font-brand); font-size:var(--fs-xl); font-weight:800; margin-bottom:6px;">Warehouse Specifications</h2>
-          <p style="color:var(--ink-soft); font-size:var(--fs-sm); margin-bottom:24px;">Enter the essential operational parameters. Blitz Planogram handles all engineering tolerances automatically.</p>
+          <h2 style="font-family:var(--font-brand); font-size:var(--fs-xl); font-weight:800; margin-bottom:6px;">Mother Warehouse Specifications</h2>
+          <p style="color:var(--ink-soft); font-size:var(--fs-sm); margin-bottom:24px;">Configure your Blitz Mother Hub parameters. The AI architect will automatically zone docks, staging, and sortation conveyors.</p>
 
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
             <div>
@@ -704,27 +703,22 @@
           </div>
 
           <div style="margin-bottom:20px;">
-            <label class="field-label">Primary Operational Model</label>
+            <label class="field-label">Facility Architecture Model</label>
             <div class="option-cards-grid">
-              <div class="option-card selected" data-model="ecommerce">
-                <div class="icon">⚡</div>
-                <div class="title">E-Commerce</div>
-                <div class="desc">High-velocity picking, sortation spine &amp; multi-tier pack benches.</div>
+              <div class="option-card selected" data-model="mother_hub">
+                <div class="icon">🏭</div>
+                <div class="title">Blitz Mother Hub (Central)</div>
+                <div class="desc">High-speed cross-docking, linehaul bays, conveyor sortation spine &amp; pallet buffer.</div>
               </div>
-              <div class="option-card" data-model="b2b_pallet">
+              <div class="option-card" data-model="regional_hub">
                 <div class="icon">📦</div>
-                <div class="title">B2B Pallet Hub</div>
-                <div class="desc">Heavy selective &amp; double-deep racks with wide reach truck aisles.</div>
+                <div class="title">Regional Consolidation Hub</div>
+                <div class="desc">Multi-city linehaul routing, heavy selective &amp; double-deep racking with reach trucks.</div>
               </div>
-              <div class="option-card" data-model="cold_chain">
-                <div class="icon">❄️</div>
-                <div class="title">Cold Chain</div>
-                <div class="desc">Chilled storage buffers, insulated partitions &amp; dock seals.</div>
-              </div>
-              <div class="option-card" data-model="3pl">
-                <div class="icon">🌐</div>
-                <div class="title">3PL Multi-Client</div>
-                <div class="desc">Flexible multi-zone layout with dynamic staging aisles.</div>
+              <div class="option-card" data-model="darkstore">
+                <div class="icon">⚡</div>
+                <div class="title">Blitz Darkstore (Next)</div>
+                <div class="desc">Ultra-fast 10-minute micro-fulfillment, dense pick shelving &amp; rider dispatch bays.</div>
               </div>
             </div>
           </div>
