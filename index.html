@@ -1,0 +1,2313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blitz Mother Hub Planogram — AI Layout & Architectural Studio</title>
+  <link rel="icon" type="image/png" href="assets/logo.png">
+
+  <!-- Google Fonts: Outfit (Headings), Plus Jakarta Sans (UI), JetBrains Mono (Specs) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* =====================================================================
+       DESIGN SYSTEM (Inspired by http://localhost:8934/ warm modernist aesthetic)
+    ===================================================================== */
+    :root {
+      --bg: #F6F4EF;
+      --bg-soft: #FBFAF7;
+      --surface: #FFFFFF;
+      --surface-2: #F1EDE3;
+      --border: #E5E0D4;
+      --border-strong: #D6CFBD;
+      --ink: #1D1B17;
+      --ink-soft: #5B564A;
+      --ink-faint: #928C7C;
+      --accent: #17171A;
+      --accent-hover: #000000;
+      --on-accent: #FFFFFF;
+      --brand-cream: #F3E4CC;
+      --brand-cream-2: #F8ECD9;
+      --success: #4D7C0F;
+      --success-bg: #EEF3DF;
+      --danger: #C0392B;
+      --danger-bg: #FBEAE7;
+      --focus: #2563EB;
+      --r-sm: 6px;
+      --r-md: 10px;
+      --r-lg: 16px;
+      --r-xl: 22px;
+      --r-pill: 999px;
+      --fs-2xs: 11px;
+      --fs-xs: 12px;
+      --fs-sm: 13px;
+      --fs-base: 14px;
+      --fs-md: 16px;
+      --fs-lg: 19px;
+      --fs-xl: 24px;
+      --fs-2xl: 32px;
+      --shadow-sm: 0 1px 3px rgba(20,18,12,.06), 0 1px 2px rgba(20,18,12,.04);
+      --shadow-md: 0 4px 14px rgba(20,18,12,.08), 0 1px 3px rgba(20,18,12,.06);
+      --shadow-lg: 0 16px 40px rgba(20,18,12,.14), 0 4px 12px rgba(20,18,12,.08);
+      --ease: cubic-bezier(.16,1,.3,1);
+      --dur: 200ms;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; width: 100%; }
+    body {
+      background: var(--bg); color: var(--ink);
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      font-size: var(--fs-base); line-height: 1.5; overflow: hidden; -webkit-font-smoothing: antialiased;
+    }
+    button, input, select, textarea { font-family: inherit; }
+
+    /* Screen manager */
+    .screen { position: fixed; inset: 0; display: none; background: var(--bg); }
+    .screen.on { display: flex; flex-direction: column; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      background: var(--surface); color: var(--ink); border: 1px solid var(--border-strong);
+      border-radius: var(--r-md); padding: 9px 16px; font-size: var(--fs-sm); font-weight: 700;
+      cursor: pointer; transition: all var(--dur) var(--ease); white-space: nowrap; user-select: none;
+    }
+    .btn:hover { border-color: var(--ink-faint); box-shadow: var(--shadow-sm); }
+    .btn:active { transform: scale(0.98); }
+    .btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+    .btn.primary:hover { background: var(--accent-hover); box-shadow: var(--shadow-md); }
+    .btn.emerald { background: #059669; color: #fff; border-color: #059669; }
+    .btn.emerald:hover { background: #047857; }
+    .btn.danger { color: var(--danger); }
+    .btn.danger:hover { background: var(--danger-bg); border-color: #fca5a5; }
+    .btn.ghost { background: transparent; border-color: transparent; }
+    .btn.ghost:hover { background: var(--surface-2); border-color: transparent; }
+    .btn.lg { padding: 13px 24px; font-size: var(--fs-md); border-radius: var(--r-lg); }
+    .btn.full { width: 100%; }
+    .btn.icon { padding: 8px; width: 34px; height: 34px; border-radius: var(--r-md); }
+
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+      border-radius: var(--r-pill); font-size: var(--fs-2xs); font-weight: 700;
+      background: var(--surface-2); color: var(--ink-soft); border: 1px solid var(--border);
+    }
+    .pill.emerald { background: var(--success-bg); color: var(--success); border-color: #d1e7b7; }
+    .pill.indigo { background: #e0e7ff; color: #3730a3; border-color: #c7d2fe; }
+    .pill.amber { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+
+    input[type=text], input[type=number], input[type=email], textarea {
+      width: 100%; background: var(--surface); border: 1.5px solid var(--border-strong); color: var(--ink);
+      border-radius: var(--r-md); padding: 10px 14px; font-size: var(--fs-base); outline: none;
+      transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+    }
+    input[type=text]:focus, input[type=number]:focus, input[type=email]:focus, textarea:focus {
+      border-color: var(--focus); box-shadow: 0 0 0 4px rgba(37,99,235,.12);
+    }
+    label.field-label {
+      display: block; font-size: var(--fs-2xs); font-weight: 800; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--ink-faint); margin-bottom: 6px;
+    }
+
+    /* Toast */
+    .toast-wrap {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      z-index: 9000; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none;
+    }
+    .toast {
+      background: var(--ink); color: #fff; padding: 10px 18px; border-radius: var(--r-pill);
+      font-size: var(--fs-sm); font-weight: 700; box-shadow: var(--shadow-lg); opacity: 0;
+      transform: translateY(10px); transition: all var(--dur) var(--ease);
+    }
+    .toast.on { opacity: 1; transform: translateY(0); }
+
+    /* =====================================================================
+       SCREEN 0: LOGIN GATE (Email Identification)
+    ===================================================================== */
+    #screen-login {
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse 900px 560px at 50% 50%, #FDFCF9 0%, var(--bg) 68%),
+        radial-gradient(circle, rgba(30,27,20,.08) 1px, transparent 1px);
+      background-size: auto, 28px 28px;
+      align-items: center; justify-content: center;
+    }
+    .login-card {
+      background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-xl);
+      padding: 40px 44px; width: 440px; max-width: 92vw; box-shadow: var(--shadow-lg); text-align: center;
+    }
+    .login-logo { width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 12px; }
+    .login-card h1 { font-family: 'Outfit', sans-serif; font-size: var(--fs-2xl); font-weight: 800; color: var(--ink); letter-spacing: -.02em; }
+    .login-card p.sub { color: var(--ink-soft); font-size: var(--fs-sm); margin-top: 4px; margin-bottom: 24px; line-height: 1.5; }
+
+    .login-chips { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; text-align: left; }
+    .login-chip {
+      display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: var(--r-md);
+      background: var(--bg-soft); border: 1px solid var(--border); cursor: pointer; transition: all var(--dur) var(--ease);
+    }
+    .login-chip:hover { border-color: var(--ink); background: var(--surface-2); }
+    .login-chip .avatar {
+      width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff;
+      display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;
+    }
+    .login-chip .email-txt { font-size: var(--fs-xs); font-weight: 700; color: var(--ink); }
+
+    /* =====================================================================
+       SCREEN 1: SITES & FACILITY LIBRARY
+    ===================================================================== */
+    #screen-library { background: var(--bg); }
+    .lib-header {
+      padding: 24px 44px; display: flex; align-items: center; justify-content: space-between;
+      gap: 20px; flex-shrink: 0; border-bottom: 1px solid var(--border); background: var(--bg-soft);
+    }
+    .lib-header .brand { display: flex; align-items: center; gap: 14px; }
+    .lib-header .logo-img { width: 36px; height: 36px; border-radius: 8px; }
+    .lib-header h1 { font-family: 'Outfit', sans-serif; font-size: var(--fs-xl); font-weight: 800; color: var(--ink); }
+    .lib-header .sub { color: var(--ink-soft); font-size: var(--fs-xs); }
+    .lib-actions { display: flex; align-items: center; gap: 12px; }
+
+    .user-pill {
+      display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px;
+      border-radius: var(--r-pill); background: var(--surface-2); border: 1px solid var(--border);
+    }
+    .user-pill .avatar {
+      width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff;
+      display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;
+    }
+    .user-pill .uname { font-size: var(--fs-xs); font-weight: 700; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .lib-body { flex: 1; overflow-y: auto; padding: 32px 44px 60px; }
+    .site-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; max-width: 1400px; }
+    
+    .site-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+      overflow: hidden; cursor: pointer; transition: all var(--dur) var(--ease);
+      display: flex; flex-direction: column; box-shadow: var(--shadow-sm); position: relative;
+    }
+    .site-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+    .site-thumb { height: 160px; background: var(--surface-2); position: relative; overflow: hidden; }
+    .site-thumb canvas { width: 100%; height: 100%; display: block; }
+    
+    .site-card-del-btn {
+      position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border-radius: 50%;
+      background: rgba(255, 255, 255, 0.9); border: 1px solid var(--border); color: var(--danger);
+      display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer;
+      opacity: 0; transition: opacity var(--dur) var(--ease); box-shadow: var(--shadow-sm); z-index: 10;
+    }
+    .site-card:hover .site-card-del-btn { opacity: 1; }
+    .site-card-del-btn:hover { background: var(--danger-bg); border-color: #fca5a5; transform: scale(1.08); }
+
+    .site-card .meta { padding: 16px 20px; }
+    .site-card .meta h3 { font-family: 'Outfit', sans-serif; font-size: var(--fs-md); font-weight: 700; margin-bottom: 4px; color: var(--ink); }
+    .site-card .meta .dims { font-family: 'JetBrains Mono', monospace; color: var(--ink-soft); font-size: var(--fs-xs); }
+    .site-card .meta .tags { display: flex; gap: 6px; margin-top: 10px; }
+
+    .new-card {
+      border: 2px dashed var(--border-strong); border-radius: var(--r-lg); min-height: 250px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+      cursor: pointer; color: var(--ink-soft); transition: all var(--dur) var(--ease); background: var(--bg-soft);
+    }
+    .new-card:hover { border-color: var(--accent); color: var(--ink); background: var(--surface); box-shadow: var(--shadow-sm); }
+    .new-card .plus-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; }
+
+    /* =====================================================================
+       FLOW WIZARD WRAPPER (Steps 1 to 5)
+    ===================================================================== */
+    .flow-top {
+      display: flex; align-items: center; gap: 14px; padding: 16px 36px;
+      border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--bg-soft);
+    }
+    .flow-top h2 { font-family: 'Outfit', sans-serif; font-size: var(--fs-lg); font-weight: 800; }
+    .flow-step-counter { margin-left: auto; color: var(--ink-faint); font-size: var(--fs-xs); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+
+    .flow-body { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+    .flow-rail { width: 280px; flex-shrink: 0; padding: 32px 20px; border-right: 1px solid var(--border); overflow-y: auto; background: var(--bg-soft); }
+    
+    .rail-step { display: flex; align-items: flex-start; gap: 12px; padding: 10px 8px; border-radius: var(--r-md); transition: all var(--dur) var(--ease); }
+    .rail-step .dot {
+      width: 26px; height: 26px; border-radius: 50%; background: var(--surface-2); color: var(--ink-faint);
+      display: flex; align-items: center; justify-content: center; font-size: var(--fs-xs); font-weight: 800; flex-shrink: 0; font-family: 'JetBrains Mono', monospace;
+    }
+    .rail-step .txt .t { font-size: var(--fs-sm); font-weight: 700; color: var(--ink-faint); }
+    .rail-step .txt .d { font-size: 11px; color: var(--ink-faint); margin-top: 1px; }
+    .rail-step.active .dot { background: var(--accent); color: #fff; }
+    .rail-step.active .txt .t { color: var(--ink); }
+    .rail-step.done .dot { background: var(--success); color: #fff; }
+    .rail-step.done .dot::after { content: "✓"; }
+    .rail-line { width: 2px; height: 14px; background: var(--border-strong); margin-left: 20px; }
+
+    .flow-content-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+    .flow-main { flex: 1; overflow-y: auto; display: flex; justify-content: center; padding: 36px 36px 48px; }
+    .flow-card { width: 100%; max-width: 780px; }
+    .flow-card h2 { font-family: 'Outfit', sans-serif; font-size: var(--fs-2xl); font-weight: 800; letter-spacing: -.02em; margin-bottom: 6px; }
+    .flow-card .hint { color: var(--ink-soft); font-size: var(--fs-sm); margin-bottom: 24px; line-height: 1.6; }
+
+    .flow-footer {
+      flex-shrink: 0; background: var(--bg-soft); border-top: 1px solid var(--border);
+      padding: 14px 36px; display: flex; justify-content: space-between; align-items: center; z-index: 10;
+    }
+
+    /* STEP 1: 2-Option Input Cards */
+    .input-choice-card {
+      background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--r-lg);
+      padding: 22px 24px; margin-bottom: 18px; box-shadow: var(--shadow-sm); transition: all var(--dur) var(--ease);
+      position: relative;
+    }
+    .input-choice-card:hover { border-color: var(--ink-faint); box-shadow: var(--shadow-md); }
+    .input-choice-card.selected { border-color: var(--accent); background: var(--bg-soft); }
+    .input-choice-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .input-choice-title { font-family: 'Outfit', sans-serif; font-size: var(--fs-md); font-weight: 800; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+    .input-choice-desc { color: var(--ink-soft); font-size: var(--fs-xs); margin-bottom: 16px; line-height: 1.5; }
+
+    .dropzone {
+      border: 2px dashed var(--border-strong); border-radius: var(--r-md); padding: 24px 20px;
+      text-align: center; background: var(--surface); cursor: pointer; transition: all var(--dur) var(--ease);
+      display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 14px;
+    }
+    .dropzone:hover, .dropzone.dragover { border-color: var(--accent); background: var(--surface-2); }
+    .dropzone .icon-circle { width: 44px; height: 44px; border-radius: 50%; background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .format-pills { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 4px; }
+
+    .guidance-box {
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md);
+      padding: 12px 14px; margin-bottom: 14px;
+    }
+    .guidance-box h4 { font-family: 'Outfit', sans-serif; font-size: var(--fs-xs); font-weight: 800; margin-bottom: 6px; }
+    .guidance-links { display: flex; gap: 12px; }
+    .guidance-link { font-size: var(--fs-xs); font-weight: 700; color: var(--focus); text-decoration: none; cursor: pointer; }
+    .guidance-link:hover { text-decoration: underline; }
+
+    .analysis-preview {
+      background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-md);
+      padding: 14px; margin-top: 12px; box-shadow: var(--shadow-sm);
+    }
+    .analysis-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+
+    /* STEP 2: Smart Clarifying Questions (Conversational) */
+    .chat-bubble {
+      display: flex; gap: 14px; margin-bottom: 18px;
+    }
+    .chat-avatar {
+      width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: #fff;
+      display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; flex-shrink: 0;
+    }
+    .chat-content {
+      flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+      padding: 16px 20px; box-shadow: var(--shadow-sm);
+    }
+    .chat-content p { font-size: var(--fs-sm); margin-bottom: 12px; color: var(--ink); }
+
+    .chip-selector { display: flex; flex-wrap: wrap; gap: 8px; }
+    .smart-chip {
+      padding: 8px 14px; border-radius: var(--r-pill); background: var(--surface-2); border: 1.5px solid var(--border);
+      font-size: var(--fs-xs); font-weight: 700; cursor: pointer; transition: all var(--dur) var(--ease);
+    }
+    .smart-chip:hover { border-color: var(--ink); background: var(--bg-soft); }
+    .smart-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* STEP 3: Area Synthesis Visualization */
+    .zoning-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px; }
+    .zoning-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+      padding: 12px 14px; display: flex; align-items: center; gap: 10px;
+    }
+    .zoning-color { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+    .zoning-info strong { display: block; font-size: var(--fs-xs); }
+    .zoning-info span { display: block; font-size: 11px; color: var(--ink-faint); }
+
+    /* STEP 4 & 5: Multi-Candidate & Expert Scoring */
+    .candidate-switcher { display: flex; gap: 10px; margin-bottom: 20px; }
+    .cand-btn {
+      flex: 1; padding: 12px 16px; background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--r-md); text-align: left; cursor: pointer; transition: all var(--dur) var(--ease);
+    }
+    .cand-btn:hover { border-color: var(--ink); }
+    .cand-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .cand-btn.active strong, .cand-btn.active span { color: #fff; }
+    .cand-btn strong { display: block; font-size: var(--fs-sm); }
+    .cand-btn span { display: block; font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
+
+    .cand-preview-box {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+      padding: 16px; text-align: center; margin-bottom: 20px; box-shadow: var(--shadow-sm); overflow-x: auto;
+    }
+    .cand-preview-box canvas { display: inline-block; border-radius: var(--r-md); }
+
+    .expert-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+    .expert-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+      padding: 14px; box-shadow: var(--shadow-sm);
+    }
+    .expert-card .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .expert-card h4 { font-family: 'Outfit', sans-serif; font-size: var(--fs-xs); font-weight: 800; text-transform: uppercase; color: var(--ink-faint); }
+    .expert-card .score { font-family: 'JetBrains Mono', monospace; font-size: var(--fs-lg); font-weight: 800; color: var(--ink); }
+    .expert-card p { font-size: 11px; color: var(--ink-soft); line-height: 1.5; }
+
+    /* Trade-off Matrix */
+    .tradeoff-box {
+      background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--r-lg);
+      padding: 18px; margin-bottom: 20px;
+    }
+    .tradeoff-box h3 { font-family: 'Outfit', sans-serif; font-size: var(--fs-md); font-weight: 800; margin-bottom: 10px; }
+    .tradeoff-item { display: flex; align-items: flex-start; gap: 10px; font-size: var(--fs-xs); margin-bottom: 8px; }
+
+    /* =====================================================================
+       SCREEN: WORKBENCH ON STEROIDS (EDITOR)
+    ===================================================================== */
+    #screen-editor { background: var(--bg); }
+    
+    header.ed-nav {
+      display: flex; align-items: center; gap: 12px; padding: 8px 18px;
+      background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .ed-title input {
+      background: transparent; border: none; border-bottom: 1px dashed transparent;
+      color: var(--ink); font-family: 'Outfit', sans-serif; font-weight: 800; font-size: var(--fs-md);
+      outline: none; padding: 2px 4px; width: 260px;
+    }
+    .ed-title input:focus { border-bottom-color: var(--ink-faint); }
+
+    /* Tabs */
+    #ed-tabs {
+      display: flex; align-items: center; gap: 6px; padding: 6px 14px;
+      background: var(--bg-soft); border-bottom: 1px solid var(--border); flex-shrink: 0; overflow-x: auto;
+    }
+    .tab {
+      display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: var(--r-md);
+      background: var(--surface); border: 1px solid var(--border); color: var(--ink-soft);
+      font-size: var(--fs-xs); font-weight: 700; cursor: pointer; user-select: none; white-space: nowrap;
+    }
+    .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .tab-close { opacity: .5; font-size: 10px; }
+    .tab-close:hover { opacity: 1; color: var(--danger); }
+
+    .ed-main { flex: 1; display: flex; min-height: 0; }
+
+    /* Palette Sidebar */
+    aside.ed-palette {
+      width: 260px; background: var(--surface); border-right: 1px solid var(--border);
+      padding: 14px 12px; overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px;
+    }
+    .pal-group h4 {
+      font-size: var(--fs-2xs); font-weight: 800; text-transform: uppercase; letter-spacing: .08em;
+      color: var(--ink-faint); margin-bottom: 6px; padding-left: 4px;
+    }
+    .pal-items { display: flex; flex-direction: column; gap: 2px; }
+
+    .tool {
+      display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--r-md);
+      cursor: pointer; border: 1.5px solid transparent; user-select: none; transition: all var(--dur) var(--ease);
+    }
+    .tool:hover { background: var(--bg-soft); }
+    .tool.active { background: var(--surface-2); border-color: var(--accent); }
+    .swatch {
+      width: 22px; height: 22px; border-radius: 4px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: #fff;
+    }
+    .tool .name { flex: 1; font-size: var(--fs-xs); font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tool .cnt { color: var(--ink-faint); font-size: 11px; font-family: 'JetBrains Mono', monospace; min-width: 18px; text-align: right; }
+    .tool .key { color: var(--ink-faint); font-size: 10px; font-family: 'JetBrains Mono', monospace; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 4px; }
+
+    /* Canvas Board Container */
+    #boardwrap {
+      flex: 1; overflow: auto; position: relative;
+      background:
+        radial-gradient(ellipse 900px 560px at 50% 50%, #FDFCF9 0%, var(--bg) 68%),
+        radial-gradient(circle, rgba(30,27,20,.08) 1px, transparent 1px);
+      background-size: auto, 24px 24px;
+    }
+    #board { padding: 36px; display: inline-block; position: relative; }
+    canvas#grid {
+      display: block; border-radius: var(--r-md);
+      box-shadow: var(--shadow-lg); cursor: crosshair; background: #fff;
+    }
+
+    /* Context Popover */
+    #bin-pop {
+      position: absolute; display: none; z-index: 50; transform: translate(-50%, -100%);
+      background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-md);
+      box-shadow: var(--shadow-lg); padding: 6px 8px; white-space: nowrap;
+    }
+    #bin-pop.on { display: flex; align-items: center; gap: 6px; }
+    #bin-pop::after {
+      content: ""; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%);
+      border: 6px solid transparent; border-top-color: var(--border-strong); border-bottom: none;
+    }
+    #bin-pop .bp-name { color: var(--ink); font-size: var(--fs-xs); font-weight: 800; padding: 0 4px; }
+    #bin-pop button {
+      border: none; border-radius: var(--r-sm); cursor: pointer; font-size: var(--fs-xs); font-weight: 700;
+      padding: 5px 8px; display: inline-flex; align-items: center; gap: 4px;
+    }
+    #bin-rot { background: #e0e7ff; color: #3730a3; }
+    #bin-del { background: var(--danger-bg); color: var(--danger); }
+    #bin-keep { background: var(--surface-2); color: var(--ink-soft); }
+
+    /* Right AI Assistant Drawer */
+    aside.ed-assistant {
+      width: 310px; background: var(--surface); border-left: 1px solid var(--border);
+      padding: 16px; overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px;
+    }
+    .asst-card {
+      background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--r-lg);
+      padding: 14px; box-shadow: var(--shadow-sm);
+    }
+    .asst-card h4 { font-family: 'Outfit', sans-serif; font-size: var(--fs-sm); font-weight: 800; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+    .asst-checklist { display: flex; flex-direction: column; gap: 8px; }
+    .asst-item {
+      display: flex; align-items: center; gap: 10px; font-size: var(--fs-xs); font-weight: 600;
+      padding: 6px 8px; border-radius: var(--r-sm); background: var(--surface); border: 1px solid var(--border);
+    }
+    .asst-item.done { color: var(--success); border-color: #d1e7b7; background: var(--success-bg); }
+
+    /* Status Footer */
+    footer.ed-footer {
+      display: flex; align-items: center; gap: 16px; padding: 7px 18px;
+      background: var(--surface); border-top: 1px solid var(--border); color: var(--ink-soft); font-size: var(--fs-xs); flex-shrink: 0;
+    }
+    .cell-pos { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--ink); min-width: 90px; }
+    .zoom-wrap { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+    .zoom-wrap input[type=range] { accent-color: var(--accent); width: 100px; cursor: pointer; }
+
+    /* =====================================================================
+       SCREEN: EXECUTIVE PRESENTATION SHEET
+    ===================================================================== */
+    #screen-present { background: var(--bg); }
+    .pr-nav {
+      display: flex; align-items: center; justify-content: space-between; padding: 14px 36px;
+      background: var(--bg-soft); border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .pr-body { flex: 1; overflow-y: auto; padding: 36px; display: flex; justify-content: center; }
+    .pr-sheet {
+      width: 1060px; max-width: 95vw; background: #ffffff; color: #1D1B17; border-radius: var(--r-lg);
+      box-shadow: var(--shadow-lg); padding: 36px; border: 2px solid #1D1B17;
+    }
+    .pr-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1D1B17; padding-bottom: 16px; margin-bottom: 24px; }
+    .pr-logo-title { display: flex; align-items: center; gap: 16px; }
+    .pr-logo-title img { width: 44px; height: 44px; }
+    .pr-title h2 { font-family: 'Outfit', sans-serif; font-size: var(--fs-xl); font-weight: 800; color: #1D1B17; }
+    .pr-title p { font-family: 'JetBrains Mono', monospace; font-size: var(--fs-xs); color: var(--ink-soft); margin-top: 2px; }
+
+    .pr-canvas-box {
+      border: 1px solid var(--border-strong); border-radius: var(--r-md); overflow: auto;
+      padding: 16px; background: var(--bg-soft); text-align: center; margin-bottom: 24px;
+    }
+    .pr-canvas-box canvas { display: inline-block; }
+
+    .pr-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+    .pr-stat-card { background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--r-md); padding: 12px 16px; }
+    .pr-stat-card span { display: block; font-size: var(--fs-2xs); font-weight: 800; color: var(--ink-faint); text-transform: uppercase; }
+    .pr-stat-card strong { display: block; font-size: var(--fs-lg); font-family: 'JetBrains Mono', monospace; color: var(--ink); margin-top: 4px; }
+
+    .pr-bom-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: var(--fs-xs); }
+    .pr-bom-table th, .pr-bom-table td { padding: 8px 12px; border: 1px solid var(--border); text-align: left; }
+    .pr-bom-table th { background: var(--surface-2); font-weight: 800; text-transform: uppercase; font-size: var(--fs-2xs); letter-spacing: .05em; }
+
+    .pr-legend { display: flex; flex-wrap: wrap; gap: 10px 18px; padding: 14px; background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--r-md); margin-bottom: 24px; }
+    .pr-legend-item { display: flex; align-items: center; gap: 8px; font-size: var(--fs-xs); font-weight: 700; }
+    .pr-legend-box { width: 14px; height: 14px; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+  <!-- Toast Container -->
+  <div class="toast-wrap" id="toast-wrap"></div>
+
+  <!-- =====================================================================
+     SCREEN 0: LOGIN GATE (Email Identification)
+  ===================================================================== -->
+  <div id="screen-login" class="screen on">
+    <div class="login-card">
+      <img src="assets/logo.png" alt="Blitz" class="login-logo">
+      <h1>Blitz Mother Hub</h1>
+      <p class="sub">Enter your email to load or create your facility layouts.</p>
+
+      <div id="recent-chips-container" style="display:none;">
+        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:var(--ink-faint); letter-spacing:.05em; text-align:left; margin-bottom:8px;">Recent Accounts</div>
+        <div class="login-chips" id="login-chips"></div>
+      </div>
+
+      <form id="login-form" style="margin-top:16px;">
+        <div class="field" style="margin-bottom:14px; text-align:left;">
+          <label class="field-label">Work Email Address</label>
+          <input type="email" id="login-email-input" placeholder="e.g. siva@blitznow.in" required autocomplete="email">
+        </div>
+        <button type="submit" class="btn primary lg full" id="login-submit-btn">Continue to Workspace →</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+     SCREEN 1: SITES & FACILITY LIBRARY
+  ===================================================================== -->
+  <div id="screen-library" class="screen">
+    <div class="lib-header">
+      <div class="brand">
+        <img src="assets/logo.png" alt="Blitz" class="logo-img">
+        <div>
+          <h1>Blitz Mother Hub Planogram</h1>
+          <div class="sub">Network Logistics, Cross-Dock &amp; Automated Sorter Engineering</div>
+        </div>
+      </div>
+      <div class="lib-actions">
+        <div class="user-pill" id="user-display-pill">
+          <div class="avatar" id="user-avatar-initial">S</div>
+          <span class="uname" id="user-email-label">siva@blitznow.in</span>
+        </div>
+        <button class="btn ghost icon" id="lib-signout-btn" title="Sign Out">⎋</button>
+        <button class="btn" id="lib-import-btn">📂 Import JSON</button>
+        <button class="btn primary" id="lib-new-btn">+ New Mother Hub Flow</button>
+      </div>
+    </div>
+
+    <div class="lib-body">
+      <div class="site-grid" id="site-grid">
+        <!-- New site action card -->
+        <div class="new-card" id="lib-card-new">
+          <div class="plus-icon">+</div>
+          <strong>Start AI Layout Generation Flow</strong>
+          <span style="font-size:12px; color:var(--ink-faint);">Upload CAD/PDF/Sketch &amp; AI Multi-Option Synthesis</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+     5-STEP WAREHOUSE LAYOUT GENERATION FLOW SCREEN
+  ===================================================================== -->
+  <div id="screen-flow" class="screen">
+    <div class="flow-top">
+      <button class="btn ghost icon" id="flow-back-btn" title="Back to library">←</button>
+      <h2>Warehouse Layout Generation Flow</h2>
+      <span class="flow-step-counter" id="flow-step-counter">Step 1 of 5</span>
+    </div>
+
+    <div class="flow-body">
+      <!-- Step Navigation Rail -->
+      <div class="flow-rail">
+        <div class="rail-step active" id="rail-step-1">
+          <div class="dot">1</div>
+          <div class="txt">
+            <div class="t">Input Upload &amp; Analysis</div>
+            <div class="d">CAD, PDF, Photo, Sketch</div>
+          </div>
+        </div>
+        <div class="rail-line"></div>
+
+        <div class="rail-step" id="rail-step-2">
+          <div class="dot">2</div>
+          <div class="txt">
+            <div class="t">Smart Clarifying Qs</div>
+            <div class="d">Throughput &amp; fleet mix</div>
+          </div>
+        </div>
+        <div class="rail-line"></div>
+
+        <div class="rail-step" id="rail-step-3">
+          <div class="dot">3</div>
+          <div class="txt">
+            <div class="t">Area-by-Area Synthesis</div>
+            <div class="d">1 Lakh+ layout benchmark</div>
+          </div>
+        </div>
+        <div class="rail-line"></div>
+
+        <div class="rail-step" id="rail-step-4">
+          <div class="dot">4</div>
+          <div class="txt">
+            <div class="t">Multi-Option Scoring</div>
+            <div class="d">6 modular expert engines</div>
+          </div>
+        </div>
+        <div class="rail-line"></div>
+
+        <div class="rail-step" id="rail-step-5">
+          <div class="dot">5</div>
+          <div class="txt">
+            <div class="t">Conversational Results</div>
+            <div class="d">Trade-offs &amp; final picks</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Content & Scrollable Pane -->
+      <div class="flow-content-pane">
+        <div class="flow-main">
+          <div class="flow-card" id="flow-card-content">
+            <!-- Dynamically populated by flow controller -->
+          </div>
+        </div>
+
+        <!-- Flow Footer Actions -->
+        <div class="flow-footer">
+          <div id="fl-footer-dims" style="font-family:'JetBrains Mono', monospace; font-size:12px; font-weight:700; color:var(--ink-soft);">150 × 100 FT · 15,000 sq ft</div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <button class="btn secondary" id="flow-prev-btn">Back</button>
+            <button class="btn" id="flow-skip-btn">Skip to Canvas Studio →</button>
+            <button class="btn primary lg" id="flow-next-btn">Continue →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+     SCREEN: WORKBENCH ON STEROIDS (EDITOR)
+  ===================================================================== -->
+  <div id="screen-editor" class="screen">
+    <header class="ed-nav">
+      <button class="btn ghost icon" id="ed-back-btn" title="Back to sites">←</button>
+      <div class="ed-title">
+        <input id="ed-site-name" value="Blitz Mother Hub — MH-BLR-01">
+      </div>
+      <span class="pill indigo" id="ed-dim-tag">46 × 30</span>
+
+      <div style="flex:1;"></div>
+
+      <button class="btn icon" id="ed-undo-btn" title="Undo (Cmd/Ctrl+Z)">↩</button>
+      <button class="btn icon" id="ed-redo-btn" title="Redo (Cmd/Ctrl+Shift+Z)">↪</button>
+      <button class="btn danger" id="ed-del-site-btn" title="Delete this warehouse layout">🗑 Delete Site</button>
+      <button class="btn" id="ed-ai-gen-btn">✨ AI Auto-Layout</button>
+      <button class="btn primary" id="ed-save-btn">💾 Save</button>
+      <button class="btn" id="ed-export-png-btn">🖼 PNG</button>
+      <button class="btn primary" id="ed-present-btn">Presentation View →</button>
+    </header>
+
+    <!-- Multi-Floor Tabs -->
+    <div id="ed-tabs">
+      <div id="tab-list" style="display:flex; gap:6px;"></div>
+      <button class="btn ghost" id="tab-add-btn" style="font-size:12px; padding:4px 8px;">+ Add Floor</button>
+    </div>
+
+    <div class="ed-main">
+      <!-- LEFT PALETTE -->
+      <aside class="ed-palette">
+        <div class="pal-group">
+          <h4>Linehaul Docks</h4>
+          <div class="pal-items" id="pal-docks"></div>
+        </div>
+
+        <div class="pal-group">
+          <h4>Staging &amp; Trolleys</h4>
+          <div class="pal-items" id="pal-staging"></div>
+        </div>
+
+        <div class="pal-group">
+          <h4>Sortation &amp; Put-Walls</h4>
+          <div class="pal-items" id="pal-sort"></div>
+        </div>
+
+        <div class="pal-group">
+          <h4>Buffer Storage</h4>
+          <div class="pal-items" id="pal-storage"></div>
+        </div>
+
+        <div class="pal-group">
+          <h4>Support &amp; Life Safety</h4>
+          <div class="pal-items" id="pal-admin"></div>
+        </div>
+
+        <div class="pal-group">
+          <h4>Structural</h4>
+          <div class="pal-items" id="pal-struct"></div>
+        </div>
+
+        <div class="pal-group">
+          <h4>Tools</h4>
+          <div class="pal-items" id="pal-tools"></div>
+        </div>
+      </aside>
+
+      <!-- CENTER CANVAS -->
+      <div id="boardwrap">
+        <div id="board">
+          <canvas id="grid"></canvas>
+          <!-- Context Popover -->
+          <div id="bin-pop">
+            <span class="bp-name" id="bin-name">Element</span>
+            <button id="bin-rot" title="Rotate 90°">↻ Rotate</button>
+            <button id="bin-del" title="Delete">🗑 Delete</button>
+            <button id="bin-keep" title="Close">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT AI ASSISTANT & INSPECTOR -->
+      <aside class="ed-assistant">
+        <div class="asst-card">
+          <h4>AI Layout Auditor <span class="pill emerald" id="asst-score-pill">98/100 A+</span></h4>
+          <p style="font-size:11px; color:var(--ink-soft); margin-bottom:10px;">Continuous NFPA / OSHA &amp; Cross-Dock validation</p>
+          <div class="asst-checklist" id="asst-audit-list"></div>
+        </div>
+
+        <div class="asst-card">
+          <h4>WH Manager Flow Checklist</h4>
+          <div class="asst-checklist" id="asst-workflow-list">
+            <div class="asst-item" id="chk-docks"><span>1. Inbound &amp; Outbound Docks</span></div>
+            <div class="asst-item" id="chk-trolley"><span>2. Trolley Staging &amp; Park</span></div>
+            <div class="asst-item" id="chk-conv"><span>3. Sorter Conveyor &amp; DWS</span></div>
+            <div class="asst-item" id="chk-sort"><span>4. Hub Put-Walls &amp; City Bins</span></div>
+            <div class="asst-item" id="chk-sec"><span>5. Security &amp; Medical Pod</span></div>
+            <div class="asst-item" id="chk-racks"><span>6. Buffer Storage Racks</span></div>
+          </div>
+        </div>
+
+        <div class="asst-card">
+          <h4>Shift / Adjust Grid</h4>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="font-size:12px; font-weight:700;">Cols: <b id="ed-cols-val">46</b></span>
+            <div style="display:flex; gap:4px;">
+              <button class="btn icon" id="ed-col-del" style="height:26px; width:26px;">−</button>
+              <button class="btn icon" id="ed-col-add" style="height:26px; width:26px;">+</button>
+            </div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:12px; font-weight:700;">Rows: <b id="ed-rows-val">30</b></span>
+            <div style="display:flex; gap:4px;">
+              <button class="btn icon" id="ed-row-del" style="height:26px; width:26px;">−</button>
+              <button class="btn icon" id="ed-row-add" style="height:26px; width:26px;">+</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Status Footer -->
+    <footer class="ed-footer">
+      <span class="cell-pos" id="ed-cell-pos">–</span>
+      <span id="ed-stat-used">0 cells used</span>
+      <span id="ed-stat-occ">0% occupancy</span>
+      <span id="ed-stat-throughput" style="color:var(--success); font-weight:700;">Est. ~45,000 parcels/day</span>
+      <div class="zoom-wrap">
+        <span>Zoom</span>
+        <input type="range" id="ed-zoom" min="14" max="52" value="28">
+      </div>
+    </footer>
+  </div>
+
+  <!-- =====================================================================
+     SCREEN: EXECUTIVE PRESENTATION SHEET
+  ===================================================================== -->
+  <div id="screen-present" class="screen">
+    <div class="pr-nav">
+      <button class="btn ghost icon" id="pr-back-btn">←</button>
+      <div style="font-family:'Outfit', sans-serif; font-weight:800; font-size:18px;">Executive Architectural Deliverable</div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn" id="pr-print-btn">🖨 Print / PDF</button>
+        <button class="btn primary" id="pr-png-btn">🖼 Download High-Res PNG</button>
+      </div>
+    </div>
+
+    <div class="pr-body">
+      <div class="pr-sheet">
+        <div class="pr-header">
+          <div class="pr-logo-title">
+            <img src="assets/logo.png" alt="Blitz">
+            <div class="pr-title">
+              <h2 id="pr-site-title">Blitz Mother Hub — MH-BLR-01</h2>
+              <p id="pr-meta-line">Cross-Dock, Trolley Decanting &amp; Automated Sortation Matrix · Scale 1:100</p>
+            </div>
+          </div>
+          <span class="pill emerald" style="font-size:12px; padding:6px 14px;">✓ Engineering Certified</span>
+        </div>
+
+        <div class="pr-stats-grid">
+          <div class="pr-stat-card">
+            <span>Gross Floor Area</span>
+            <strong id="pr-stat-area">15,000 sq ft (~1,394 m²)</strong>
+          </div>
+          <div class="pr-stat-card">
+            <span>Linehaul Docks</span>
+            <strong id="pr-stat-docks">8 Bays (4 In / 4 Out)</strong>
+          </div>
+          <div class="pr-stat-card">
+            <span>Segregation Stream</span>
+            <strong id="pr-stat-seg">Put-Walls + City Gaylords</strong>
+          </div>
+          <div class="pr-stat-card">
+            <span>Sorter Capacity</span>
+            <strong id="pr-stat-thru" style="color:var(--success);">~60,000 parcels/day</strong>
+          </div>
+        </div>
+
+        <div class="pr-canvas-box">
+          <canvas id="pr-canvas"></canvas>
+        </div>
+
+        <!-- BOM Table -->
+        <h3 style="font-family:'Outfit', sans-serif; font-size:16px; margin-bottom:10px;">Material Handling &amp; Equipment Schedule (BOM)</h3>
+        <table class="pr-bom-table" id="pr-bom-tbody"></table>
+
+        <!-- Legend -->
+        <div class="pr-legend" id="pr-legend-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="file-input-upload" accept=".dwg,.dxf,.pdf,.png,.jpg,.jpeg,.mp4" style="display:none">
+  <input type="file" id="file-input-json" accept=".json,application/json" style="display:none">
+
+  <!-- =====================================================================
+     APPLICATION SCRIPT (Modular Flow Architecture)
+  ===================================================================== -->
+  <script type="module">
+    import { ELEMENTS, ERASER, ELEMENTS_BY_ID } from './js/config/elements.js';
+    import { VisionAnalyzer } from './js/engine/vision_analyzer.js';
+    import { MultiGenerator } from './js/engine/multi_generator.js';
+    import { ExpertScorer } from './js/engine/expert_scorer.js';
+    import { LayoutGenerator } from './js/engine/generator.js';
+
+    const $ = s => document.querySelector(s);
+    const toast = msg => {
+      const wrap = $("#toast-wrap");
+      const t = document.createElement("div");
+      t.className = "toast"; t.textContent = msg;
+      wrap.appendChild(t);
+      requestAnimationFrame(() => t.classList.add("on"));
+      setTimeout(() => { t.classList.remove("on"); setTimeout(() => t.remove(), 250); }, 2200);
+    };
+
+    /* ================= State ================= */
+    let currentUser = null;
+    let userSites = [];
+    let currentSite = null;
+
+    // 5-Step Flow State
+    let flowStep = 1;
+    let flowState = {
+      uploadedFile: null,
+      visionAnalysis: null,
+      siteName: "Blitz Mother Hub — Bengaluru South",
+      lengthFt: 150,
+      widthFt: 100,
+      targetThroughput: 60000,
+      fleetMix: "40ft Linehauls (70%) + Small Feeder (30%)",
+      segregationSplit: "Intra-City Last Mile Hubs (65%) + Inter-City Gaylords (35%)",
+      automationTier: "Powered Cross-Dock Conveyor + Put-Walls",
+      candidates: null,
+      candidateEvaluations: {},
+      selectedCandidateKey: "alpha"
+    };
+
+    // Canvas / Workbench State
+    let grids = [], gi = 0;
+    let cols = 46, rows = 30, cells = null, rots = null;
+    let name = "Blitz Mother Hub — MH-BLR-01";
+    let tool = 10;
+    let cellPx = 28;
+    let undoStack = [], redoStack = [];
+    let painting = false, strokeAnchor = null, lastCell = null, strokeErase = false;
+    let pendingCell = null, strokeStarted = false, binCell = null;
+    let hoverCell = null;
+
+    const canvas = $("#grid"), ctx = canvas.getContext("2d");
+
+    function showScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+      const sc = $(`#${screenId}`);
+      if (sc) sc.classList.add('on');
+    }
+
+    /* ================= API Client ================= */
+    async function apiRequest(path, options = {}) {
+      const headers = Object.assign({
+        'Content-Type': 'application/json'
+      }, options.headers || {});
+
+      if (currentUser?.email) {
+        headers['Authorization'] = 'Bearer ' + currentUser.email;
+      }
+
+      const res = await fetch(path, Object.assign({}, options, { headers }));
+      if (!res.ok) {
+        let err = 'Request failed';
+        try { err = (await res.json()).error || err; } catch(e) {}
+        throw new Error(err);
+      }
+      return await res.json();
+    }
+
+    /* ================= AUTHENTICATION & LOGIN GATE ================= */
+    async function initAuth() {
+      try {
+        const recents = await apiRequest('/api/auth/recent-users');
+        if (recents && recents.length) {
+          const c = $("#login-chips");
+          c.innerHTML = recents.map(r => `
+            <div class="login-chip" data-email="${r.email}">
+              <div class="avatar">${r.email.charAt(0).toUpperCase()}</div>
+              <div class="email-txt">${r.email}</div>
+            </div>
+          `).join('');
+          $("#recent-chips-container").style.display = 'block';
+
+          c.querySelectorAll('.login-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+              $("#login-email-input").value = chip.dataset.email;
+              performLogin(chip.dataset.email);
+            });
+          });
+        }
+      } catch (e) {}
+
+      const savedEmail = localStorage.getItem('blitz_user_email');
+      if (savedEmail) {
+        performLogin(savedEmail);
+      } else {
+        showScreen('screen-login');
+      }
+    }
+
+    $("#login-form").addEventListener("submit", async ev => {
+      ev.preventDefault();
+      const email = $("#login-email-input").value.trim();
+      if (!email) return;
+      await performLogin(email);
+    });
+
+    async function performLogin(email) {
+      try {
+        const res = await apiRequest('/api/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email })
+        });
+
+        currentUser = res.user;
+        localStorage.setItem('blitz_user_email', currentUser.email);
+
+        $("#user-email-label").textContent = currentUser.email;
+        $("#user-avatar-initial").textContent = currentUser.email.charAt(0).toUpperCase();
+
+        toast(`👋 Welcome, ${currentUser.name || currentUser.email}!`);
+        await loadUserSites();
+      } catch (e) {
+        toast(`Error logging in: ${e.message}`);
+      }
+    }
+
+    $("#lib-signout-btn").addEventListener("click", () => {
+      localStorage.removeItem('blitz_user_email');
+      currentUser = null;
+      userSites = [];
+      showScreen('screen-login');
+      toast("Signed out");
+    });
+
+    /* ================= LIBRARY SCREEN ================= */
+    async function loadUserSites() {
+      try {
+        userSites = await apiRequest('/api/sites');
+        renderLibrary();
+        showScreen('screen-library');
+      } catch (e) {
+        toast(`Error loading layouts: ${e.message}`);
+      }
+    }
+
+    function renderLibrary() {
+      const grid = $("#site-grid");
+      grid.querySelectorAll('.site-card').forEach(c => c.remove());
+
+      userSites.forEach(site => {
+        const card = document.createElement("div");
+        card.className = "site-card";
+        const sqFt = Math.round((site.lengthFt || site.cols * 3.28) * (site.widthFt || site.rows * 3.28));
+        
+        card.innerHTML = `
+          <button class="site-card-del-btn" title="Delete layout" data-id="${site.id}">🗑</button>
+          <div class="site-thumb"><canvas id="thumb-${site.id}"></canvas></div>
+          <div class="meta">
+            <h3>${site.name}</h3>
+            <div class="dims">${site.lengthFt || 150} ft × ${site.widthFt || 100} ft (${sqFt.toLocaleString()} sq ft) · ${site.cols}×${site.rows} grid</div>
+            <div class="tags">
+              <span class="pill emerald">🏭 Active Hub</span>
+              <span class="pill indigo">${site.inboundDocks || 4} In / ${site.outboundDocks || 4} Out</span>
+            </div>
+          </div>
+        `;
+
+        card.addEventListener("click", ev => {
+          if (ev.target.closest('.site-card-del-btn')) return;
+          openSite(site);
+        });
+
+        card.querySelector('.site-card-del-btn').addEventListener('click', async ev => {
+          ev.stopPropagation();
+          if (!confirm(`Permanently delete "${site.name}"? This cannot be undone.`)) return;
+          await deleteSite(site.id);
+        });
+
+        grid.insertBefore(card, $("#lib-card-new"));
+
+        setTimeout(() => {
+          const tcv = $(`#thumb-${site.id}`);
+          if (tcv) {
+            const tctx = tcv.getContext("2d");
+            tcv.width = 320; tcv.height = 160;
+            tctx.fillStyle = "#ffffff"; tctx.fillRect(0, 0, 320, 160);
+            let sCells = site.cells, sRots = site.rots;
+            if (!sCells) {
+              const synth = LayoutGenerator.generateLayout({ cols: site.cols, rows: site.rows, inboundDocks: site.inboundDocks, outboundDocks: site.outboundDocks });
+              sCells = synth.cells; sRots = synth.rots;
+            }
+            drawBoardGeneric(tctx, sCells, sRots, site.cols, site.rows, 5, 10, true);
+          }
+        }, 50);
+      });
+    }
+
+    async function deleteSite(siteId) {
+      try {
+        await apiRequest(`/api/sites/${siteId}`, { method: 'DELETE' });
+        toast("🗑 Layout deleted from database");
+        await loadUserSites();
+      } catch (e) {
+        toast(`Error deleting layout: ${e.message}`);
+      }
+    }
+
+    $("#lib-card-new")?.addEventListener("click", () => start5StepFlow());
+    $("#lib-new-btn")?.addEventListener("click", () => start5StepFlow());
+
+    /* =====================================================================
+       5-STEP AI WAREHOUSE LAYOUT GENERATION FLOW CONTROLLER
+    ===================================================================== */
+    function start5StepFlow() {
+      flowStep = 1;
+      showScreen('screen-flow');
+      renderFlowStep();
+    }
+
+    function renderFlowStep() {
+      $("#flow-step-counter").textContent = `Step ${flowStep} of 5`;
+      document.querySelectorAll('.flow-rail .rail-step').forEach((s, idx) => {
+        s.classList.toggle('active', idx + 1 === flowStep);
+        s.classList.toggle('done', idx + 1 < flowStep);
+      });
+
+      const card = $("#flow-card-content");
+
+      // STEP 1: Input Upload & Analysis
+      if (flowStep === 1) {
+        const sqFt = flowState.lengthFt * flowState.widthFt;
+        card.innerHTML = `
+          <h2>Step 1: Input Upload &amp; Multi-Modal Analysis</h2>
+          <p class="hint">Choose how you would like to provide your warehouse site inputs:</p>
+
+          <!-- OPTION 1: UPLOAD EXISTING PLAN -->
+          <div class="input-choice-card" id="choice-upload-card">
+            <div class="input-choice-head">
+              <div class="input-choice-title">
+                <span>📷</span>
+                <span>Have a photo, sketch, or PDF blueprint of an existing plan?</span>
+              </div>
+              <span class="pill indigo">AI Vision Extraction</span>
+            </div>
+            <p class="input-choice-desc">Upload CAD (.dwg/.dxf), architectural PDF, site photos, videos, or rough hand-drawn sketches. Gemini AI extracts boundaries, column grids, and doors automatically.</p>
+
+            <div class="guidance-box">
+              <h4>💡 On-Screen Guidance &amp; Templates</h4>
+              <div class="guidance-links">
+                <span class="guidance-link" id="sample-sketch-link">📄 Sample Annotated Sketch</span>
+                <span class="guidance-link" id="sample-cad-link">📐 Sample CAD Blueprint (.dwg)</span>
+              </div>
+            </div>
+
+            <div class="dropzone" id="flow-dropzone">
+              <div class="icon-circle">📤</div>
+              <strong>Drag &amp; Drop Floor Plan or Click to Browse</strong>
+              <span style="font-size:12px; color:var(--ink-faint);">AutoCAD .dwg, .dxf · PDF · PNG, JPG Sketches · MP4 Site Video</span>
+              <div class="format-pills">
+                <span class="pill">AutoCAD .dwg</span>
+                <span class="pill">Architectural PDF</span>
+                <span class="pill">Hand Sketch</span>
+                <span class="pill">Site Photos</span>
+              </div>
+            </div>
+
+            <div id="fl-analysis-box" class="analysis-preview" style="${flowState.visionAnalysis ? 'display:block;' : 'display:none;'}">
+              <div class="analysis-header">
+                <span class="pill emerald">✓ AI Multi-Modal Analysis Complete</span>
+                <span style="font-size:12px; font-family:'JetBrains Mono'; font-weight:700;">Confidence: 98.4%</span>
+              </div>
+              <div style="font-size:12px; color:var(--ink-soft); line-height:1.6;" id="fl-analysis-txt">
+                ${flowState.visionAnalysis ? flowState.visionAnalysis.summaryInsight : ''}
+              </div>
+            </div>
+          </div>
+
+          <!-- OPTION 2: BUILD ON CANVAS DIRECTLY -->
+          <div class="input-choice-card" id="choice-canvas-card">
+            <div class="input-choice-head">
+              <div class="input-choice-title">
+                <span>📐</span>
+                <span>Build the layout on the Canvas</span>
+              </div>
+              <span class="pill emerald">Interactive Studio</span>
+            </div>
+            <p class="input-choice-desc">Specify your warehouse site name and ground dimensions in feet, or choose a quick archetype preset.</p>
+
+            <div class="field" style="margin-bottom:14px;">
+              <label class="field-label">Facility / Site Name</label>
+              <input type="text" id="fl-name" value="${flowState.siteName}">
+            </div>
+
+            <div style="display:flex; gap:16px; margin-bottom:14px;">
+              <div class="field unit-suffix" style="flex:1;">
+                <label class="field-label">Length (in Feet)</label>
+                <input type="number" id="fl-len" min="40" max="600" step="5" value="${flowState.lengthFt}">
+                <span>FT</span>
+              </div>
+              <div class="field unit-suffix" style="flex:1;">
+                <label class="field-label">Width (in Feet)</label>
+                <input type="number" id="fl-wid" min="30" max="400" step="5" value="${flowState.widthFt}">
+                <span>FT</span>
+              </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface-2); padding:10px 14px; border-radius:var(--r-md); margin-bottom:14px;">
+              <span style="font-size:12px; font-weight:700;">Gross Floor Area:</span>
+              <span style="font-family:'JetBrains Mono'; font-weight:800; font-size:13px;" id="fl-sqft-live">${(flowState.lengthFt * flowState.widthFt).toLocaleString()} sq ft (~${Math.round(flowState.lengthFt * flowState.widthFt * 0.092903)} m²)</span>
+            </div>
+
+            <div class="size-presets">
+              <div class="lbl" style="font-size:11px; text-transform:uppercase; font-weight:800; color:var(--ink-faint); margin-bottom:8px;">Quick Archetype Presets</div>
+              <div class="preset-chips">
+                <div class="preset-chip" data-l="120" data-w="80"><strong>120 × 80 ft</strong><span>9,600 sq ft (Compact Hub)</span></div>
+                <div class="preset-chip" data-l="150" data-w="100"><strong>150 × 100 ft</strong><span>15,000 sq ft (Standard Hub)</span></div>
+                <div class="preset-chip" data-l="200" data-w="120"><strong>200 × 120 ft</strong><span>24,000 sq ft (Regional Hub)</span></div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        const updateLiveDims = () => {
+          const l = parseFloat($("#fl-len").value) || 150;
+          const w = parseFloat($("#fl-wid").value) || 100;
+          flowState.lengthFt = l; flowState.widthFt = w;
+          const sqft = l * w, sqm = Math.round(sqft * 0.092903);
+          const liveTxt = `${sqft.toLocaleString()} sq ft (~${sqm.toLocaleString()} m²)`;
+          if ($("#fl-sqft-live")) $("#fl-sqft-live").textContent = liveTxt;
+          if ($("#fl-footer-dims")) $("#fl-footer-dims").textContent = `${l} × ${w} FT · ${sqft.toLocaleString()} sq ft`;
+        };
+        updateLiveDims();
+
+        $("#fl-name").addEventListener("input", e => flowState.siteName = e.target.value);
+        $("#fl-len").addEventListener("input", updateLiveDims);
+        $("#fl-wid").addEventListener("input", updateLiveDims);
+
+        card.querySelectorAll(".preset-chip").forEach(p => {
+          p.addEventListener("click", () => {
+            $("#fl-len").value = p.dataset.l;
+            $("#fl-wid").value = p.dataset.w;
+            updateLiveDims();
+          });
+        });
+
+        const dropzone = $("#flow-dropzone");
+        dropzone.addEventListener("click", () => $("#file-input-upload").click());
+
+        $("#sample-sketch-link").addEventListener("click", () => {
+          $("#fl-len").value = 140; $("#fl-wid").value = 90;
+          flowState.lengthFt = 140; flowState.widthFt = 90;
+          updateLiveDims();
+          triggerVisionAnalysis({ name: "hand_drawn_site_sketch.png", type: "image/png" });
+        });
+
+        $("#sample-cad-link").addEventListener("click", () => {
+          $("#fl-len").value = 180; $("#fl-wid").value = 110;
+          flowState.lengthFt = 180; flowState.widthFt = 110;
+          updateLiveDims();
+          triggerVisionAnalysis({ name: "mother_hub_structural.dwg", type: "application/acad" });
+        });
+
+      // STEP 2: Smart Clarifying Questions
+      } else if (flowStep === 2) {
+        card.innerHTML = `
+          <h2>Step 2: Smart Clarifying Questions</h2>
+          <p class="hint">Targeted operational parameters to accurately size your cross-dock and sortation equipment.</p>
+
+          <div class="chat-bubble">
+            <div class="chat-avatar">AI</div>
+            <div class="chat-content">
+              <p><strong>Target Daily Parcel Throughput</strong>: What peak volume will this Mother Hub process?</p>
+              <div class="chip-selector" id="q-thru-chips">
+                <div class="smart-chip ${flowState.targetThroughput === 30000 ? 'active' : ''}" data-v="30000">30,000 parcels/day (Compact)</div>
+                <div class="smart-chip ${flowState.targetThroughput === 60000 ? 'active' : ''}" data-v="60000">60,000 parcels/day (Standard)</div>
+                <div class="smart-chip ${flowState.targetThroughput === 100000 ? 'active' : ''}" data-v="100000">100,000+ parcels/day (High Surge)</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-bubble">
+            <div class="chat-avatar">AI</div>
+            <div class="chat-content">
+              <p><strong>Linehaul Fleet Vehicle Mix</strong>: What trucks arrive from client fulfillment centers?</p>
+              <div class="chip-selector" id="q-fleet-chips">
+                <div class="smart-chip active" data-v="40ft Linehauls (70%) + Small Feeder (30%)">32ft/40ft Heavy Containers + Small Feeders</div>
+                <div class="smart-chip" data-v="Dedicated 32ft Linehauls">100% Dedicated 32ft Heavy Linehauls</div>
+                <div class="smart-chip" data-v="Multi-Tier Vans & Medium Trucks">Medium 17ft Trucks &amp; Heavy Vans</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-bubble">
+            <div class="chat-avatar">AI</div>
+            <div class="chat-content">
+              <p><strong>Segregation Destination Split</strong>: Where do packages route after sorting?</p>
+              <div class="chip-selector" id="q-seg-chips">
+                <div class="smart-chip active" data-v="Intra-City Last Mile Hubs (65%) + Inter-City Gaylords (35%)">65% Intra-City Darkstores / 35% Inter-City National</div>
+                <div class="smart-chip" data-v="85% Intra-City Hyper-Local">85% Local Intra-City Darkstore Bins</div>
+                <div class="smart-chip" data-v="50/50 National Gateway">50% Intra-City / 50% National City Gaylords</div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        setupChipSelector("#q-thru-chips", v => flowState.targetThroughput = parseInt(v));
+        setupChipSelector("#q-fleet-chips", v => flowState.fleetMix = v);
+        setupChipSelector("#q-seg-chips", v => flowState.segregationSplit = v);
+
+      // STEP 3: Accurate Area-by-Area Synthesis
+      } else if (flowStep === 3) {
+        synthesizeCandidateLayouts();
+        const sqFt = flowState.lengthFt * flowState.widthFt;
+        card.innerHTML = `
+          <h2>Step 3: Area-by-Area Layout Synthesis</h2>
+          <p class="hint">Synthesized against a reference benchmark of 1 Lakh+ quick-commerce mother hubs and fulfillment centers.</p>
+
+          <div style="background:var(--surface); border:1px solid var(--border-strong); border-radius:var(--r-lg); padding:20px; box-shadow:var(--shadow-sm); margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <span class="pill emerald">✓ Spatial Benchmark Verified</span>
+              <span style="font-family:'JetBrains Mono'; font-weight:700; font-size:12px;">${flowState.lengthFt} FT × ${flowState.widthFt} FT (${sqFt.toLocaleString()} sq ft)</span>
+            </div>
+
+            <div class="zoning-grid">
+              <div class="zoning-card">
+                <div class="zoning-color" style="background:#2563EB;"></div>
+                <div class="zoning-info"><strong>Inbound Cross-Dock Bays</strong><span>4 Linehaul Doors + 2.4m Trolley Decant Apron</span></div>
+              </div>
+              <div class="zoning-card">
+                <div class="zoning-color" style="background:#EA580C;"></div>
+                <div class="zoning-info"><strong>Outbound Feeder Bays</strong><span>4 Dispatch Doors + Staging Buffer</span></div>
+              </div>
+              <div class="zoning-card">
+                <div class="zoning-color" style="background:#64748B;"></div>
+                <div class="zoning-info"><strong>Powered Sorter Conveyor Backbone</strong><span>Central High-Velocity Spine</span></div>
+              </div>
+              <div class="zoning-card">
+                <div class="zoning-color" style="background:#0891B2;"></div>
+                <div class="zoning-info"><strong>Intra-City Hub Put-Walls</strong><span>4 Matrices for Local Darkstore Area Bins</span></div>
+              </div>
+              <div class="zoning-card">
+                <div class="zoning-color" style="background:#7C3AED;"></div>
+                <div class="zoning-info"><strong>Inter-City Pallet Gaylords</strong><span>6 Heavy Bulk Consolidation Cages (DEL/BOM/HYD)</span></div>
+              </div>
+              <div class="zoning-card">
+                <div class="zoning-color" style="background:#10B981;"></div>
+                <div class="zoning-info"><strong>Life Safety &amp; Support Pods</strong><span>Gatehouse, Medical, UPS &amp; Manager Cabin</span></div>
+              </div>
+            </div>
+          </div>
+        `;
+
+      // STEP 4: Multi-Option Generation with Modular Expert Scoring
+      } else if (flowStep === 4) {
+        synthesizeCandidateLayouts();
+        renderStep4Scoring(card);
+
+      // STEP 5: Conversational Presentation of Results
+      } else if (flowStep === 5) {
+        renderStep5Presentation(card);
+      }
+    }
+
+    function setupChipSelector(containerSelector, onChange) {
+      const container = $(containerSelector);
+      if (!container) return;
+      container.querySelectorAll('.smart-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          container.querySelectorAll('.smart-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          if (onChange) onChange(chip.dataset.v);
+        });
+      });
+    }
+
+    async function triggerVisionAnalysis(file) {
+      toast("🔍 Gemini Vision analyzing layout geometry...");
+      const result = await VisionAnalyzer.analyzeInput(file, { lengthFt: flowState.lengthFt, widthFt: flowState.widthFt });
+      flowState.visionAnalysis = result;
+      flowState.lengthFt = result.extractedDimensions.lengthFt;
+      flowState.widthFt = result.extractedDimensions.widthFt;
+      const b = $("#fl-analysis-box");
+      if (b) {
+        b.style.display = "block";
+        $("#fl-analysis-txt").textContent = result.summaryInsight;
+      }
+      toast("✓ AI extraction complete!");
+    }
+
+    $("#file-input-upload").addEventListener("change", async ev => {
+      const file = ev.target.files[0];
+      if (!file) return;
+      flowState.uploadedFile = file;
+      await triggerVisionAnalysis(file);
+    });
+
+    function synthesizeCandidateLayouts() {
+      const cols = Math.round(flowState.lengthFt / 3.28084);
+      const rows = Math.round(flowState.widthFt / 3.28084);
+
+      if (!flowState.candidates) {
+        flowState.candidates = MultiGenerator.generateCandidates({
+          name: flowState.siteName,
+          cols,
+          rows,
+          inboundDocks: 4,
+          outboundDocks: 4
+        });
+
+        // Evaluate all 3 candidate options with 6 modular experts
+        ['alpha', 'beta', 'gamma'].forEach(k => {
+          flowState.candidateEvaluations[k] = ExpertScorer.evaluateOption(
+            k,
+            flowState.candidates[k],
+            flowState
+          );
+        });
+      }
+    }
+
+    function renderStep4Scoring(card) {
+      const currentCand = flowState.candidates[flowState.selectedCandidateKey];
+      const currentEval = flowState.candidateEvaluations[flowState.selectedCandidateKey];
+
+      card.innerHTML = `
+        <h2>Step 4: Multi-Candidate Modular Expert Scoring</h2>
+        <p class="hint">Each candidate is independently evaluated by 6 dedicated domain expert modules.</p>
+
+        <div class="candidate-switcher">
+          <div class="cand-btn ${flowState.selectedCandidateKey === 'alpha' ? 'active' : ''}" data-cand="alpha">
+            <strong>Option Alpha: High-Velocity</strong>
+            <span>Score: ${flowState.candidateEvaluations.alpha.compositeScore}/100 (${flowState.candidateEvaluations.alpha.compositeGrade})</span>
+          </div>
+          <div class="cand-btn ${flowState.selectedCandidateKey === 'beta' ? 'active' : ''}" data-cand="beta">
+            <strong>Option Beta: High-Density</strong>
+            <span>Score: ${flowState.candidateEvaluations.beta.compositeScore}/100 (${flowState.candidateEvaluations.beta.compositeGrade})</span>
+          </div>
+          <div class="cand-btn ${flowState.selectedCandidateKey === 'gamma' ? 'active' : ''}" data-cand="gamma">
+            <strong>Option Gamma: Turnkey Lean</strong>
+            <span>Score: ${flowState.candidateEvaluations.gamma.compositeScore}/100 (${flowState.candidateEvaluations.gamma.compositeGrade})</span>
+          </div>
+        </div>
+
+        <div class="cand-preview-box">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <strong>${currentCand.title}</strong>
+            <span class="pill indigo">${currentCand.cols} × ${currentCand.rows} Grid</span>
+          </div>
+          <canvas id="step4-canvas"></canvas>
+        </div>
+
+        <div class="expert-grid">
+          <div class="expert-card">
+            <div class="head"><h4>1. Efficiency</h4><span class="score">${currentEval.modules.efficiency.score}</span></div>
+            <p>${currentEval.modules.efficiency.summary}</p>
+          </div>
+          <div class="expert-card">
+            <div class="head"><h4>2. Site Understanding</h4><span class="score">${currentEval.modules.siteUnderstanding.score}</span></div>
+            <p>${currentEval.modules.siteUnderstanding.summary}</p>
+          </div>
+          <div class="expert-card">
+            <div class="head"><h4>3. Compliance &amp; Safety</h4><span class="score">${currentEval.modules.compliance.score}</span></div>
+            <p>${currentEval.modules.compliance.summary}</p>
+          </div>
+          <div class="expert-card">
+            <div class="head"><h4>4. Layout Quality</h4><span class="score">${currentEval.modules.layoutQuality.score}</span></div>
+            <p>${currentEval.modules.layoutQuality.summary}</p>
+          </div>
+          <div class="expert-card">
+            <div class="head"><h4>5. Simulation</h4><span class="score">${currentEval.modules.simulation.score}</span></div>
+            <p>${currentEval.modules.simulation.summary}</p>
+          </div>
+          <div class="expert-card">
+            <div class="head"><h4>6. Costing (CapEx)</h4><span class="score">${currentEval.modules.costing.score}</span></div>
+            <p>${currentEval.modules.costing.totalCapExFormatted} · ${currentEval.modules.costing.paybackPeriodMonths}</p>
+          </div>
+        </div>
+      `;
+
+      card.querySelectorAll('.cand-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          flowState.selectedCandidateKey = btn.dataset.cand;
+          renderStep4Scoring(card);
+        });
+      });
+
+      // Render mini preview canvas
+      setTimeout(() => {
+        const cv = $("#step4-canvas");
+        if (cv) {
+          const cctx = cv.getContext("2d");
+          const px = 14, m = 18;
+          cv.width = currentCand.cols * px + m * 2;
+          cv.height = currentCand.rows * px + m * 2;
+          drawBoardGeneric(cctx, currentCand.cells, currentCand.rots, currentCand.cols, currentCand.rows, px, m, false);
+        }
+      }, 50);
+    }
+
+    function renderStep5Presentation(card) {
+      const alphaEval = flowState.candidateEvaluations.alpha;
+      const betaEval = flowState.candidateEvaluations.beta;
+      const gammaEval = flowState.candidateEvaluations.gamma;
+      const currentCand = flowState.candidates[flowState.selectedCandidateKey];
+
+      card.innerHTML = `
+        <h2>Step 5: Conversational Presentation &amp; Trade-Offs</h2>
+        <p class="hint">The AI Warehouse Architect's final analysis comparing candidate options and operational trade-offs.</p>
+
+        <div class="chat-bubble">
+          <div class="chat-avatar">AI</div>
+          <div class="chat-content">
+            <p style="font-size:15px; font-weight:700; color:var(--ink);">Architect's Recommendation for ${flowState.siteName}:</p>
+            <p style="margin-top:6px;">We have generated 3 code-compliant options evaluated across 6 domain experts. Here is how they compare:</p>
+
+            <div class="tradeoff-box" style="margin-top:14px;">
+              <div class="tradeoff-item">
+                <span class="pill emerald">Option Alpha (Recommended)</span>
+                <div><strong>High-Velocity Cross-Dock Sorter</strong>: Maximizes sorting throughput (64,000 parcels/day) with dual-sided trolley decanting and central powered spine. Best for fast SLA turnaround.</div>
+              </div>
+              <div class="tradeoff-item">
+                <span class="pill indigo">Option Beta</span>
+                <div><strong>High-Density Buffer &amp; Hybrid</strong>: Dedicates 35% more space to vertical pallet racking (380 pallet bays) for buffer holding, but increases travel time by ~8s per trolley.</div>
+              </div>
+              <div class="tradeoff-item">
+                <span class="pill amber">Option Gamma</span>
+                <div><strong>Turnkey Lean &amp; CapEx Optimized</strong>: Lowest initial CapEx (${gammaEval.modules.costing.totalCapExFormatted}) and fastest 7-day setup with modular gravity sortation.</div>
+              </div>
+            </div>
+
+            <p style="font-weight:700; margin-bottom:10px;">Select your final candidate to open in the Canvas Studio or download blueprint:</p>
+            <div class="candidate-switcher">
+              <div class="cand-btn ${flowState.selectedCandidateKey === 'alpha' ? 'active' : ''}" data-cand="alpha">
+                <strong>Option Alpha</strong>
+                <span>64k/day · ₹42L CapEx</span>
+              </div>
+              <div class="cand-btn ${flowState.selectedCandidateKey === 'beta' ? 'active' : ''}" data-cand="beta">
+                <strong>Option Beta</strong>
+                <span>High Pallet Storage</span>
+              </div>
+              <div class="cand-btn ${flowState.selectedCandidateKey === 'gamma' ? 'active' : ''}" data-cand="gamma">
+                <strong>Option Gamma</strong>
+                <span>Lean Setup</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:center; gap:14px; margin-top:24px;">
+          <button class="btn lg" id="fl-present-btn">🖼 View Executive Blueprint Deliverable →</button>
+          <button class="btn primary lg" id="fl-studio-btn">✏️ Open &amp; Customize in Canvas Studio →</button>
+        </div>
+      `;
+
+      card.querySelectorAll('.cand-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          flowState.selectedCandidateKey = btn.dataset.cand;
+          renderStep5Presentation(card);
+        });
+      });
+
+      $("#fl-studio-btn").addEventListener("click", () => finalizeAndOpenStudio());
+      $("#fl-present-btn").addEventListener("click", () => {
+        finalizeAndOpenStudio(false);
+        openPresentation();
+      });
+    }
+
+    $("#flow-next-btn").addEventListener("click", () => {
+      if (flowStep < 5) {
+        flowStep++;
+        renderFlowStep();
+      } else {
+        finalizeAndOpenStudio();
+      }
+    });
+
+    $("#flow-prev-btn").addEventListener("click", () => {
+      if (flowStep > 1) {
+        flowStep--;
+        renderFlowStep();
+      }
+    });
+
+    $("#flow-skip-btn").addEventListener("click", () => finalizeAndOpenStudio());
+    $("#flow-back-btn").addEventListener("click", () => showScreen('screen-library'));
+
+    async function finalizeAndOpenStudio(openEditor = true) {
+      synthesizeCandidateLayouts();
+      const chosen = flowState.candidates[flowState.selectedCandidateKey];
+      const siteId = 'site-' + Date.now();
+
+      const newSite = {
+        id: siteId,
+        userEmail: currentUser.email,
+        name: flowState.siteName,
+        city: "Bengaluru",
+        lengthFt: flowState.lengthFt,
+        widthFt: flowState.widthFt,
+        cols: chosen.cols,
+        rows: chosen.rows,
+        inboundDocks: 4,
+        outboundDocks: 4,
+        cells: chosen.cells,
+        rots: chosen.rots,
+        grids: []
+      };
+
+      try {
+        await apiRequest('/api/sites', {
+          method: 'POST',
+          body: JSON.stringify({
+            id: siteId,
+            name: newSite.name,
+            city: newSite.city,
+            lengthFt: newSite.lengthFt,
+            widthFt: newSite.widthFt,
+            cols: newSite.cols,
+            rows: newSite.rows,
+            inboundDocks: newSite.inboundDocks,
+            outboundDocks: newSite.outboundDocks,
+            cells: Array.from(chosen.cells),
+            rots: Array.from(chosen.rots)
+          })
+        });
+        toast("✨ Layout saved to database!");
+      } catch (e) {
+        console.error(e);
+      }
+
+      openSite(newSite);
+      if (!openEditor) {
+        openPresentation();
+      }
+    }
+
+    /* =====================================================================
+       PLANOGRAM STUDIO WORKBENCH ON STEROIDS (EDITOR)
+    ===================================================================== */
+    function openSite(site) {
+      currentSite = site;
+      cols = site.cols; rows = site.rows;
+      cells = new Uint8Array(site.cells || (cols * rows));
+      rots = new Uint8Array(site.rots || (cols * rows));
+      name = site.name;
+
+      grids = [{ name: "Main Floor", cols, rows, cells, rots, undo: [], redo: [] }];
+      gi = 0;
+
+      $("#ed-site-name").value = name;
+      $("#ed-dim-tag").textContent = `${cols} × ${rows} (${Math.round((site.lengthFt || cols * 3.28) * (site.widthFt || rows * 3.28)).toLocaleString()} sq ft)`;
+      $("#ed-cols-val").textContent = cols;
+      $("#ed-rows-val").textContent = rows;
+
+      showScreen('screen-editor');
+      buildEditorPalette();
+      bindEditorGrid();
+    }
+
+    function buildEditorPalette() {
+      const groups = {
+        'pal-docks': [10, 11],
+        'pal-staging': [13, 14, 15],
+        'pal-sort': [4, 3, 5, 12],
+        'pal-storage': [1],
+        'pal-admin': [20, 21, 22, 23, 24, 25],
+        'pal-struct': [30, 31, 32, 33, 34, 35],
+        'pal-tools': [0]
+      };
+
+      Object.entries(groups).forEach(([gid, ids]) => {
+        const c = $(`#${gid}`);
+        if (!c) return;
+        c.innerHTML = "";
+        ids.forEach(id => {
+          const el = ELEMENTS_BY_ID[id];
+          if (!el) return;
+          const d = document.createElement("div");
+          d.className = "tool" + (tool === el.id ? " active" : "");
+          d.innerHTML = `
+            <span class="swatch" style="background:${el.color}; color:${el.textColor || '#fff'};">${el.glyph || '■'}</span>
+            <span class="name" title="${el.name}">${el.shortName || el.name}</span>
+            <span class="cnt" data-cnt="${el.id}"></span>
+            <span class="key">${el.key}</span>
+          `;
+          d.addEventListener("click", () => {
+            tool = el.id;
+            hideBin();
+            buildEditorPalette();
+          });
+          c.appendChild(d);
+        });
+      });
+      updateEditorStats();
+    }
+
+    function bindEditorGrid() {
+      const g = grids[gi];
+      cols = g.cols; rows = g.rows; cells = g.cells; rots = g.rots;
+      undoStack = g.undo; redoStack = g.redo;
+      renderEditorTabs();
+      sizeCanvas();
+      redraw();
+      updateEditorStats();
+      updateUndoBtns();
+      runAIAuditor();
+    }
+
+    function renderEditorTabs() {
+      const tl = $("#tab-list"); tl.innerHTML = "";
+      grids.forEach((g, i) => {
+        const t = document.createElement("div");
+        t.className = "tab" + (i === gi ? " active" : "");
+        t.innerHTML = `<span>${g.name}</span>${grids.length > 1 ? '<span class="tab-close">✕</span>' : ''}`;
+        t.addEventListener("click", () => { if (i !== gi) { gi = i; hideBin(); bindEditorGrid(); } });
+        tl.appendChild(t);
+      });
+    }
+
+    $("#tab-add-btn")?.addEventListener("click", () => {
+      const c = prompt("Width (cols):", cols); if (!c) return;
+      const r = prompt("Depth (rows):", rows); if (!r) return;
+      grids.push({ name: `Floor ${grids.length + 1}`, cols: +c, rows: +r, cells: new Uint8Array(+c * +r), rots: new Uint8Array(+c * +r), undo: [], redo: [] });
+      gi = grids.length - 1;
+      bindEditorGrid();
+    });
+
+    const M_RULER = 26;
+    function marginPx() { return M_RULER; }
+
+    function sizeCanvas() {
+      const m = marginPx();
+      const dpr = window.devicePixelRatio || 1;
+      const w = cols * cellPx + m + 4, h = rows * cellPx + m + 4;
+      canvas.width = w * dpr; canvas.height = h * dpr;
+      canvas.style.width = w + "px"; canvas.style.height = h + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function colName(i) {
+      let s = ""; i++;
+      while (i > 0) { i--; s = String.fromCharCode(65 + i % 26) + s; i = Math.floor(i / 26); }
+      return s;
+    }
+
+    function drawBoardGeneric(g, cellsArr, rotsArr, cCount, rCount, px, m, forExport) {
+      const W = cCount * px, H = rCount * px;
+      g.fillStyle = "#ffffff";
+      g.fillRect(m, m, W, H);
+
+      for (let r = 0; r < rCount; r++) {
+        for (let c = 0; c < cCount; c++) {
+          const v = cellsArr[r * cCount + c];
+          if (!v) continue;
+          const el = ELEMENTS_BY_ID[v];
+          if (!el) continue;
+
+          const x = m + c * px, y = m + r * px;
+          g.fillStyle = el.color;
+          const pad = Math.max(1, px * 0.06);
+          const sz = px - 2 * pad;
+          roundRect(g, x + pad, y + pad, sz, sz, Math.max(2, px * 0.12));
+          g.fill();
+
+          const rot = rotsArr ? rotsArr[r * cCount + c] || 0 : 0;
+
+          if (v === 34) {
+            g.save(); g.beginPath();
+            roundRect(g, x + pad, y + pad, sz, sz, Math.max(2, px * 0.12)); g.clip();
+            g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = Math.max(1, px * 0.08);
+            for (let i = -px; i < px * 2; i += px / 2.5) {
+              g.beginPath(); g.moveTo(x + i, y + px); g.lineTo(x + i + px, y); g.stroke();
+            }
+            g.restore();
+          } else if (v === 4) {
+            g.save();
+            g.translate(x + px / 2, y + px / 2);
+            g.rotate(rot * Math.PI / 2);
+            g.strokeStyle = "rgba(10,14,20,.75)";
+            g.lineWidth = Math.max(1.5, px * 0.1);
+            g.lineJoin = "round"; g.lineCap = "round";
+            const s = px * 0.16;
+            for (const off of [-s * 1.6, 0, s * 1.6]) {
+              g.beginPath();
+              g.moveTo(off - s * 0.7, -s * 0.9);
+              g.lineTo(off + s * 0.7, 0);
+              g.lineTo(off - s * 0.7, s * 0.9);
+              g.stroke();
+            }
+            g.restore();
+          } else if (v === 30 || v === 31 || v === 32) {
+            g.save();
+            g.translate(x + px / 2, y + px / 2);
+            g.rotate(rot * Math.PI / 2 + (v === 31 ? Math.PI : 0));
+            const s = px * 0.24;
+            g.fillStyle = "#ffffff";
+            g.beginPath(); g.moveTo(s * 1.2, 0); g.lineTo(-s, -s * 0.85); g.lineTo(-s * 0.35, 0); g.lineTo(-s, s * 0.85); g.closePath(); g.fill();
+            g.restore();
+          } else if (px >= 16 && el.glyph) {
+            g.fillStyle = el.textColor || "#ffffff";
+            g.font = `800 ${Math.floor(px * (el.glyph.length > 2 ? 0.30 : 0.40))}px 'JetBrains Mono', sans-serif`;
+            g.textAlign = "center"; g.textBaseline = "middle";
+            g.fillText(el.glyph, x + px / 2, y + px / 2 + px * 0.02);
+          }
+        }
+      }
+
+      g.strokeStyle = "rgba(0,0,0,.08)";
+      g.lineWidth = 1;
+      g.beginPath();
+      for (let c = 0; c <= cCount; c++) { g.moveTo(m + c * px + .5, m); g.lineTo(m + c * px + .5, m + H); }
+      for (let r = 0; r <= rCount; r++) { g.moveTo(m, m + r * px + .5); g.lineTo(m + W, m + r * px + .5); }
+      g.stroke();
+
+      g.strokeStyle = "rgba(0,0,0,.6)";
+      g.lineWidth = 2; g.strokeRect(m, m, W, H);
+
+      if (m >= M_RULER) {
+        g.fillStyle = "#5B564A";
+        g.font = `600 ${Math.max(9, Math.min(11, px * 0.35))}px 'JetBrains Mono', monospace`;
+        g.textAlign = "center"; g.textBaseline = "middle";
+        const step = px < 18 ? 2 : 1;
+        for (let c = 0; c < cCount; c += step) g.fillText(colName(c), m + c * px + px / 2, m / 2 + 2);
+        g.textAlign = "right";
+        for (let r = 0; r < rCount; r += step) g.fillText(r + 1, m - 6, m + r * px + px / 2);
+      }
+    }
+
+    function roundRect(g, x, y, w, h, r) {
+      g.beginPath();
+      g.moveTo(x + r, y);
+      g.arcTo(x + w, y, x + w, y + h, r);
+      g.arcTo(x + w, y + h, x, y + h, r);
+      g.arcTo(x, y + h, x, y, r);
+      g.arcTo(x, y, x + w, y, r);
+      g.closePath();
+    }
+
+    function redraw() {
+      const m = marginPx();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBoardGeneric(ctx, cells, rots, cols, rows, cellPx, m, false);
+
+      if (hoverCell && !painting) {
+        const { c, r } = hoverCell;
+        ctx.strokeStyle = "#17171A"; ctx.lineWidth = 2;
+        ctx.strokeRect(m + c * cellPx + 1, m + r * cellPx + 1, cellPx - 2, cellPx - 2);
+      }
+    }
+
+    function cellFromEvent(ev) {
+      const rect = canvas.getBoundingClientRect(), m = marginPx();
+      const c = Math.floor((ev.clientX - rect.left - m) / cellPx);
+      const r = Math.floor((ev.clientY - rect.top - m) / cellPx);
+      if (c < 0 || r < 0 || c >= cols || r >= rows) return null;
+      return { c, r };
+    }
+
+    function setCell(c, r, v) {
+      const i = r * cols + c;
+      cells[i] = v; rots[i] = 0;
+    }
+
+    function paintLine(a, b, v) {
+      let x0 = a.c, y0 = a.r, x1 = b.c, y1 = b.r;
+      const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+      const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+      let err = dx - dy;
+      while (true) {
+        setCell(x0, y0, v);
+        if (x0 === x1 && y0 === y1) break;
+        const e2 = 2 * err;
+        if (e2 > -dy) { err -= dy; x0 += sx; }
+        if (e2 < dx) { err += dx; y0 += sy; }
+      }
+    }
+
+    function snapshot() {
+      undoStack.push({ c: cells.slice(), r: rots.slice(), cols, rows });
+      if (undoStack.length > 80) undoStack.shift();
+      redoStack.length = 0;
+      updateUndoBtns();
+    }
+
+    function applySnap(s) {
+      cols = s.cols; rows = s.rows;
+      cells = Uint8Array.from(s.c); rots = Uint8Array.from(s.r);
+      const g = grids[gi]; g.cols = cols; g.rows = rows; g.cells = cells; g.rots = rots;
+      $("#ed-cols-val").textContent = cols; $("#ed-rows-val").textContent = rows;
+      sizeCanvas();
+    }
+
+    canvas.addEventListener("contextmenu", e => e.preventDefault());
+
+    canvas.addEventListener("pointerdown", ev => {
+      hideBin();
+      const cell = cellFromEvent(ev);
+      if (!cell) return;
+      try { canvas.setPointerCapture(ev.pointerId); } catch(e) {}
+      painting = true; strokeAnchor = cell; lastCell = cell;
+      strokeErase = (ev.button === 2) || tool === 0;
+
+      if (!strokeErase && cells[cell.r * cols + cell.c] !== 0) {
+        pendingCell = cell; strokeStarted = false;
+        return;
+      }
+      pendingCell = null; strokeStarted = true;
+      snapshot();
+      setCell(cell.c, cell.r, strokeErase ? 0 : tool);
+      redraw(); updateEditorStats();
+    });
+
+    canvas.addEventListener("pointermove", ev => {
+      const cell = cellFromEvent(ev);
+      $("#ed-cell-pos").textContent = cell ? `${colName(cell.c)}${cell.r + 1} (${(cell.c * 1.0).toFixed(1)}m, ${(cell.r * 1.0).toFixed(1)}m)` : "–";
+
+      if (!painting) {
+        if ((cell && (!hoverCell || cell.c !== hoverCell.c || cell.r !== hoverCell.r)) || (!cell && hoverCell)) {
+          hoverCell = cell; redraw();
+        }
+        return;
+      }
+      if (!cell) return;
+      const v = strokeErase ? 0 : tool;
+
+      if (!strokeStarted) {
+        if (cell.c === strokeAnchor.c && cell.r === strokeAnchor.r) return;
+        strokeStarted = true; pendingCell = null;
+        snapshot();
+        setCell(strokeAnchor.c, strokeAnchor.r, v);
+      }
+
+      if (ev.shiftKey && strokeAnchor) {
+        const top = undoStack[undoStack.length - 1];
+        cells.set(top.c); rots.set(top.r);
+        const dc = Math.abs(cell.c - strokeAnchor.c), dr = Math.abs(cell.r - strokeAnchor.r);
+        const end = dc >= dr ? { c: cell.c, r: strokeAnchor.r } : { c: strokeAnchor.c, r: cell.r };
+        paintLine(strokeAnchor, end, v);
+      } else if (lastCell && (cell.c !== lastCell.c || cell.r !== lastCell.r)) {
+        paintLine(lastCell, cell, v);
+      }
+
+      lastCell = cell;
+      redraw(); updateEditorStats();
+    });
+
+    function endStroke() {
+      if (painting && !strokeStarted && pendingCell) showBin(pendingCell);
+      painting = false; strokeAnchor = null; lastCell = null; pendingCell = null; strokeStarted = false;
+      currentSite.cells = cells; currentSite.rots = rots;
+      runAIAuditor();
+    }
+    canvas.addEventListener("pointerup", endStroke);
+    canvas.addEventListener("pointercancel", endStroke);
+    canvas.addEventListener("pointerleave", () => {
+      if (!painting) { hoverCell = null; $("#ed-cell-pos").textContent = "–"; redraw(); }
+    });
+
+    /* Cell Popover */
+    const binPop = $("#bin-pop");
+    function showBin(cell) {
+      const v = cells[cell.r * cols + cell.c];
+      if (!v) return;
+      binCell = cell;
+      const el = ELEMENTS_BY_ID[v];
+      $("#bin-name").textContent = `${el.name} · ${colName(cell.c)}${cell.r + 1}`;
+      $("#bin-rot").style.display = (el.rotatable || v === 4 || v === 30 || v === 31 || v === 32) ? "inline-flex" : "none";
+      const m = marginPx();
+      binPop.style.left = (canvas.offsetLeft + m + cell.c * cellPx + cellPx / 2) + "px";
+      binPop.style.top = (canvas.offsetTop + m + cell.r * cellPx - 8) + "px";
+      binPop.classList.add("on");
+    }
+
+    function hideBin() { binCell = null; binPop.classList.remove("on"); }
+
+    $("#bin-del").addEventListener("click", () => {
+      if (!binCell) return hideBin();
+      snapshot();
+      setCell(binCell.c, binCell.r, 0);
+      hideBin(); redraw(); updateEditorStats(); runAIAuditor();
+    });
+
+    $("#bin-rot").addEventListener("click", () => {
+      if (!binCell) return hideBin();
+      const i = binCell.r * cols + binCell.c;
+      if (!cells[i]) return hideBin();
+      snapshot();
+      rots[i] = (rots[i] + 1) & 3;
+      redraw();
+    });
+    $("#bin-keep").addEventListener("click", hideBin);
+
+    function resizeBy(dc, dr) {
+      const nc = cols + dc, nr = rows + dr;
+      if (nc < 4 || nr < 4 || nc > 160 || nr > 160) return;
+      snapshot();
+      const g = grids[gi];
+      const old = cells, oldRot = rots, oc = cols, or_ = rows;
+      cols = nc; rows = nr;
+      cells = new Uint8Array(cols * rows); rots = new Uint8Array(cols * rows);
+      for (let r = 0; r < Math.min(rows, or_); r++) {
+        for (let c = 0; c < Math.min(cols, oc); c++) {
+          cells[r * cols + c] = old[r * oc + c];
+          rots[r * cols + c] = oldRot[r * oc + c];
+        }
+      }
+      g.cols = cols; g.rows = rows; g.cells = cells; g.rots = rots;
+      $("#ed-cols-val").textContent = cols; $("#ed-rows-val").textContent = rows;
+      hideBin(); sizeCanvas(); redraw(); updateEditorStats();
+    }
+
+    $("#ed-col-add")?.addEventListener("click", () => resizeBy(1, 0));
+    $("#ed-col-del")?.addEventListener("click", () => resizeBy(-1, 0));
+    $("#ed-row-add")?.addEventListener("click", () => resizeBy(0, 1));
+    $("#ed-row-del")?.addEventListener("click", () => resizeBy(0, -1));
+
+    function undo() {
+      if (!undoStack.length) return;
+      hideBin();
+      redoStack.push({ c: cells.slice(), r: rots.slice(), cols, rows });
+      applySnap(undoStack.pop());
+      redraw(); updateEditorStats(); updateUndoBtns(); runAIAuditor();
+    }
+
+    function redo() {
+      if (!redoStack.length) return;
+      hideBin();
+      undoStack.push({ c: cells.slice(), r: rots.slice(), cols, rows });
+      applySnap(redoStack.pop());
+      redraw(); updateEditorStats(); updateUndoBtns(); runAIAuditor();
+    }
+
+    function updateUndoBtns() {
+      $("#ed-undo-btn").disabled = !undoStack.length;
+      $("#ed-redo-btn").disabled = !redoStack.length;
+    }
+
+    $("#ed-undo-btn")?.addEventListener("click", undo);
+    $("#ed-redo-btn")?.addEventListener("click", redo);
+
+    document.addEventListener("keydown", ev => {
+      if (ev.target.tagName === "INPUT" && ev.target.type === "text") return;
+      const k = ev.key.toLowerCase();
+      if ((ev.metaKey || ev.ctrlKey) && k === "z") {
+        ev.preventDefault();
+        ev.shiftKey ? redo() : undo();
+        return;
+      }
+      if (k === "e" || k === "0") { tool = 0; buildEditorPalette(); return; }
+      const matched = ELEMENTS.find(e => e.key.toLowerCase() === k);
+      if (matched) { tool = matched.id; buildEditorPalette(); }
+    });
+
+    function updateEditorStats() {
+      if (!cells) return;
+      const counts = {};
+      for (let i = 0; i < cells.length; i++) {
+        const id = cells[i];
+        if (id > 0) counts[id] = (counts[id] || 0) + 1;
+      }
+
+      ELEMENTS.forEach(el => {
+        const n = counts[el.id];
+        const span = document.querySelector(`[data-cnt="${el.id}"]`);
+        if (span) span.textContent = n ? `×${n}` : "";
+      });
+
+      const used = cells.length - (cells.filter(c => c === 0).length);
+      $("#ed-stat-used").textContent = `${used} cells (${Math.round(used * 10.7639)} sq ft)`;
+      $("#ed-stat-occ").textContent = `${Math.round(used / cells.length * 100)}% occupancy`;
+
+      const inDocks = Math.round((counts[10] || 0) / 6);
+      const outDocks = Math.round((counts[11] || 0) / 6);
+      const hubWalls = Math.round((counts[5] || 0) / 6);
+      const cityBins = Math.round((counts[12] || 0) / 6);
+      const debag = Math.round((counts[3] || 0) / 4);
+
+      const estParcels = Math.max(25000, (debag * 8000) + (hubWalls * 6000) + (cityBins * 5000) + ((counts[4] || 0) * 400));
+      $("#ed-stat-throughput").textContent = `Est. ~${estParcels.toLocaleString()} parcels/day`;
+
+      $("#chk-docks")?.classList.toggle('done', (counts[10] > 0 && counts[11] > 0));
+      $("#chk-trolley")?.classList.toggle('done', (counts[13] > 0 || counts[15] > 0));
+      $("#chk-conv")?.classList.toggle('done', (counts[4] > 0 || counts[3] > 0));
+      $("#chk-sort")?.classList.toggle('done', (counts[5] > 0 && counts[12] > 0));
+      $("#chk-sec")?.classList.toggle('done', (counts[20] > 0 || counts[21] > 0));
+      $("#chk-racks")?.classList.toggle('done', (counts[1] > 0));
+    }
+
+    function runAIAuditor() {
+      const counts = {};
+      for (let i = 0; i < cells.length; i++) if (cells[i] > 0) counts[cells[i]] = (counts[cells[i]] || 0) + 1;
+
+      const audits = [];
+      if (counts[10] > 0 && counts[11] > 0) {
+        audits.push({ pass: true, title: "Cross-Dock Balance", desc: "Balanced Inbound & Outbound linehaul gates." });
+      } else {
+        audits.push({ pass: false, title: "Incomplete Cross-Dock", desc: "Ensure both Inbound and Outbound truck doors exist." });
+      }
+
+      if (counts[13] > 0 && counts[15] > 0) {
+        audits.push({ pass: true, title: "Trolley Decanting Flow", desc: "Dedicated staging apron & roll-cage park provisioned." });
+      } else {
+        audits.push({ pass: false, title: "Trolley Buffer Needed", desc: "Add Inbound Staging behind truck doors to prevent yard congestion." });
+      }
+
+      if (counts[5] > 0 && counts[12] > 0) {
+        audits.push({ pass: true, title: "Dual-Stream Sortation", desc: "Hub put-walls and City Big Bins active." });
+      } else {
+        audits.push({ pass: false, title: "Partial Sort Matrix", desc: "Map both Hub Put-Walls (Intra-city) and City Gaylords (Inter-city)." });
+      }
+
+      const passCount = audits.filter(a => a.pass).length;
+      const score = Math.round((passCount / audits.length) * 100);
+      $("#asst-score-pill").textContent = `${score}/100 ${score > 85 ? 'A+' : (score > 60 ? 'B' : 'Needs Review')}`;
+
+      $("#asst-audit-list").innerHTML = audits.map(a => `
+        <div class="asst-item ${a.pass ? 'done' : ''}">
+          <span>${a.pass ? '✓' : '⚠'}</span>
+          <div><strong>${a.title}</strong><div style="font-size:10px; color:var(--ink-faint);">${a.desc}</div></div>
+        </div>
+      `).join('');
+    }
+
+    $("#ed-ai-gen-btn")?.addEventListener("click", () => {
+      const synth = LayoutGenerator.generateLayout({
+        name: currentSite.name,
+        cols,
+        rows,
+        inboundDocks: 4,
+        outboundDocks: 4,
+        hasSecurity: true,
+        hasMedical: true,
+        hasUPS: true,
+        hasManager: true,
+        hasConf: true,
+        hasStore: true
+      });
+      snapshot();
+      cells.set(synth.cells);
+      rots.set(synth.rots);
+      hideBin(); redraw(); updateEditorStats(); runAIAuditor();
+      toast("✨ AI Auto-Layout Synthesized!");
+    });
+
+    $("#ed-save-btn")?.addEventListener("click", async () => {
+      if (!currentSite) return;
+      currentSite.name = $("#ed-site-name").value.trim() || currentSite.name;
+      try {
+        await apiRequest(`/api/sites/${currentSite.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            name: currentSite.name,
+            city: currentSite.city || "Custom",
+            lengthFt: currentSite.lengthFt || 150,
+            widthFt: currentSite.widthFt || 100,
+            cols,
+            rows,
+            inboundDocks: currentSite.inboundDocks || 4,
+            outboundDocks: currentSite.outboundDocks || 4,
+            cells: Array.from(cells),
+            rots: Array.from(rots)
+          })
+        });
+        toast("💾 Layout saved to database!");
+      } catch (e) {
+        toast(`Error saving layout: ${e.message}`);
+      }
+    });
+
+    $("#ed-del-site-btn")?.addEventListener("click", async () => {
+      if (!currentSite) return;
+      if (!confirm(`Delete "${currentSite.name}" from your database?`)) return;
+      await deleteSite(currentSite.id);
+      showScreen('screen-library');
+    });
+
+    $("#ed-zoom")?.addEventListener("input", e => { cellPx = +e.target.value; hideBin(); sizeCanvas(); redraw(); });
+    $("#ed-back-btn")?.addEventListener("click", async () => {
+      if (currentSite) {
+        try {
+          await apiRequest(`/api/sites/${currentSite.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+              name: $("#ed-site-name").value.trim() || currentSite.name,
+              city: currentSite.city || "Custom",
+              lengthFt: currentSite.lengthFt || 150,
+              widthFt: currentSite.widthFt || 100,
+              cols,
+              rows,
+              inboundDocks: currentSite.inboundDocks || 4,
+              outboundDocks: currentSite.outboundDocks || 4,
+              cells: Array.from(cells),
+              rots: Array.from(rots)
+            })
+          });
+        } catch(e) {}
+      }
+      await loadUserSites();
+    });
+
+    /* ================= EXECUTIVE PRESENTATION ================= */
+    $("#ed-present-btn")?.addEventListener("click", () => {
+      openPresentation();
+    });
+
+    function openPresentation() {
+      const counts = {};
+      for (let i = 0; i < cells.length; i++) if (cells[i] > 0) counts[cells[i]] = (counts[cells[i]] || 0) + 1;
+
+      const inDocks = Math.round((counts[10] || 0) / 6);
+      const outDocks = Math.round((counts[11] || 0) / 6);
+      const hubWalls = Math.round((counts[5] || 0) / 6);
+      const cityBins = Math.round((counts[12] || 0) / 6);
+      const debag = Math.round((counts[3] || 0) / 4);
+
+      $("#pr-site-title").textContent = name;
+      $("#pr-meta-line").textContent = `${grids[gi].name} · ${cols} × ${rows} Grid (${Math.round(cols * rows * 10.7639).toLocaleString()} sq ft) · Scale 1:100`;
+
+      $("#pr-stat-area").textContent = `${Math.round(cols * rows * 10.7639).toLocaleString()} sq ft (~${Math.round(cols * rows)} m²)`;
+      $("#pr-stat-docks").textContent = `${Math.max(2, inDocks + outDocks)} Bays (${inDocks} In / ${outDocks} Out)`;
+      $("#pr-stat-seg").textContent = `${hubWalls} Hub Walls · ${cityBins} City Bins`;
+      $("#pr-stat-thru").textContent = `~${Math.max(25000, (debag * 8000) + (hubWalls * 6000) + (cityBins * 5000) + ((counts[4] || 0) * 400)).toLocaleString()} parcels/day`;
+
+      const pCanvas = $("#pr-canvas");
+      const pCtx = pCanvas.getContext("2d");
+      const ppx = 24, pm = M_RULER;
+      const pw = cols * ppx + pm + 4, ph = rows * ppx + pm + 4;
+      const dpr = window.devicePixelRatio || 1;
+      pCanvas.width = pw * dpr; pCanvas.height = ph * dpr;
+      pCanvas.style.width = pw + "px"; pCanvas.style.height = ph + "px";
+      pCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawBoardGeneric(pCtx, cells, rots, cols, rows, ppx, pm, true);
+
+      const bomItems = [
+        { item: "Inbound Heavy Linehaul Dock Shutters", qty: inDocks || 4, unit: "Bays", spec: "Hydraulic leveler + rubber dock bumpers" },
+        { item: "Outbound Feeder / City Dispatch Docks", qty: outDocks || 4, unit: "Bays", spec: "Direct vehicle loading shutter doors" },
+        { item: "Powered Sorter Conveyor Spine", qty: (counts[4] || 0) * 1.0, unit: "Linear Meters", spec: "Variable frequency drive roller belt" },
+        { item: "Inbound De-Bagging & DWS Scan Stations", qty: debag || 2, unit: "Stations", spec: "Integrated barcode, weight & volume check" },
+        { item: "Intra-City Last Mile Hub Put-Walls", qty: hubWalls || 4, unit: "Matrices", spec: "High-velocity area bin pigeonholes" },
+        { item: "Inter-City Pallet Gaylords / Big Bins", qty: cityBins || 6, unit: "Cages", spec: "Heavy steel wire roll cages (DEL/BOM/HYD)" },
+        { item: "High-Bay Buffer Pallet Storage", qty: counts[1] || 12, unit: "Racks", spec: "Selective heavy beam pallet storage" }
+      ];
+
+      $("#pr-bom-tbody").innerHTML = `
+        <thead>
+          <tr><th>Equipment / Material Item</th><th>Allocated Qty</th><th>Unit</th><th>Engineering Specification</th></tr>
+        </thead>
+        <tbody>
+          ${bomItems.map(b => `
+            <tr>
+              <td><strong>${b.item}</strong></td>
+              <td style="font-family:'JetBrains Mono', monospace; font-weight:700;">${b.qty}</td>
+              <td>${b.unit}</td>
+              <td style="color:var(--ink-soft);">${b.spec}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      `;
+
+      $("#pr-legend-container").innerHTML = Object.keys(counts).map(id => {
+        const el = ELEMENTS_BY_ID[id];
+        if (!el) return "";
+        return `
+          <div class="pr-legend-item">
+            <span class="pr-legend-box" style="background:${el.color};"></span>
+            <span>${el.name} (×${counts[id]})</span>
+          </div>
+        `;
+      }).join("");
+
+      showScreen('screen-present');
+    }
+
+    $("#pr-back-btn")?.addEventListener("click", () => showScreen('screen-editor'));
+    $("#pr-print-btn")?.addEventListener("click", () => window.print());
+    $("#pr-png-btn")?.addEventListener("click", () => exportHighResPNG());
+    $("#ed-export-png-btn")?.addEventListener("click", () => exportHighResPNG());
+
+    function exportHighResPNG() {
+      const px = 36, m = 44, legendH = 80, titleH = 60;
+      const W = cols * px + m * 2, H = rows * px + m + titleH + legendH;
+      const off = document.createElement("canvas");
+      off.width = W * 2; off.height = H * 2;
+      const g = off.getContext("2d"); g.scale(2, 2);
+      g.fillStyle = "#ffffff"; g.fillRect(0, 0, W, H);
+
+      g.fillStyle = "#1D1B17"; g.font = "800 20px 'Outfit', sans-serif";
+      g.textAlign = "left"; g.textBaseline = "top";
+      g.fillText(name, m, 16);
+
+      g.fillStyle = "#5B564A"; g.font = "600 12px 'JetBrains Mono', monospace";
+      g.fillText(`${cols} × ${rows} Grid (${Math.round(cols * rows * 10.7639).toLocaleString()} sq ft) · Scale 1:100 · Blitz Mother Hub Engineering Sheet`, m, 42);
+
+      g.save(); g.translate(m - M_RULER, titleH);
+      drawBoardGeneric(g, cells, rots, cols, rows, px, M_RULER, true);
+      g.restore();
+
+      off.toBlob(b => downloadBlob(b, `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-layout.png`));
+      toast("🖼 High-Res Blueprint PNG Downloaded!");
+    }
+
+    $("#lib-import-btn")?.addEventListener("click", () => $("#file-input-json").click());
+    $("#file-input-json")?.addEventListener("change", ev => {
+      const f = ev.target.files[0]; if (!f) return;
+      const rd = new FileReader();
+      rd.onload = async () => {
+        try {
+          const d = JSON.parse(rd.result);
+          if (d.grids && d.grids.length) {
+            const g0 = d.grids[0];
+            const siteId = "site-" + Date.now();
+            await apiRequest('/api/sites', {
+              method: 'POST',
+              body: JSON.stringify({
+                id: siteId,
+                name: d.name || "Imported Hub",
+                city: "Custom",
+                lengthFt: Math.round(g0.cols * 3.28),
+                widthFt: Math.round(g0.rows * 3.28),
+                cols: g0.cols,
+                rows: g0.rows,
+                inboundDocks: 4,
+                outboundDocks: 4,
+                cells: g0.cells,
+                rots: g0.rots || new Array(g0.cells.length).fill(0)
+              })
+            });
+            toast("📂 Imported & saved to database!");
+            await loadUserSites();
+          }
+        } catch (e) {
+          alert("Could not load JSON: " + e.message);
+        }
+      };
+      rd.readAsText(f);
+      ev.target.value = "";
+    });
+
+    function downloadBlob(blob, fname) {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = fname;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    }
+
+    /* Boot */
+    initAuth();
+  </script>
+</body>
+</html>
