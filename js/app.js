@@ -336,7 +336,7 @@ class PlanoAIApp {
     const cellW = cvs.width / cols;
     const cellH = cvs.height / rows;
 
-    ctx.fillStyle = '#090D14';
+    ctx.fillStyle = '#F8FAF7';
     ctx.fillRect(0, 0, cvs.width, cvs.height);
 
     for (let r = 0; r < rows; r++) {
@@ -540,11 +540,11 @@ class PlanoAIApp {
 
     let isDrawing = false;
     this.clearQuickSketch = () => {
-      ctx.fillStyle = '#06090F';
+      ctx.fillStyle = '#FFFFFF';
       ctx.fillRect(0, 0, cvs.width, cvs.height);
 
       // Draw faint grid
-      ctx.strokeStyle = '#1E293B';
+      ctx.strokeStyle = '#E5E0D4';
       ctx.lineWidth = 1;
       for (let x = 0; x < cvs.width; x += 20) {
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cvs.height); ctx.stroke();
@@ -560,7 +560,7 @@ class PlanoAIApp {
       const rect = cvs.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      ctx.strokeStyle = '#10B981';
+      ctx.strokeStyle = '#059669';
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.moveTo(x, y);
@@ -648,12 +648,12 @@ class PlanoAIApp {
     const w = this.cols * px;
     const h = this.rows * px;
 
-    // Floor Base
-    ctx.fillStyle = '#0B0F17';
+    // Floor Base (Light Architectural Grid)
+    ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, w, h);
 
     // Subtle Grid Lines
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+    ctx.strokeStyle = '#E5E0D4';
     ctx.lineWidth = 1;
     for (let c = 0; c <= this.cols; c++) {
       ctx.beginPath(); ctx.moveTo(c * px, 0); ctx.lineTo(c * px, h); ctx.stroke();
@@ -663,7 +663,7 @@ class PlanoAIApp {
     }
 
     // Outer Boundary Wall
-    ctx.strokeStyle = '#334155';
+    ctx.strokeStyle = '#5B564A';
     ctx.lineWidth = 3;
     ctx.strokeRect(0, 0, w, h);
 
@@ -696,7 +696,7 @@ class PlanoAIApp {
     if (this.hoverCell) {
       const { c, r } = this.hoverCell;
       if (c >= 0 && c < this.cols && r >= 0 && r < this.rows) {
-        ctx.strokeStyle = '#10B981';
+        ctx.strokeStyle = '#059669';
         ctx.lineWidth = 2;
         ctx.strokeRect(c * px, r * px, px, px);
       }
@@ -951,7 +951,7 @@ class PlanoAIApp {
     if (bomSummary) {
       bomSummary.innerHTML = metrics.bom.slice(0, 6).map(b => `
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span style="color:var(--text-muted);">${b.name}</span>
+          <span style="color:var(--ink-soft);">${b.name}</span>
           <strong style="font-family:var(--font-mono);">${b.qty} ${b.unit}</strong>
         </div>
       `).join('');
@@ -1029,10 +1029,10 @@ class PlanoAIApp {
       cvs.height = this.rows * px;
       const ctx = cvs.getContext('2d');
 
-      ctx.fillStyle = '#06090F';
+      ctx.fillStyle = '#FFFFFF';
       ctx.fillRect(0, 0, cvs.width, cvs.height);
 
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.strokeStyle = '#E5E0D4';
       ctx.lineWidth = 1;
       for (let c = 0; c <= this.cols; c++) {
         ctx.beginPath(); ctx.moveTo(c * px, 0); ctx.lineTo(c * px, cvs.height); ctx.stroke();
@@ -1057,10 +1057,10 @@ class PlanoAIApp {
       const metrics = LayoutMetrics.calculate({ cols: this.cols, rows: this.rows, cells: this.cells }, this.unit);
       tbody.innerHTML = metrics.bom.map(b => `
         <tr>
-          <td><strong style="color:var(--text-main);">${b.name}</strong></td>
+          <td><strong style="color:var(--ink);">${b.name}</strong></td>
           <td style="font-family:var(--font-mono); font-weight:700;">${b.qty}</td>
           <td>${b.unit}</td>
-          <td style="color:var(--text-muted);">${b.spec}</td>
+          <td style="color:var(--ink-soft);">${b.spec}</td>
         </tr>
       `).join('');
     }
@@ -1078,15 +1078,15 @@ class PlanoAIApp {
     const g = off.getContext('2d');
     g.scale(2, 2);
 
-    g.fillStyle = '#06090F';
+    g.fillStyle = '#FFFFFF';
     g.fillRect(0, 0, W, H);
 
     // Title banner
-    g.fillStyle = '#FFFFFF';
+    g.fillStyle = '#1D1B17';
     g.font = "800 20px 'Outfit', sans-serif";
     g.fillText(this.siteName, 24, 34);
 
-    g.fillStyle = '#94A3B8';
+    g.fillStyle = '#5B564A';
     g.font = "600 12px 'JetBrains Mono', monospace";
     g.fillText(`${this.cols} × ${this.rows} Grid (${this.lengthFt}×${this.widthFt} ft) · Plano AI Architectural Blueprint · Scale 1:100`, 24, 58);
 

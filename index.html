@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Plano AI — Intelligent Warehouse Layout Studio</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23059669'><path d='M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h4v4H7V7zm6 0h4v4h-4V7zm-6 6h4v4H7v-4zm6 0h4v4h-4v-4z'/></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2317171A'><path d='M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h4v4H7V7zm6 0h4v4h-4V7zm-6 6h4v4H7v-4zm6 0h4v4h-4v-4z'/></svg>">
 
   <!-- Google Fonts: Outfit (Brand & Headings), Plus Jakarta Sans (UI), JetBrains Mono (Technical Data) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,42 +13,65 @@
 
   <style>
     /* ==========================================================================
-       PLANO AI DESIGN SYSTEM — Industrial Modernist Aesthetic
+       PLANO AI DESIGN SYSTEM — Warm Modernist Light Aesthetic
        ========================================================================== */
     :root {
-      --bg: #0B0F17;
-      --bg-surface: #111827;
-      --bg-surface-2: #1E293B;
-      --bg-surface-3: #334155;
-      --border: rgba(255, 255, 255, 0.08);
-      --border-strong: rgba(255, 255, 255, 0.16);
-      --border-accent: rgba(16, 185, 129, 0.4);
+      --bg: #F6F4EF;
+      --bg-soft: #FBFAF7;
+      --surface: #FFFFFF;
+      --surface-2: #F1EDE3;
+      --surface-3: #E6E0D2;
+      --border: #E5E0D4;
+      --border-strong: #D6CFBD;
       
-      --text-main: #F8FAFC;
-      --text-muted: #94A3B8;
-      --text-faint: #64748B;
+      --ink: #1D1B17;
+      --ink-soft: #5B564A;
+      --ink-faint: #928C7C;
       
-      --emerald: #10B981;
-      --emerald-dark: #059669;
-      --emerald-glow: rgba(16, 185, 129, 0.25);
+      --accent: #17171A;
+      --accent-hover: #000000;
+      --on-accent: #FFFFFF;
       
-      --amber: #F59E0B;
-      --amber-dark: #D97706;
-      --amber-glow: rgba(245, 158, 11, 0.25);
+      --brand-cream: #F3E4CC;
+      --brand-cream-2: #F8ECD9;
       
-      --sky: #0EA5E9;
-      --indigo: #6366F1;
-      --rose: #F43F5E;
+      --emerald: #059669;
+      --emerald-bg: #ECFDF5;
+      --emerald-border: #A7F3D0;
+      --emerald-text: #065F46;
+      
+      --amber: #D97706;
+      --amber-bg: #FEF3C7;
+      --amber-border: #FDE68A;
+      --amber-text: #92400E;
+      
+      --sky: #0284C7;
+      --sky-bg: #E0F2FE;
+      --indigo: #4F46E5;
+      --rose: #E11D48;
+      --danger: #DC2626;
+      --danger-bg: #FEF2F2;
+      
+      --focus: #2563EB;
       
       --r-sm: 6px;
       --r-md: 10px;
       --r-lg: 16px;
-      --r-xl: 24px;
+      --r-xl: 22px;
       --r-pill: 9999px;
       
-      --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.3);
-      --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
-      --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.6);
+      --fs-2xs: 11px;
+      --fs-xs: 12px;
+      --fs-sm: 13px;
+      --fs-base: 14px;
+      --fs-md: 16px;
+      --fs-lg: 19px;
+      --fs-xl: 24px;
+      --fs-2xl: 32px;
+      
+      --shadow-sm: 0 1px 3px rgba(20,18,12,.06), 0 1px 2px rgba(20,18,12,.04);
+      --shadow-md: 0 4px 14px rgba(20,18,12,.08), 0 1px 3px rgba(20,18,12,.06);
+      --shadow-lg: 0 16px 40px rgba(20,18,12,.14), 0 4px 12px rgba(20,18,12,.08);
       
       --font-brand: 'Outfit', -apple-system, sans-serif;
       --font-ui: 'Plus Jakarta Sans', -apple-system, sans-serif;
@@ -62,9 +85,9 @@
     html, body { height: 100%; width: 100%; }
     body {
       background: var(--bg);
-      color: var(--text-main);
+      color: var(--ink);
       font-family: var(--font-ui);
-      font-size: 14px;
+      font-size: var(--fs-base);
       line-height: 1.5;
       overflow: hidden;
       -webkit-font-smoothing: antialiased;
@@ -78,57 +101,58 @@
     /* Buttons */
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      background: var(--bg-surface-2); color: var(--text-main); border: 1px solid var(--border-strong);
-      border-radius: var(--r-md); padding: 9px 16px; font-size: 13px; font-weight: 700;
+      background: var(--surface); color: var(--ink); border: 1px solid var(--border-strong);
+      border-radius: var(--r-md); padding: 9px 16px; font-size: var(--fs-sm); font-weight: 700;
       cursor: pointer; transition: all var(--dur) var(--ease); white-space: nowrap; user-select: none;
     }
-    .btn:hover { background: var(--bg-surface-3); border-color: rgba(255,255,255,0.25); transform: translateY(-1px); }
+    .btn:hover { border-color: var(--ink-faint); box-shadow: var(--shadow-sm); background: var(--bg-soft); transform: translateY(-1px); }
     .btn:active { transform: translateY(0); }
     .btn.primary {
-      background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
-      color: #000; border-color: transparent; font-weight: 800;
-      box-shadow: 0 4px 14px var(--emerald-glow);
+      background: var(--accent); color: var(--on-accent); border-color: var(--accent);
+      box-shadow: var(--shadow-sm);
     }
     .btn.primary:hover {
-      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
-      filter: brightness(1.08);
+      background: var(--accent-hover); box-shadow: var(--shadow-md);
     }
+    .btn.emerald {
+      background: var(--emerald); color: #FFFFFF; border-color: var(--emerald);
+    }
+    .btn.emerald:hover { background: #047857; }
     .btn.amber {
-      background: linear-gradient(135deg, var(--amber), var(--amber-dark));
-      color: #000; border-color: transparent; font-weight: 800;
-      box-shadow: 0 4px 14px var(--amber-glow);
+      background: var(--amber); color: #FFFFFF; border-color: var(--amber);
     }
-    .btn.ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
-    .btn.ghost:hover { background: var(--bg-surface-2); color: var(--text-main); }
-    .btn.danger { color: var(--rose); }
-    .btn.danger:hover { background: rgba(244, 63, 94, 0.15); border-color: var(--rose); }
-    .btn.lg { padding: 12px 24px; font-size: 15px; border-radius: var(--r-lg); }
+    .btn.amber:hover { background: #B45309; }
+    .btn.ghost { background: transparent; border-color: transparent; color: var(--ink-soft); }
+    .btn.ghost:hover { background: var(--surface-2); color: var(--ink); }
+    .btn.danger { color: var(--danger); }
+    .btn.danger:hover { background: var(--danger-bg); border-color: #FCA5A5; }
+    .btn.lg { padding: 13px 24px; font-size: var(--fs-md); border-radius: var(--r-lg); }
     .btn.full { width: 100%; }
     .btn.icon { padding: 8px; width: 36px; height: 36px; border-radius: var(--r-md); }
 
     /* Inputs */
     input[type=text], input[type=number], input[type=email], textarea, select {
-      width: 100%; background: var(--bg-surface-2); border: 1.5px solid var(--border-strong);
-      color: var(--text-main); border-radius: var(--r-md); padding: 10px 14px; font-size: 14px; outline: none;
+      width: 100%; background: var(--surface); border: 1.5px solid var(--border-strong);
+      color: var(--ink); border-radius: var(--r-md); padding: 10px 14px; font-size: var(--fs-base); outline: none;
       transition: all var(--dur) var(--ease);
     }
     input:focus, textarea:focus, select:focus {
-      border-color: var(--emerald); background: #182234; box-shadow: 0 0 0 3px var(--emerald-glow);
+      border-color: var(--focus); box-shadow: 0 0 0 4px rgba(37,99,235,.12);
     }
     label.field-label {
-      display: block; font-size: 11px; font-weight: 800; letter-spacing: 0.06em;
-      text-transform: uppercase; color: var(--text-faint); margin-bottom: 6px;
+      display: block; font-size: var(--fs-2xs); font-weight: 800; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--ink-faint); margin-bottom: 6px;
     }
 
     /* Badges & Pills */
     .pill {
       display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
-      border-radius: var(--r-pill); font-size: 11px; font-weight: 700;
-      background: var(--bg-surface-2); color: var(--text-muted); border: 1px solid var(--border);
+      border-radius: var(--r-pill); font-size: var(--fs-2xs); font-weight: 700;
+      background: var(--surface-2); color: var(--ink-soft); border: 1px solid var(--border);
     }
-    .pill.emerald { background: rgba(16, 185, 129, 0.15); color: var(--emerald); border-color: rgba(16, 185, 129, 0.3); }
-    .pill.amber { background: rgba(245, 158, 11, 0.15); color: var(--amber); border-color: rgba(245, 158, 11, 0.3); }
-    .pill.sky { background: rgba(14, 165, 233, 0.15); color: var(--sky); border-color: rgba(14, 165, 233, 0.3); }
+    .pill.emerald { background: var(--emerald-bg); color: var(--emerald-text); border-color: var(--emerald-border); }
+    .pill.amber { background: var(--amber-bg); color: var(--amber-text); border-color: var(--amber-border); }
+    .pill.sky { background: var(--sky-bg); color: #0369A1; border-color: #BAE6FD; }
 
     /* Toast Notification */
     .toast-wrap {
@@ -136,53 +160,53 @@
       z-index: 9999; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none;
     }
     .toast {
-      background: #1E293B; color: #FFF; padding: 10px 20px; border-radius: var(--r-pill);
-      font-size: 13px; font-weight: 700; box-shadow: var(--shadow-lg); border: 1px solid var(--border-strong);
+      background: var(--ink); color: #FFF; padding: 10px 20px; border-radius: var(--r-pill);
+      font-size: var(--fs-sm); font-weight: 700; box-shadow: var(--shadow-lg);
       opacity: 0; transform: translateY(12px); transition: all var(--dur) var(--ease);
     }
     .toast.on { opacity: 1; transform: translateY(0); }
 
     /* Modal Backdrop */
     .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
+      position: fixed; inset: 0; background: rgba(29, 27, 23, 0.6); backdrop-filter: blur(6px);
       z-index: 9000; display: none; align-items: center; justify-content: center; padding: 20px;
     }
     .modal-overlay.on { display: flex; }
     .modal-card {
-      background: var(--bg-surface); border: 1px solid var(--border-strong); border-radius: var(--r-xl);
+      background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-xl);
       padding: 32px; width: 500px; max-width: 95vw; box-shadow: var(--shadow-lg);
     }
 
     /* =====================================================================
-       SCREEN 0: LOGIN GATE (Zero Jargon Email Identity)
+       SCREEN 0: LOGIN GATE (Email Identity)
        ===================================================================== */
     #screen-login {
       background:
-        radial-gradient(ellipse 900px 600px at 50% 40%, rgba(16, 185, 129, 0.08) 0%, transparent 70%),
-        radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
-      background-size: auto, 24px 24px;
+        radial-gradient(ellipse 900px 560px at 50% 50%, #FDFCF9 0%, var(--bg) 68%),
+        radial-gradient(circle, rgba(30,27,20,.08) 1px, transparent 1px);
+      background-size: auto, 28px 28px;
       align-items: center; justify-content: center;
     }
     .login-box {
-      background: var(--bg-surface); border: 1px solid var(--border-strong); border-radius: var(--r-xl);
+      background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-xl);
       padding: 44px 40px; width: 440px; max-width: 92vw; box-shadow: var(--shadow-lg); text-align: center;
     }
     .login-brand-icon {
-      width: 60px; height: 60px; margin: 0 auto 16px; border-radius: 16px;
-      background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
-      display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 8px 24px var(--emerald-glow);
+      width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 14px;
+      background: var(--accent); color: #FFF;
+      display: flex; align-items: center; justify-content: center; font-size: 26px; box-shadow: var(--shadow-md);
     }
-    .login-box h1 { font-family: var(--font-brand); font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
-    .login-box p.sub { color: var(--text-muted); font-size: 13px; margin-top: 6px; margin-bottom: 24px; }
+    .login-box h1 { font-family: var(--font-brand); font-size: var(--fs-2xl); font-weight: 800; letter-spacing: -0.02em; }
+    .login-box p.sub { color: var(--ink-soft); font-size: var(--fs-sm); margin-top: 4px; margin-bottom: 24px; }
     .recent-chips { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; text-align: left; }
     .recent-chip {
-      display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: var(--r-md);
-      background: var(--bg-surface-2); border: 1px solid var(--border); cursor: pointer; transition: all var(--dur) var(--ease);
+      display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: var(--r-md);
+      background: var(--bg-soft); border: 1px solid var(--border); cursor: pointer; transition: all var(--dur) var(--ease);
     }
-    .recent-chip:hover { border-color: var(--emerald); background: #1a2538; }
+    .recent-chip:hover { border-color: var(--ink); background: var(--surface-2); }
     .recent-chip .avatar {
-      width: 28px; height: 28px; border-radius: 50%; background: var(--emerald-dark); color: #000;
-      display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800;
+      width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #FFF;
+      display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;
     }
 
     /* =====================================================================
@@ -190,68 +214,68 @@
        ===================================================================== */
     #screen-library { background: var(--bg); }
     .hub-header {
-      padding: 20px 40px; display: flex; align-items: center; justify-content: space-between;
-      gap: 20px; flex-shrink: 0; border-bottom: 1px solid var(--border); background: var(--bg-surface);
+      padding: 20px 44px; display: flex; align-items: center; justify-content: space-between;
+      gap: 20px; flex-shrink: 0; border-bottom: 1px solid var(--border); background: var(--bg-soft);
     }
     .hub-brand { display: flex; align-items: center; gap: 14px; }
     .hub-brand .icon {
-      width: 40px; height: 40px; border-radius: 12px;
-      background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
-      display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: #000;
+      width: 40px; height: 40px; border-radius: 10px;
+      background: var(--accent); color: #FFF;
+      display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900;
     }
-    .hub-brand h1 { font-family: var(--font-brand); font-size: 20px; font-weight: 800; }
-    .hub-brand .sub { color: var(--text-muted); font-size: 12px; }
+    .hub-brand h1 { font-family: var(--font-brand); font-size: var(--fs-xl); font-weight: 800; }
+    .hub-brand .sub { color: var(--ink-soft); font-size: var(--fs-xs); }
     .hub-actions { display: flex; align-items: center; gap: 12px; }
 
     .hub-stats-banner {
-      padding: 20px 40px; background: linear-gradient(180deg, rgba(17, 24, 39, 0.8), transparent);
+      padding: 20px 44px; background: var(--surface-2);
       display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; border-bottom: 1px solid var(--border);
     }
     .stat-pill-card {
-      background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-lg);
-      padding: 14px 18px; display: flex; align-items: center; gap: 14px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+      padding: 14px 18px; display: flex; align-items: center; gap: 14px; box-shadow: var(--shadow-sm);
     }
     .stat-pill-card .icon-wrap {
-      width: 38px; height: 38px; border-radius: 10px; background: var(--bg-surface-2);
+      width: 38px; height: 38px; border-radius: 10px; background: var(--surface-2);
       display: flex; align-items: center; justify-content: center; font-size: 18px;
     }
-    .stat-pill-card .val { font-family: var(--font-brand); font-size: 20px; font-weight: 800; color: var(--text-main); }
-    .stat-pill-card .lbl { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-pill-card .val { font-family: var(--font-brand); font-size: 20px; font-weight: 800; color: var(--ink); }
+    .stat-pill-card .lbl { font-size: 11px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.05em; }
 
-    .hub-body { flex: 1; overflow-y: auto; padding: 28px 40px 60px; }
+    .hub-body { flex: 1; overflow-y: auto; padding: 28px 44px 60px; }
     .hub-search-row {
       display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;
     }
     .hub-filters { display: flex; gap: 8px; }
     .filter-btn {
-      padding: 6px 14px; border-radius: var(--r-pill); font-size: 12px; font-weight: 700;
-      background: var(--bg-surface-2); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer;
+      padding: 6px 14px; border-radius: var(--r-pill); font-size: var(--fs-xs); font-weight: 700;
+      background: var(--surface); border: 1px solid var(--border-strong); color: var(--ink-soft); cursor: pointer;
     }
-    .filter-btn.active { background: rgba(16, 185, 129, 0.2); color: var(--emerald); border-color: var(--emerald); }
+    .filter-btn.active { background: var(--accent); color: #FFF; border-color: var(--accent); }
 
-    .layout-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px; }
+    .layout-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 24px; }
     
     .layout-card {
-      background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-xl);
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
       overflow: hidden; cursor: pointer; transition: all var(--dur) var(--ease);
       display: flex; flex-direction: column; box-shadow: var(--shadow-sm); position: relative;
     }
-    .layout-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: var(--border-accent); }
-    .layout-thumb { height: 170px; background: #0c111a; position: relative; overflow: hidden; }
+    .layout-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+    .layout-thumb { height: 160px; background: var(--surface-2); position: relative; overflow: hidden; }
     .layout-thumb canvas { width: 100%; height: 100%; display: block; }
     
     .layout-card-badge {
       position: absolute; top: 12px; left: 12px; z-index: 5;
     }
     .layout-meta { padding: 18px 20px; flex: 1; display: flex; flex-direction: column; }
-    .layout-meta h3 { font-family: var(--font-brand); font-size: 17px; font-weight: 800; margin-bottom: 4px; color: var(--text-main); }
-    .layout-meta .location { font-size: 12px; color: var(--emerald); font-weight: 700; margin-bottom: 12px; }
+    .layout-meta h3 { font-family: var(--font-brand); font-size: var(--fs-md); font-weight: 800; margin-bottom: 4px; color: var(--ink); }
+    .layout-meta .location { font-size: var(--fs-xs); color: var(--emerald); font-weight: 700; margin-bottom: 12px; }
     .layout-metrics-row {
       display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px;
-      background: var(--bg-surface-2); border-radius: var(--r-md); padding: 8px 12px;
+      background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--r-md); padding: 8px 12px;
     }
-    .layout-metrics-row .m-item .m-val { font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--text-main); }
-    .layout-metrics-row .m-item .m-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; }
+    .layout-metrics-row .m-item .m-val { font-family: var(--font-mono); font-size: var(--fs-sm); font-weight: 700; color: var(--ink); }
+    .layout-metrics-row .m-item .m-lbl { font-size: 10px; color: var(--ink-faint); text-transform: uppercase; font-weight: 700; }
     
     .layout-card-actions {
       display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border);
@@ -259,19 +283,16 @@
     }
 
     .new-layout-card {
-      border: 2px dashed rgba(16, 185, 129, 0.4); border-radius: var(--r-xl); min-height: 290px;
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
-      cursor: pointer; transition: all var(--dur) var(--ease); background: rgba(16, 185, 129, 0.03); text-align: center; padding: 24px;
+      border: 2px dashed var(--border-strong); border-radius: var(--r-lg); min-height: 280px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+      cursor: pointer; transition: all var(--dur) var(--ease); background: var(--bg-soft); text-align: center; padding: 24px;
     }
     .new-layout-card:hover {
-      border-color: var(--emerald); background: rgba(16, 185, 129, 0.08); transform: translateY(-4px);
-      box-shadow: 0 12px 32px var(--emerald-glow);
+      border-color: var(--accent); background: var(--surface); transform: translateY(-3px); box-shadow: var(--shadow-sm);
     }
     .new-layout-card .plus-icon {
-      width: 56px; height: 56px; border-radius: 50%;
-      background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
-      color: #000; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 900;
-      box-shadow: 0 8px 24px var(--emerald-glow);
+      width: 48px; height: 48px; border-radius: 50%;
+      background: var(--surface-2); color: var(--ink); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800;
     }
 
     /* =====================================================================
@@ -279,129 +300,127 @@
        ===================================================================== */
     #screen-flow { background: var(--bg); }
     .wizard-nav {
-      padding: 16px 36px; border-bottom: 1px solid var(--border); background: var(--bg-surface);
+      padding: 16px 40px; border-bottom: 1px solid var(--border); background: var(--bg-soft);
       display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
     }
     .wizard-nav .title-area { display: flex; align-items: center; gap: 14px; }
-    .wizard-nav h2 { font-family: var(--font-brand); font-size: 18px; font-weight: 800; }
+    .wizard-nav h2 { font-family: var(--font-brand); font-size: var(--fs-lg); font-weight: 800; }
     
     .wizard-body { flex: 1; display: flex; min-height: 0; overflow: hidden; }
     .wizard-sidebar {
-      width: 300px; flex-shrink: 0; padding: 32px 24px; border-right: 1px solid var(--border);
-      background: var(--bg-surface); display: flex; flex-direction: column; gap: 20px;
+      width: 290px; flex-shrink: 0; padding: 32px 24px; border-right: 1px solid var(--border);
+      background: var(--bg-soft); display: flex; flex-direction: column; gap: 18px;
     }
     .wizard-step-node {
-      display: flex; align-items: flex-start; gap: 14px; padding: 12px; border-radius: var(--r-lg);
+      display: flex; align-items: flex-start; gap: 14px; padding: 10px 12px; border-radius: var(--r-md);
       background: transparent; transition: all var(--dur) var(--ease);
     }
-    .wizard-step-node.active { background: var(--bg-surface-2); border: 1px solid var(--border-accent); }
+    .wizard-step-node.active { background: var(--surface); border: 1px solid var(--border-strong); box-shadow: var(--shadow-sm); }
     .wizard-step-node .node-num {
-      width: 30px; height: 30px; border-radius: 50%; background: var(--bg-surface-3); color: var(--text-muted);
-      display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; font-family: var(--font-mono); flex-shrink: 0;
+      width: 28px; height: 28px; border-radius: 50%; background: var(--surface-2); color: var(--ink-faint);
+      display: flex; align-items: center; justify-content: center; font-size: var(--fs-xs); font-weight: 800; font-family: var(--font-mono); flex-shrink: 0;
     }
-    .wizard-step-node.active .node-num { background: var(--emerald); color: #000; }
-    .wizard-step-node.done .node-num { background: var(--emerald-dark); color: #FFF; }
-    .wizard-step-node .node-txt h4 { font-size: 14px; font-weight: 800; color: var(--text-main); }
-    .wizard-step-node .node-txt p { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .wizard-step-node.active .node-num { background: var(--accent); color: #FFF; }
+    .wizard-step-node.done .node-num { background: var(--emerald); color: #FFF; }
+    .wizard-step-node .node-txt h4 { font-size: var(--fs-sm); font-weight: 800; color: var(--ink); }
+    .wizard-step-node .node-txt p { font-size: 11px; color: var(--ink-faint); margin-top: 1px; }
 
     .wizard-content-area {
       flex: 1; overflow-y: auto; padding: 36px 48px 80px; display: flex; justify-content: center;
     }
-    .wizard-pane { width: 100%; max-width: 800px; display: none; }
+    .wizard-pane { width: 100%; max-width: 780px; display: none; }
     .wizard-pane.on { display: block; animation: fadeIn 0.3s ease; }
 
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
     .wizard-footer {
-      padding: 16px 36px; border-top: 1px solid var(--border); background: var(--bg-surface);
+      padding: 16px 40px; border-top: 1px solid var(--border); background: var(--bg-soft);
       display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
     }
 
     /* Option Selection Cards */
-    .option-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 12px; }
+    .option-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-top: 12px; }
     .option-card {
-      background: var(--bg-surface-2); border: 2px solid var(--border); border-radius: var(--r-lg);
+      background: var(--surface); border: 2px solid var(--border); border-radius: var(--r-lg);
       padding: 16px; cursor: pointer; transition: all var(--dur) var(--ease); text-align: left;
     }
-    .option-card:hover { border-color: rgba(255,255,255,0.25); background: var(--bg-surface-3); }
-    .option-card.selected { border-color: var(--emerald); background: rgba(16, 185, 129, 0.1); }
+    .option-card:hover { border-color: var(--ink-faint); background: var(--bg-soft); }
+    .option-card.selected { border-color: var(--accent); background: var(--brand-cream-2); box-shadow: var(--shadow-sm); }
     .option-card .icon { font-size: 24px; margin-bottom: 8px; }
-    .option-card .title { font-weight: 800; font-size: 14px; margin-bottom: 4px; }
-    .option-card .desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+    .option-card .title { font-weight: 800; font-size: var(--fs-sm); margin-bottom: 4px; }
+    .option-card .desc { font-size: 11px; color: var(--ink-soft); line-height: 1.4; }
 
-    /* Multimodal Upload & Sketch Box */
-    .upload-sketch-container { display: flex; flex-direction: column; gap: 20px; }
+    /* Dropzone Box */
     .dropzone-box {
       border: 2px dashed var(--border-strong); border-radius: var(--r-xl); padding: 40px 24px;
-      text-align: center; background: var(--bg-surface-2); cursor: pointer; transition: all var(--dur) var(--ease);
+      text-align: center; background: var(--surface); cursor: pointer; transition: all var(--dur) var(--ease);
     }
-    .dropzone-box:hover { border-color: var(--emerald); background: rgba(16, 185, 129, 0.05); }
-    .dropzone-box.has-file { border-color: var(--emerald); background: rgba(16, 185, 129, 0.1); }
+    .dropzone-box:hover { border-color: var(--ink); background: var(--bg-soft); }
+    .dropzone-box.has-file { border-color: var(--emerald); background: var(--emerald-bg); }
 
     /* Quick Sketch Canvas */
     .sketch-canvas-wrap {
-      background: #090D14; border: 1px solid var(--border-strong); border-radius: var(--r-lg);
-      position: relative; height: 340px; overflow: hidden; display: flex; align-items: center; justify-content: center;
+      background: #FFFFFF; border: 1.5px solid var(--border-strong); border-radius: var(--r-lg);
+      position: relative; height: 320px; overflow: hidden; display: flex; align-items: center; justify-content: center;
     }
-    .sketch-canvas-wrap canvas { background: #06090F; cursor: crosshair; }
+    .sketch-canvas-wrap canvas { background: #FFFFFF; cursor: crosshair; }
 
-    /* AI Analysis Radar & Questions */
+    /* AI Radar Card */
     .ai-radar-card {
-      background: radial-gradient(circle at center, rgba(16, 185, 129, 0.12) 0%, var(--bg-surface-2) 70%);
-      border: 1px solid var(--border-accent); border-radius: var(--r-xl); padding: 32px; text-align: center;
+      background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-xl); padding: 32px; text-align: center;
+      box-shadow: var(--shadow-sm);
     }
     .ai-pulse-dot {
-      width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 16px;
-      background: linear-gradient(135deg, var(--emerald), var(--sky));
-      display: flex; align-items: center; justify-content: center; font-size: 28px;
-      box-shadow: 0 0 32px var(--emerald-glow); animation: pulseGlow 2s infinite alternate;
+      width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 16px;
+      background: var(--accent); color: #FFF;
+      display: flex; align-items: center; justify-content: center; font-size: 24px;
+      box-shadow: var(--shadow-md);
     }
-    @keyframes pulseGlow { 0% { transform: scale(0.95); opacity: 0.8; } 100% { transform: scale(1.05); opacity: 1; } }
 
     /* =====================================================================
        SCREEN 3: THE STUDIO (Interactive Canvas & AI Copilot)
        ===================================================================== */
-    #screen-editor { background: #070A10; }
+    #screen-editor { background: var(--bg); }
     .studio-header {
-      height: 56px; padding: 0 20px; background: var(--bg-surface); border-bottom: 1px solid var(--border);
+      height: 56px; padding: 0 24px; background: var(--surface); border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; z-index: 20;
     }
     .studio-header-left { display: flex; align-items: center; gap: 14px; }
-    .studio-header-center { display: flex; align-items: center; gap: 10px; }
+    .studio-header-center { display: flex; align-items: center; gap: 8px; }
     .studio-header-right { display: flex; align-items: center; gap: 10px; }
 
     .studio-main { flex: 1; display: flex; min-height: 0; position: relative; overflow: hidden; }
 
     /* Left Palette */
     .studio-palette {
-      width: 260px; background: var(--bg-surface); border-right: 1px solid var(--border);
+      width: 250px; background: var(--surface); border-right: 1px solid var(--border);
       display: flex; flex-direction: column; z-index: 10; flex-shrink: 0;
     }
-    .palette-search { padding: 12px; border-bottom: 1px solid var(--border); }
-    .palette-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 16px; }
+    .palette-search { padding: 12px; border-bottom: 1px solid var(--border); background: var(--bg-soft); }
+    .palette-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 14px; }
     .palette-group-title {
-      font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-faint); letter-spacing: 0.05em; margin-bottom: 6px;
+      font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.05em; margin-bottom: 6px;
     }
     .palette-item-btn {
       display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r-md);
-      background: var(--bg-surface-2); border: 1px solid var(--border); cursor: pointer; transition: all var(--dur) var(--ease);
+      background: var(--surface); border: 1px solid var(--border); cursor: pointer; transition: all var(--dur) var(--ease);
       width: 100%; text-align: left;
     }
-    .palette-item-btn:hover { background: var(--bg-surface-3); border-color: rgba(255,255,255,0.2); }
-    .palette-item-btn.active { background: rgba(16, 185, 129, 0.18); border-color: var(--emerald); }
+    .palette-item-btn:hover { background: var(--surface-2); border-color: var(--border-strong); }
+    .palette-item-btn.active { background: var(--brand-cream-2); border-color: var(--ink); }
     .palette-item-btn .color-swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
-    .palette-item-btn .name { font-size: 13px; font-weight: 700; flex: 1; }
+    .palette-item-btn .name { font-size: var(--fs-sm); font-weight: 700; flex: 1; }
     .palette-item-btn .key-badge {
-      font-size: 10px; font-family: var(--font-mono); font-weight: 700; color: var(--text-muted);
-      background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;
+      font-size: 10px; font-family: var(--font-mono); font-weight: 700; color: var(--ink-soft);
+      background: var(--surface-2); padding: 2px 5px; border-radius: 4px;
     }
 
     /* Canvas Viewport */
     .studio-canvas-viewport {
-      flex: 1; background: #06090F; position: relative; overflow: hidden;
+      flex: 1; background: var(--bg); position: relative; overflow: hidden;
       display: flex; align-items: center; justify-content: center; cursor: default;
     }
-    #main-canvas { display: block; box-shadow: 0 0 60px rgba(0,0,0,0.8); }
+    #main-canvas { display: block; box-shadow: var(--shadow-md); background: #FFFFFF; }
 
     /* Canvas Floating Controls */
     .canvas-hud-top {
@@ -409,63 +428,64 @@
     }
     .canvas-hud-zoom {
       position: absolute; bottom: 16px; right: 16px; z-index: 15; display: flex; align-items: center; gap: 6px;
-      background: var(--bg-surface); border: 1px solid var(--border-strong); border-radius: var(--r-lg); padding: 4px 8px;
+      background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-lg); padding: 4px 8px;
+      box-shadow: var(--shadow-sm);
     }
 
     /* Floating Gemini AI Copilot Bar */
     .studio-ai-copilot-bar {
       position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 25;
-      width: 600px; max-width: 90vw; background: rgba(17, 24, 39, 0.95); backdrop-filter: blur(16px);
-      border: 1px solid var(--border-accent); border-radius: var(--r-xl); padding: 8px 12px;
-      box-shadow: 0 16px 40px rgba(0,0,0,0.7); display: flex; flex-direction: column; gap: 8px;
+      width: 580px; max-width: 90vw; background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(12px);
+      border: 1.5px solid var(--border-strong); border-radius: var(--r-xl); padding: 8px 12px;
+      box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 8px;
     }
     .copilot-input-row { display: flex; align-items: center; gap: 8px; }
     .copilot-input-row input {
-      flex: 1; background: transparent; border: none; font-size: 13px; color: #FFF; outline: none; padding: 6px 8px;
+      flex: 1; background: transparent; border: none; font-size: var(--fs-sm); color: var(--ink); outline: none; padding: 6px 8px;
     }
     .copilot-input-row input:focus { box-shadow: none; }
     .copilot-suggestions { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
     .copilot-chip {
-      font-size: 11px; font-weight: 700; color: var(--emerald); background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.25); padding: 3px 8px; border-radius: var(--r-pill); cursor: pointer; white-space: nowrap;
+      font-size: 11px; font-weight: 700; color: var(--ink-soft); background: var(--surface-2);
+      border: 1px solid var(--border); padding: 3px 8px; border-radius: var(--r-pill); cursor: pointer; white-space: nowrap;
     }
-    .copilot-chip:hover { background: rgba(16, 185, 129, 0.25); }
+    .copilot-chip:hover { background: var(--brand-cream); color: var(--ink); border-color: var(--border-strong); }
 
     /* Right Insights & Inspector Panel */
     .studio-inspector {
-      width: 280px; background: var(--bg-surface); border-left: 1px solid var(--border);
+      width: 270px; background: var(--surface); border-left: 1px solid var(--border);
       display: flex; flex-direction: column; z-index: 10; flex-shrink: 0; padding: 16px; overflow-y: auto; gap: 16px;
     }
     .inspector-card {
-      background: var(--bg-surface-2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 14px;
+      background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px;
     }
-    .inspector-card h4 { font-size: 12px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
-    .kpi-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; }
-    .kpi-row strong { font-family: var(--font-mono); color: var(--text-main); font-size: 13px; }
+    .inspector-card h4 { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 10px; }
+    .kpi-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: var(--fs-xs); }
+    .kpi-row strong { font-family: var(--font-mono); color: var(--ink); font-size: var(--fs-sm); }
 
     /* =====================================================================
        SCREEN 4: PRESENTATION MODE & BOM
        ===================================================================== */
-    #screen-present { background: #0A0E17; }
+    #screen-present { background: #FFFFFF; }
     .present-header {
-      padding: 16px 36px; background: var(--bg-surface); border-bottom: 1px solid var(--border);
+      padding: 16px 40px; background: var(--surface); border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
     }
     .present-body { flex: 1; overflow-y: auto; padding: 32px 48px; display: flex; flex-direction: column; gap: 32px; align-items: center; }
     .present-canvas-container {
-      background: #06090F; border: 1px solid var(--border-strong); border-radius: var(--r-xl);
-      padding: 24px; box-shadow: var(--shadow-lg); max-width: 100%; overflow: auto;
+      background: #FFFFFF; border: 1.5px solid var(--border-strong); border-radius: var(--r-xl);
+      padding: 24px; box-shadow: var(--shadow-md); max-width: 100%; overflow: auto;
     }
     .bom-table {
-      width: 100%; max-width: 1000px; border-collapse: collapse; background: var(--bg-surface);
-      border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden;
+      width: 100%; max-width: 1000px; border-collapse: collapse; background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm);
     }
     .bom-table th {
-      text-align: left; padding: 12px 16px; background: var(--bg-surface-2); font-size: 12px;
-      font-weight: 800; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border);
+      text-align: left; padding: 12px 16px; background: var(--surface-2); font-size: var(--fs-xs);
+      font-weight: 800; color: var(--ink-soft); text-transform: uppercase; border-bottom: 1px solid var(--border);
     }
     .bom-table td {
-      padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px;
+      padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: var(--fs-sm);
     }
     .bom-table tr:last-child td { border-bottom: none; }
   </style>
@@ -479,11 +499,11 @@
   <div class="modal-overlay" id="modal-api-key">
     <div class="modal-card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-        <h3 style="font-family:var(--font-brand); font-size:18px; font-weight:800;">Google Gemini AI Settings</h3>
+        <h3 style="font-family:var(--font-brand); font-size:var(--fs-lg); font-weight:800;">Google Gemini AI Settings</h3>
         <button class="btn ghost icon" id="modal-key-close">✕</button>
       </div>
-      <p style="color:var(--text-muted); font-size:13px; margin-bottom:16px;">
-        Plano AI uses Gemini 2.5 Flash for architectural layout intelligence. If you have an API key, enter it below. Plano AI also features an offline veteran architect engine fallback.
+      <p style="color:var(--ink-soft); font-size:var(--fs-sm); margin-bottom:16px;">
+        Plano AI uses Gemini 2.5 Flash for architectural layout intelligence. If you have an API key, enter it below. Plano AI also features a built-in veteran architect engine fallback.
       </p>
       <div style="margin-bottom:16px;">
         <label class="field-label">Gemini API Key</label>
@@ -506,7 +526,7 @@
       <p class="sub">Intelligent Warehouse Layout Studio for Operations Leaders</p>
 
       <div id="login-chips-wrap" style="display:none;">
-        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:var(--text-faint); letter-spacing:.05em; text-align:left; margin-bottom:8px;">Recent Accounts</div>
+        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:var(--ink-faint); letter-spacing:.05em; text-align:left; margin-bottom:8px;">Recent Accounts</div>
         <div class="recent-chips" id="login-chips"></div>
       </div>
 
@@ -592,8 +612,8 @@
         <!-- New Layout Card -->
         <div class="new-layout-card" id="card-new-layout">
           <div class="plus-icon">+</div>
-          <strong style="font-family:var(--font-brand); font-size:17px;">Create New Warehouse Layout</strong>
-          <span style="font-size:12px; color:var(--text-muted); max-width:240px;">Guided AI Architect flow with sketch upload or interactive sketching</span>
+          <strong style="font-family:var(--font-brand); font-size:var(--fs-md);">Create New Warehouse Layout</strong>
+          <span style="font-size:12px; color:var(--ink-soft); max-width:240px;">Guided AI Architect flow with sketch upload or interactive sketching</span>
         </div>
       </div>
     </div>
@@ -641,8 +661,8 @@
       <div class="wizard-content-area">
         <!-- Step 1: Basic Details -->
         <div class="wizard-pane on" id="wizard-pane-1">
-          <h2 style="font-family:var(--font-brand); font-size:24px; font-weight:800; margin-bottom:6px;">Warehouse Specifications</h2>
-          <p style="color:var(--text-muted); font-size:13px; margin-bottom:24px;">Enter the essential operational parameters. Plano AI handles all engineering tolerances automatically.</p>
+          <h2 style="font-family:var(--font-brand); font-size:var(--fs-xl); font-weight:800; margin-bottom:6px;">Warehouse Specifications</h2>
+          <p style="color:var(--ink-soft); font-size:var(--fs-sm); margin-bottom:24px;">Enter the essential operational parameters. Plano AI handles all engineering tolerances automatically.</p>
 
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
             <div>
@@ -655,25 +675,25 @@
             </div>
           </div>
 
-          <div style="margin-bottom:20px; background:var(--bg-surface-2); padding:16px; border-radius:var(--r-lg); border:1px solid var(--border);">
+          <div style="margin-bottom:20px; background:var(--surface); padding:16px; border-radius:var(--r-lg); border:1px solid var(--border-strong);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
               <label class="field-label" style="margin:0;">Facility Dimensions</label>
               <div style="display:flex; gap:6px;">
-                <button type="button" class="btn ghost btn-sm active" id="wz-unit-ft" style="padding:4px 10px; font-size:11px; background:var(--bg-surface-3);">Feet (ft)</button>
+                <button type="button" class="btn ghost btn-sm active" id="wz-unit-ft" style="padding:4px 10px; font-size:11px; background:var(--surface-2);">Feet (ft)</button>
                 <button type="button" class="btn ghost btn-sm" id="wz-unit-m" style="padding:4px 10px; font-size:11px;">Meters (m)</button>
               </div>
             </div>
             <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
               <div>
-                <label style="font-size:11px; color:var(--text-muted);">Length</label>
+                <label style="font-size:11px; color:var(--ink-faint);">Length</label>
                 <input type="number" id="wz-len" value="150" min="40" max="1000">
               </div>
               <div>
-                <label style="font-size:11px; color:var(--text-muted);">Width</label>
+                <label style="font-size:11px; color:var(--ink-faint);">Width</label>
                 <input type="number" id="wz-wid" value="100" min="30" max="1000">
               </div>
               <div>
-                <label style="font-size:11px; color:var(--text-muted);">Clear Height</label>
+                <label style="font-size:11px; color:var(--ink-faint);">Clear Height</label>
                 <input type="number" id="wz-hgt" value="32" min="15" max="60">
               </div>
             </div>
@@ -722,8 +742,8 @@
 
         <!-- Step 2: Multi-Modal Layout Input (Upload or Draw) -->
         <div class="wizard-pane" id="wizard-pane-2">
-          <h2 style="font-family:var(--font-brand); font-size:24px; font-weight:800; margin-bottom:6px;">Provide Layout Input</h2>
-          <p style="color:var(--text-muted); font-size:13px; margin-bottom:20px;">Upload an existing sketch or quickly sketch the outer perimeter on the canvas.</p>
+          <h2 style="font-family:var(--font-brand); font-size:var(--fs-xl); font-weight:800; margin-bottom:6px;">Provide Layout Input</h2>
+          <p style="color:var(--ink-soft); font-size:var(--fs-sm); margin-bottom:20px;">Upload an existing sketch or quickly sketch the outer perimeter on the canvas.</p>
 
           <div style="display:flex; gap:10px; margin-bottom:16px;">
             <button class="btn primary btn-sm" id="tab-upload-btn">📷 Upload Sketch / Blueprint / CAD</button>
@@ -733,11 +753,11 @@
           <div id="pane-upload-section">
             <div class="dropzone-box" id="dropzone-box">
               <div style="font-size:36px; margin-bottom:12px;">📁</div>
-              <strong style="font-size:15px;">Drag &amp; drop sketch, CAD, blueprint photo or PDF</strong>
-              <p style="color:var(--text-muted); font-size:12px; margin-top:6px;">Supports PNG, JPG, PDF, SVG (Auto-straightens and extracts boundaries)</p>
+              <strong style="font-size:var(--fs-md);">Drag &amp; drop sketch, CAD, blueprint photo or PDF</strong>
+              <p style="color:var(--ink-soft); font-size:12px; margin-top:6px;">Supports PNG, JPG, PDF, SVG (Auto-straightens and extracts boundaries)</p>
               <input type="file" id="file-sketch-upload" accept="image/*,.pdf" style="display:none;">
             </div>
-            <div id="upload-preview-wrap" style="display:none; margin-top:16px; background:var(--bg-surface-2); padding:16px; border-radius:var(--r-lg); border:1px solid var(--border);">
+            <div id="upload-preview-wrap" style="display:none; margin-top:16px; background:var(--surface); padding:16px; border-radius:var(--r-lg); border:1px solid var(--border-strong);">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <span class="pill emerald">✓ Sketch Loaded</span>
                 <button class="btn ghost btn-sm" id="btn-remove-sketch">Remove</button>
@@ -748,7 +768,7 @@
 
           <div id="pane-sketch-section" style="display:none;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-              <span style="font-size:12px; color:var(--text-muted);">Click &amp; drag to sketch walls (gray) and dock doors (blue/red)</span>
+              <span style="font-size:12px; color:var(--ink-soft);">Click &amp; drag to sketch walls and dock doors</span>
               <button class="btn ghost btn-sm" id="btn-clear-sketch">Clear Sketch</button>
             </div>
             <div class="sketch-canvas-wrap">
@@ -761,14 +781,14 @@
         <div class="wizard-pane" id="wizard-pane-3">
           <div class="ai-radar-card">
             <div class="ai-pulse-dot">📐</div>
-            <h2 style="font-family:var(--font-brand); font-size:24px; font-weight:800; margin-bottom:6px;">Gemini AI Architectural Engine</h2>
-            <p style="color:var(--text-muted); font-size:13px; max-width:540px; margin:0 auto 24px;">
+            <h2 style="font-family:var(--font-brand); font-size:var(--fs-xl); font-weight:800; margin-bottom:6px;">Gemini AI Architectural Engine</h2>
+            <p style="color:var(--ink-soft); font-size:var(--fs-sm); max-width:540px; margin:0 auto 24px;">
               Evaluating material handling equipment (MHE), NFPA 13 fire clearance guidelines, and cross-dock throughput benchmarks.
             </p>
 
             <!-- Clarification Questions -->
-            <div style="text-align:left; background:var(--bg-surface); padding:20px; border-radius:var(--r-lg); border:1px solid var(--border); margin-bottom:20px;">
-              <h4 style="font-size:13px; font-weight:800; color:var(--emerald); margin-bottom:14px;">⚡ Architect Clarification Check</h4>
+            <div style="text-align:left; background:var(--surface-2); padding:20px; border-radius:var(--r-lg); border:1px solid var(--border); margin-bottom:20px;">
+              <h4 style="font-size:var(--fs-sm); font-weight:800; color:var(--emerald); margin-bottom:14px;">⚡ Architect Clarification Check</h4>
               
               <div style="margin-bottom:16px;">
                 <label style="font-size:12px; font-weight:700; display:block; margin-bottom:6px;">1. Primary High-Bay Handling Equipment</label>
@@ -788,9 +808,9 @@
               </div>
             </div>
 
-            <div id="ai-synthesis-output" style="display:none; text-align:left; background:var(--bg-surface-2); padding:16px; border-radius:var(--r-lg); border:1px solid var(--border-accent); margin-bottom:20px;">
+            <div id="ai-synthesis-output" style="display:none; text-align:left; background:var(--brand-cream-2); padding:16px; border-radius:var(--r-lg); border:1px solid var(--border-strong); margin-bottom:20px;">
               <div style="font-size:12px; font-weight:800; color:var(--emerald); text-transform:uppercase; margin-bottom:8px;">✓ Layout Synthesized by Principal Architect</div>
-              <ul id="ai-notes-list" style="font-size:12px; color:var(--text-muted); line-height:1.6; padding-left:20px;"></ul>
+              <ul id="ai-notes-list" style="font-size:12px; color:var(--ink-soft); line-height:1.6; padding-left:20px;"></ul>
             </div>
           </div>
         </div>
@@ -800,7 +820,7 @@
     <!-- Wizard Footer Actions -->
     <footer class="wizard-footer">
       <button class="btn" id="wizard-prev-btn" style="visibility:hidden;">Back</button>
-      <div id="wizard-footer-dims" style="font-family:var(--font-mono); font-size:12px; color:var(--text-muted);">150 × 100 ft</div>
+      <div id="wizard-footer-dims" style="font-family:var(--font-mono); font-size:12px; color:var(--ink-soft);">150 × 100 ft</div>
       <button class="btn primary lg" id="wizard-next-btn">Continue to Layout Input →</button>
     </footer>
   </div>
@@ -814,8 +834,8 @@
       <div class="studio-header-left">
         <button class="btn ghost icon" id="ed-back-hub-btn" title="Back to Layout Hub">←</button>
         <div>
-          <h3 id="ed-site-name" style="font-family:var(--font-brand); font-size:15px; font-weight:800;">Bengaluru Mother Hub</h3>
-          <div id="ed-site-specs" style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted);">150 × 100 ft (46 × 30 Cells)</div>
+          <h3 id="ed-site-name" style="font-family:var(--font-brand); font-size:var(--fs-md); font-weight:800;">Bengaluru Mother Hub</h3>
+          <div id="ed-site-specs" style="font-family:var(--font-mono); font-size:11px; color:var(--ink-soft);">150 × 100 ft (46 × 30 Cells)</div>
         </div>
         <div class="pill emerald" id="ed-save-status">✓ Synced</div>
       </div>
@@ -831,7 +851,7 @@
 
       <div class="studio-header-right">
         <button class="btn ghost" id="ed-export-png-btn">🖼️ Export PNG</button>
-        <button class="btn amber" id="ed-present-btn">📽️ Present Screen</button>
+        <button class="btn primary" id="ed-present-btn">📽️ Present Screen</button>
       </div>
     </header>
 
@@ -918,8 +938,8 @@
       <div style="display:flex; align-items:center; gap:14px;">
         <button class="btn ghost icon" id="present-back-btn">←</button>
         <div>
-          <h2 id="pr-site-title" style="font-family:var(--font-brand); font-size:18px; font-weight:800;">Bengaluru Mother Hub — Executive Blueprint</h2>
-          <div id="pr-site-sub" style="font-family:var(--font-mono); font-size:12px; color:var(--text-muted);">Scale 1:100 · Engineering Compliance Sheet</div>
+          <h2 id="pr-site-title" style="font-family:var(--font-brand); font-size:var(--fs-lg); font-weight:800;">Bengaluru Mother Hub — Executive Blueprint</h2>
+          <div id="pr-site-sub" style="font-family:var(--font-mono); font-size:12px; color:var(--ink-soft);">Scale 1:100 · Engineering Compliance Sheet</div>
         </div>
       </div>
       <div style="display:flex; gap:10px;">
