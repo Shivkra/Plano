@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Plano AI — Intelligent Warehouse Layout Studio</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2317171A'><path d='M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h4v4H7V7zm6 0h4v4h-4V7zm-6 6h4v4H7v-4zm6 0h4v4h-4v-4z'/></svg>">
+  <title>Blitz Planogram — AI Layout & Architectural Studio</title>
+  <link rel="icon" type="image/png" href="assets/logo.png">
 
   <!-- Google Fonts: Outfit (Brand & Headings), Plus Jakarta Sans (UI), JetBrains Mono (Technical Data) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -521,8 +521,8 @@
   ===================================================================== -->
   <div id="screen-login" class="screen on">
     <div class="login-box">
-      <div class="login-brand-icon">📐</div>
-      <h1>Plano AI</h1>
+      <img src="assets/logo.png" alt="Blitz" style="width:64px; height:64px; margin:0 auto 16px; border-radius:14px; display:block; object-fit:contain; box-shadow:var(--shadow-md);">
+      <h1>Blitz Planogram</h1>
       <p class="sub">Intelligent Warehouse Layout Studio for Operations Leaders</p>
 
       <div id="login-chips-wrap" style="display:none;">
@@ -533,9 +533,9 @@
       <form id="login-form">
         <div style="margin-bottom:16px; text-align:left;">
           <label class="field-label">Manager Work Email</label>
-          <input type="email" id="login-email-input" placeholder="e.g. manager@logistics.com" required autocomplete="email" autofocus>
+          <input type="email" id="login-email-input" placeholder="e.g. manager@blitznow.in" required autocomplete="email" autofocus>
         </div>
-        <button type="submit" class="btn primary lg full" id="login-btn">Launch Warehouse Studio →</button>
+        <button type="submit" class="btn primary lg full" id="login-btn">Launch Blitz Studio →</button>
       </form>
     </div>
   </div>
@@ -546,9 +546,9 @@
   <div id="screen-library" class="screen">
     <header class="hub-header">
       <div class="hub-brand">
-        <div class="icon">📐</div>
+        <img src="assets/logo.png" alt="Blitz" style="width:40px; height:40px; border-radius:10px; object-fit:contain;">
         <div>
-          <h1>Plano AI Studio</h1>
+          <h1>Blitz Planogram</h1>
           <div class="sub">Logistics Architecture &amp; High-Throughput Fulfillment Planograms</div>
         </div>
       </div>
@@ -556,7 +556,7 @@
         <button class="btn ghost" id="btn-api-key-settings">⚙️ AI Settings</button>
         <div class="pill emerald" id="user-display-pill">
           <span>👤</span>
-          <span id="user-email-label">manager@logistics.com</span>
+          <span id="user-email-label">manager@blitznow.in</span>
         </div>
         <button class="btn ghost icon" id="btn-signout" title="Sign Out">⎋</button>
         <button class="btn primary" id="btn-create-new-top">+ Create New Layout</button>
@@ -626,7 +626,8 @@
     <header class="wizard-nav">
       <div class="title-area">
         <button class="btn ghost icon" id="wizard-back-hub-btn" title="Back to Hub">←</button>
-        <h2>Warehouse Layout Generation Studio</h2>
+        <img src="assets/logo.png" alt="Blitz" style="width:28px; height:28px; border-radius:6px; object-fit:contain;">
+        <h2>Blitz Planogram Studio</h2>
       </div>
       <div class="pill emerald" id="wizard-step-counter">Step 1 of 3: Facility Basics</div>
     </header>
@@ -662,12 +663,12 @@
         <!-- Step 1: Basic Details -->
         <div class="wizard-pane on" id="wizard-pane-1">
           <h2 style="font-family:var(--font-brand); font-size:var(--fs-xl); font-weight:800; margin-bottom:6px;">Warehouse Specifications</h2>
-          <p style="color:var(--ink-soft); font-size:var(--fs-sm); margin-bottom:24px;">Enter the essential operational parameters. Plano AI handles all engineering tolerances automatically.</p>
+          <p style="color:var(--ink-soft); font-size:var(--fs-sm); margin-bottom:24px;">Enter the essential operational parameters. Blitz Planogram handles all engineering tolerances automatically.</p>
 
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
             <div>
               <label class="field-label">Warehouse Name</label>
-              <input type="text" id="wz-name" value="Bengaluru Mother Hub — BLR-01" required>
+              <input type="text" id="wz-name" value="Blitz Mother Hub — BLR-01" required>
             </div>
             <div>
               <label class="field-label">City / Location</label>

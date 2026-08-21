@@ -1,11 +1,11 @@
 /* ==========================================================================
-   Plano AI — Master Application Coordinator & Canvas Studio Engine
+   Blitz Planogram — Master Application Coordinator & Canvas Studio Engine
    ========================================================================== */
 
 import { ELEMENTS, ELEMENTS_BY_ID } from './config/elements.js';
 import { LayoutMetrics } from './engine/metrics.js';
 
-class PlanoAIApp {
+class BlitzPlanogramApp {
   constructor() {
     this.currentUser = null;
     this.token = localStorage.getItem('plano_token') || null;
@@ -17,7 +17,7 @@ class PlanoAIApp {
 
     // Active Layout Model
     this.activeSiteId = null;
-    this.siteName = "Bengaluru Mother Hub";
+    this.siteName = "Blitz Mother Hub — BLR-01";
     this.siteCity = "Bengaluru";
     this.unit = "imperial"; // 'imperial' (ft) | 'metric' (m)
     this.cols = 46;
@@ -1271,7 +1271,7 @@ class PlanoAIApp {
   }
 }
 
-// Bootstrap Plano AI Application
+// Bootstrap Blitz Planogram Application
 window.addEventListener('DOMContentLoaded', () => {
-  window.planoApp = new PlanoAIApp();
+  window.planoApp = new BlitzPlanogramApp();
 });
