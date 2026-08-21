@@ -640,7 +640,89 @@ Provide your expert recommendations and architectural rationale. Return a JSON o
     }
   }
 
-  // 9. AI: Natural Language Layout Tweaks Copilot
+  // 9. AI: Calculate & Apply Optimal Docks (Direct Interactive Sizing)
+  if (pathname === '/api/ai/calculate-docks' && req.method === 'POST') {
+    try {
+      const payload = await parseBody(req);
+      const {
+        dailyTrucks = 12,
+        dailyVans = 35,
+        peakHours = 4,
+        unloadType = 'forklift', // 'forklift' (25 mins) | 'manual' (60 mins)
+        cols = 46,
+        rows = 30,
+        cells = []
+      } = payload;
+
+      const unloadMins = unloadType === 'forklift' ? 25 : 60;
+      const loadMins = unloadType === 'forklift' ? 20 : 45;
+
+      // Unloading throughput capacity formula
+      const inboundHoursNeeded = (dailyTrucks * unloadMins) / 60;
+      const requiredInDocks = Math.max(2, Math.min(10, Math.ceil(inboundHoursNeeded / peakHours)));
+
+      const outboundHoursNeeded = (dailyVans * loadMins) / 60;
+      const requiredOutDocks = Math.max(2, Math.min(12, Math.ceil(outboundHoursNeeded / peakHours)));
+
+      // Apply to grid
+      const newCells = [...(cells.length === cols * rows ? cells : new Array(cols * rows).fill(0))];
+      const newRots = new Array(cols * rows).fill(0);
+
+      // Clear existing dock rows & staging
+      for (let c = 0; c < cols; c++) {
+        newCells[c] = 0; // Top dock row
+        newCells[cols + c] = 0; // Top staging row
+        newCells[2 * cols + c] = 0; // Top staging 2
+        newCells[(rows - 1) * cols + c] = 0; // Bottom dock row
+        newCells[(rows - 2) * cols + c] = 0; // Bottom staging row
+        newCells[(rows - 3) * cols + c] = 0; // Bottom staging 2
+      }
+
+      // Re-place Inbound Docks
+      const inStartC = Math.max(2, Math.floor((cols - requiredInDocks * 3) / 2));
+      for (let d = 0; d < requiredInDocks; d++) {
+        const c = inStartC + d * 3;
+        newCells[c] = 4; // Inbound Dock Door
+        newCells[cols + c] = 6; // Inbound Staging
+        newCells[cols + c + 1] = 6;
+        newCells[2 * cols + c] = 6;
+        newCells[2 * cols + c + 1] = 6;
+      }
+
+      // Re-place Outbound Docks
+      const outStartC = Math.max(2, Math.floor((cols - requiredOutDocks * 3) / 2));
+      for (let d = 0; d < requiredOutDocks; d++) {
+        const c = outStartC + d * 3;
+        newCells[(rows - 1) * cols + c] = 5; // Outbound Dock Door
+        newCells[(rows - 2) * cols + c] = 7; // Outbound Staging
+        newCells[(rows - 2) * cols + c + 1] = 7;
+        newCells[(rows - 3) * cols + c] = 7;
+        newCells[(rows - 3) * cols + c + 1] = 7;
+      }
+
+      // Preserve corners as Fire Exits
+      newCells[0] = 15;
+      newCells[cols - 1] = 15;
+      newCells[(rows - 1) * cols] = 15;
+      newCells[(rows - 1) * cols + (cols - 1)] = 15;
+
+      const explanation = `Calculated: ${requiredInDocks} Inbound Doors (${dailyTrucks} linehaul trucks / ${peakHours}h peak) & ${requiredOutDocks} Outbound Doors (${dailyVans} dispatch vans). Auto-placed on canvas with dedicated 4-cell staging buffers!`;
+
+      return sendJson(res, 200, {
+        requiredInDocks,
+        requiredOutDocks,
+        inboundHoursNeeded: inboundHoursNeeded.toFixed(1),
+        outboundHoursNeeded: outboundHoursNeeded.toFixed(1),
+        cells: newCells,
+        rots: newRots,
+        explanation
+      });
+    } catch (e) {
+      return sendJson(res, 500, { error: e.message });
+    }
+  }
+
+  // 10. AI: Natural Language Layout Tweaks Copilot
   if (pathname === '/api/ai/tweak-layout' && req.method === 'POST') {
     try {
       const payload = await parseBody(req);
@@ -651,7 +733,17 @@ Provide your expert recommendations and architectural rationale. Return a JSON o
       const newRots = [...rots];
       let modificationExplanation = "";
 
-      if (cleanPrompt.includes('pack') || cleanPrompt.includes('table') || cleanPrompt.includes('station')) {
+      if (cleanPrompt.includes('dock') || cleanPrompt.includes('door') || cleanPrompt.includes('gate') || cleanPrompt.includes('truck')) {
+        // Re-balance docks and staging
+        const inStartC = Math.max(2, Math.floor((cols - 4 * 3) / 2));
+        for (let d = 0; d < 4; d++) {
+          const c = inStartC + d * 3;
+          newCells[c] = 4;
+          newCells[cols + c] = 6;
+          newCells[cols + c + 1] = 6;
+        }
+        modificationExplanation = "Re-balanced 4 Linehaul Inbound Docks (North) & 4 Dispatch Outbound Docks (South) with 100% direct staging access.";
+      } else if (cleanPrompt.includes('pack') || cleanPrompt.includes('table') || cleanPrompt.includes('station')) {
         // Add packing stations in bottom quadrant
         const targetRow = rows - 4;
         let added = 0;

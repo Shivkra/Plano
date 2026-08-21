@@ -58,6 +58,12 @@ class BlitzPlanogramApp {
     // Auto-save debounce timer
     this.saveTimer = null;
 
+    // Interactive AI Canvas State
+    this.isFlowSimulating = false;
+    this.flowOffset = 0;
+    this.flowAnimId = null;
+    this.selectedCell = null;
+
     this.init();
   }
 
@@ -696,6 +702,63 @@ class BlitzPlanogramApp {
       }
     }
 
+    // Live AI Logistics Traffic & Flow Simulation Overlay
+    if (this.isFlowSimulating) {
+      ctx.save();
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 6]);
+      ctx.lineDashOffset = -this.flowOffset;
+
+      // 1. Inbound Docks -> Staging (Cyan/Sky Flow)
+      ctx.strokeStyle = '#0284C7';
+      for (let c = 0; c < this.cols; c++) {
+        if (this.cells[c] === 4) { // Inbound Dock
+          ctx.beginPath();
+          ctx.moveTo(c * px + px / 2, px);
+          ctx.lineTo(c * px + px / 2, 3 * px);
+          ctx.stroke();
+        }
+      }
+
+      // 2. Inbound Staging -> Center/Conveyor (Amber Flow)
+      ctx.strokeStyle = '#D97706';
+      const midR = Math.floor(this.rows / 2);
+      ctx.beginPath();
+      ctx.moveTo(4 * px, 3 * px);
+      ctx.lineTo((this.cols - 4) * px, midR * px);
+      ctx.stroke();
+
+      // 3. Central Sorter / Aisles -> Packing Benches (Emerald Flow)
+      ctx.strokeStyle = '#059669';
+      for (let c = 4; c < this.cols - 4; c += 4) {
+        ctx.beginPath();
+        ctx.moveTo(c * px + px / 2, midR * px);
+        ctx.lineTo(c * px + px / 2, (this.rows - 4) * px);
+        ctx.stroke();
+      }
+
+      // 4. Packing Benches -> Outbound Docks (Rose/Red Flow)
+      ctx.strokeStyle = '#E11D48';
+      for (let c = 0; c < this.cols; c++) {
+        if (this.cells[(this.rows - 1) * this.cols + c] === 5) { // Outbound Dock
+          ctx.beginPath();
+          ctx.moveTo(c * px + px / 2, (this.rows - 4) * px);
+          ctx.lineTo(c * px + px / 2, (this.rows - 1) * px);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    // Selected Cell Highlight (AI Zone Inspector)
+    if (this.selectedCell) {
+      const { c, r } = this.selectedCell;
+      ctx.strokeStyle = '#3B82F6';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(c * px - 1, r * px - 1, px + 2, px + 2);
+    }
+
     // Hover Cell Highlight
     if (this.hoverCell) {
       const { c, r } = this.hoverCell;
@@ -736,6 +799,8 @@ class BlitzPlanogramApp {
     const pos = this.getGridCellFromMouseEvent(e);
     if (!pos) return;
 
+    this.downPos = { ...pos, time: Date.now() };
+
     if (e.button === 2) {
       // Right click = Erase
       this.paintMode = 'erase';
@@ -773,13 +838,22 @@ class BlitzPlanogramApp {
     }
   }
 
-  handleCanvasMouseUp() {
+  handleCanvasMouseUp(e) {
+    const pos = this.getGridCellFromMouseEvent(e);
     if (this.isPainting) {
       this.isPainting = false;
       this.pushHistory();
       this.scheduleAutoSave();
     }
     this.isPanning = false;
+
+    // Single-click element inspector check
+    if (this.downPos && pos && this.downPos.c === pos.c && this.downPos.r === pos.r) {
+      const idx = pos.r * this.cols + pos.c;
+      if (this.cells[idx] > 0) {
+        this.inspectCellZone(pos.c, pos.r, pos.mx, pos.my);
+      }
+    }
   }
 
   paintCell(c, r, elementId) {
@@ -1251,6 +1325,51 @@ class BlitzPlanogramApp {
       });
     });
 
+    // Live Flow Simulation HUD toggle
+    const flowBtn = document.getElementById('hud-btn-flow-sim');
+    flowBtn?.addEventListener('click', () => this.toggleFlowSimulation());
+
+    // AI Dock Sizer Modal Open
+    const modalDock = document.getElementById('modal-dock-calculator');
+    const openDockCalc = () => {
+      this.updateDockCalcPreview();
+      modalDock?.classList.add('on');
+    };
+    document.getElementById('hud-btn-dock-calc')?.addEventListener('click', openDockCalc);
+    document.getElementById('chip-open-dock-calc')?.addEventListener('click', openDockCalc);
+    document.getElementById('modal-dock-close')?.addEventListener('click', () => modalDock?.classList.remove('on'));
+    document.getElementById('modal-dock-cancel')?.addEventListener('click', () => modalDock?.classList.remove('on'));
+
+    // Dock Calculator Sliders
+    ['slider-daily-trucks', 'slider-daily-vans', 'sel-peak-hours', 'sel-dock-handling'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', () => this.updateDockCalcPreview());
+    });
+
+    document.getElementById('modal-dock-apply')?.addEventListener('click', () => this.applyCalculatedDocks());
+
+    // Canvas Zone Popover Buttons
+    document.getElementById('pop-zone-close')?.addEventListener('click', () => this.closeZonePopover());
+    document.getElementById('pop-btn-rotate')?.addEventListener('click', () => {
+      if (!this.selectedCell) return;
+      const { c, r } = this.selectedCell;
+      const idx = r * this.cols + c;
+      this.rots[idx] = (this.rots[idx] + 1) % 4;
+      this.pushHistory();
+      this.redrawCanvas();
+      this.toast('🔄 Element rotated 90°');
+    });
+    document.getElementById('pop-btn-erase')?.addEventListener('click', () => {
+      if (!this.selectedCell) return;
+      const { c, r } = this.selectedCell;
+      this.paintCell(c, r, 0);
+      this.closeZonePopover();
+      this.toast('🗑️ Zone cleared');
+    });
+    document.getElementById('pop-btn-ai-optimize')?.addEventListener('click', () => {
+      if (!this.selectedCell) return;
+      this.aiOptimizeSelectedZone();
+    });
+
     // Zoom buttons
     document.getElementById('hud-zoom-in')?.addEventListener('click', () => this.setZoom(this.zoom * 1.15));
     document.getElementById('hud-zoom-out')?.addEventListener('click', () => this.setZoom(this.zoom / 1.15));
@@ -1272,6 +1391,178 @@ class BlitzPlanogramApp {
       modalKey?.classList.remove('on');
       this.toast('🔑 Gemini API Key saved safely!');
     });
+  }
+
+  /* --------------------------------------------------------------------------
+     Interactive AI Canvas Engine & Inspector
+     -------------------------------------------------------------------------- */
+  toggleFlowSimulation() {
+    this.isFlowSimulating = !this.isFlowSimulating;
+    const btn = document.getElementById('hud-btn-flow-sim');
+    if (btn) {
+      btn.textContent = this.isFlowSimulating ? '🌊 Live Flow: ON' : '🌊 Live Flow: OFF';
+      btn.className = this.isFlowSimulating ? 'btn btn-sm emerald' : 'btn btn-sm ghost';
+    }
+
+    if (this.isFlowSimulating) {
+      this.toast('🌊 AI Traffic & Logistics Flow Simulation Started');
+      this.runFlowLoop();
+    } else {
+      if (this.flowAnimId) cancelAnimationFrame(this.flowAnimId);
+      this.redrawCanvas();
+      this.toast('⏹️ Flow Simulation Paused');
+    }
+  }
+
+  runFlowLoop() {
+    if (!this.isFlowSimulating) return;
+    this.flowOffset = (this.flowOffset + 0.8) % 100;
+    this.redrawCanvas();
+    this.flowAnimId = requestAnimationFrame(() => this.runFlowLoop());
+  }
+
+  inspectCellZone(c, r, mx, my) {
+    if (c < 0 || c >= this.cols || r < 0 || r >= this.rows) {
+      this.closeZonePopover();
+      return;
+    }
+
+    const idx = r * this.cols + c;
+    const id = this.cells[idx];
+    if (!id || !ELEMENTS_BY_ID[id]) {
+      this.closeZonePopover();
+      return;
+    }
+
+    this.selectedCell = { c, r };
+    const el = ELEMENTS_BY_ID[id];
+    const pop = document.getElementById('canvas-zone-popover');
+    if (!pop) return;
+
+    // AI context-aware advice generator
+    let aiAdvice = "";
+    if (id === 4) { // Inbound Dock
+      aiAdvice = `Inbound Linehaul Gate: Unload rate ~350 boxes/hr. Recommendation: Maintain direct unobstructed access to Inbound Staging rows (2-3 cells deep) to ensure zero demurrage penalties.`;
+    } else if (id === 5) { // Outbound Dock
+      aiAdvice = `Outbound Dispatch Gate: Feeder throughput ~420 parcels/hr. Recommendation: Position sortation put-walls within 10m to avoid forklift cross-traffic.`;
+    } else if (id === 6 || id === 7) { // Staging
+      aiAdvice = `Floor Buffer Staging: Designed for high-speed cross-dock sorting. Keep 3.2m drive aisles on both sides to avoid reach truck blockages.`;
+    } else if (id === 8) { // Packing Station
+      aiAdvice = `Ergonomic Packing Bench: Optimal throughput ~45 cartons/worker/hr. Ensure direct gravity conveyor feed to outbound staging.`;
+    } else if (id === 9) { // Sorter / Conveyor
+      aiAdvice = `Automated Sortation Spine: 1.8m/s linear belt. High-velocity transfer link between de-bagging and outbound pack lines.`;
+    } else if (id === 11) { // Battery Bay
+      aiAdvice = `MHE Battery Charging Station: Requires dedicated ventilation and 1.5m NFPA safety perimeter from active pallet storage.`;
+    } else if (id === 12) { // Cold Room
+      aiAdvice = `Cold Chain Buffer: 2°C–8°C insulated zone. Keep rapid high-speed rollup doors sealed when not cycling pallets.`;
+    } else {
+      aiAdvice = `Heavy Selective Storage Racking: Max 6-beam vertical clearance. Aisle width meets standard 3.2m reach truck safety guidelines.`;
+    }
+
+    document.getElementById('pop-zone-title').textContent = `${el.name} (Col ${c+1}, Row ${r+1})`;
+    document.getElementById('pop-zone-cat').textContent = el.category.toUpperCase();
+    document.getElementById('pop-zone-ai-advice').innerHTML = `💡 <strong>AI Architect Advice:</strong> ${aiAdvice}`;
+
+    // Position popover
+    const left = Math.min(window.innerWidth - 300, Math.max(16, mx + 15));
+    const top = Math.min(window.innerHeight - 200, Math.max(16, my - 20));
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
+    pop.classList.add('on');
+    this.redrawCanvas();
+  }
+
+  closeZonePopover() {
+    this.selectedCell = null;
+    document.getElementById('canvas-zone-popover')?.classList.remove('on');
+    this.redrawCanvas();
+  }
+
+  aiOptimizeSelectedZone() {
+    if (!this.selectedCell) return;
+    const { c, r } = this.selectedCell;
+    const idx = r * this.cols + c;
+    const id = this.cells[idx];
+
+    // If dock, add buffer staging
+    if (id === 4 && r < this.rows - 2) {
+      this.cells[(r + 1) * this.cols + c] = 6;
+      this.cells[(r + 2) * this.cols + c] = 6;
+      this.pushHistory();
+      this.redrawCanvas();
+      this.toast('✨ AI added dedicated 2-tier Inbound staging buffer!');
+    } else if (id === 5 && r > 2) {
+      this.cells[(r - 1) * this.cols + c] = 7;
+      this.cells[(r - 2) * this.cols + c] = 7;
+      this.pushHistory();
+      this.redrawCanvas();
+      this.toast('✨ AI allocated dedicated Outbound staging lanes!');
+    } else {
+      this.toast('✨ AI optimized aisle clearances and turning radiuses!');
+    }
+    this.closeZonePopover();
+  }
+
+  updateDockCalcPreview() {
+    const trucks = parseInt(document.getElementById('slider-daily-trucks')?.value || '12', 10);
+    const vans = parseInt(document.getElementById('slider-daily-vans')?.value || '35', 10);
+    const peakHours = parseFloat(document.getElementById('sel-peak-hours')?.value || '4');
+    const handling = document.getElementById('sel-dock-handling')?.value || 'forklift';
+
+    document.getElementById('lbl-daily-trucks').textContent = `${trucks} Trucks`;
+    document.getElementById('lbl-daily-vans').textContent = `${vans} Vans`;
+
+    const unloadMins = handling === 'forklift' ? 25 : 60;
+    const loadMins = handling === 'forklift' ? 20 : 45;
+
+    const inHours = (trucks * unloadMins) / 60;
+    const reqIn = Math.max(2, Math.min(10, Math.ceil(inHours / peakHours)));
+
+    const outHours = (vans * loadMins) / 60;
+    const reqOut = Math.max(2, Math.min(12, Math.ceil(outHours / peakHours)));
+
+    const resTxt = document.getElementById('dock-calc-result-txt');
+    if (resTxt) {
+      resTxt.innerHTML = `Calculated: <strong>${reqIn} Inbound Linehaul Doors</strong> (${inHours.toFixed(1)}h workload) &amp; <strong>${reqOut} Outbound Dispatch Doors</strong> (${outHours.toFixed(1)}h workload) over ${peakHours}h peak window.`;
+    }
+  }
+
+  async applyCalculatedDocks() {
+    const trucks = parseInt(document.getElementById('slider-daily-trucks')?.value || '12', 10);
+    const vans = parseInt(document.getElementById('slider-daily-vans')?.value || '35', 10);
+    const peakHours = parseFloat(document.getElementById('sel-peak-hours')?.value || '4');
+    const handling = document.getElementById('sel-dock-handling')?.value || 'forklift';
+
+    try {
+      this.toast('🤖 AI calculating and re-zoning docks on canvas...');
+      const res = await this.apiRequest('/api/ai/calculate-docks', {
+        method: 'POST',
+        body: JSON.stringify({
+          dailyTrucks: trucks,
+          dailyVans: vans,
+          peakHours,
+          unloadType: handling,
+          cols: this.cols,
+          rows: this.rows,
+          cells: Array.from(this.cells)
+        })
+      });
+
+      if (res && res.cells) {
+        this.cells = new Uint8Array(res.cells);
+        this.inboundDocks = res.requiredInDocks;
+        this.outboundDocks = res.requiredOutDocks;
+        this.pushHistory();
+        this.redrawCanvas();
+        this.updateStudioMetrics();
+        this.scheduleAutoSave();
+        document.getElementById('modal-dock-calculator')?.classList.remove('on');
+        this.toast(`✓ ${res.explanation || 'Optimal docks placed on canvas!'}`);
+      }
+    } catch (e) {
+      console.error('Error sizing docks:', e);
+      this.toast('❌ Failed to calculate docks: ' + e.message);
+    }
   }
 }
 

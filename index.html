@@ -482,18 +482,100 @@
     }
     .bom-table th {
       text-align: left; padding: 12px 16px; background: var(--surface-2); font-size: var(--fs-xs);
-      font-weight: 800; color: var(--ink-soft); text-transform: uppercase; border-bottom: 1px solid var(--border);
-    }
-    .bom-table td {
-      padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: var(--fs-sm);
-    }
     .bom-table tr:last-child td { border-bottom: none; }
+
+    /* Canvas Interactive Popover */
+    .canvas-zone-popover {
+      position: absolute; z-index: 30; background: var(--surface); border: 1.5px solid var(--border-strong);
+      border-radius: var(--r-lg); padding: 14px 16px; width: 280px; box-shadow: var(--shadow-lg);
+      display: none; flex-direction: column; gap: 8px; pointer-events: auto;
+    }
+    .canvas-zone-popover.on { display: flex; animation: fadeIn 0.2s ease; }
+    .canvas-zone-popover .pop-title { font-family: var(--font-brand); font-size: var(--fs-sm); font-weight: 800; }
+    .canvas-zone-popover .pop-ai-box {
+      background: var(--brand-cream-2); border: 1px solid var(--border-strong); border-radius: var(--r-md);
+      padding: 8px 10px; font-size: 11px; color: var(--ink-soft); line-height: 1.4;
+    }
+
+    /* Modal Backdrop */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(29, 27, 23, 0.6); backdrop-filter: blur(6px);
+      z-index: 9000; display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-overlay.on { display: flex; }
+    .modal-card {
+      background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-xl);
+      padding: 32px; width: 500px; max-width: 95vw; box-shadow: var(--shadow-lg);
+    }
   </style>
 </head>
 <body>
 
   <!-- Toast Notification System -->
   <div class="toast-wrap" id="toast-wrap"></div>
+
+  <!-- Smart AI Dock Door Calculator Modal -->
+  <div class="modal-overlay" id="modal-dock-calculator">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:24px;">🤖</span>
+          <div>
+            <h3 style="font-family:var(--font-brand); font-size:var(--fs-lg); font-weight:800;">AI Dock Door &amp; Flow Calculator</h3>
+            <div style="font-size:11px; color:var(--ink-soft);">20-Year Logistics Architect Traffic Formula</div>
+          </div>
+        </div>
+        <button class="btn ghost icon" id="modal-dock-close">✕</button>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:14px; margin-bottom:20px;">
+        <div>
+          <label class="field-label">1. Daily Inbound Linehaul Trucks (14ft - 32ft)</label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <input type="range" id="slider-daily-trucks" min="2" max="60" value="12" style="flex:1;">
+            <span id="lbl-daily-trucks" style="font-family:var(--font-mono); font-weight:800; font-size:14px; width:65px; text-align:right;">12 Trucks</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="field-label">2. Daily Outbound Feeder Vans / Shuttles to Darkstores</label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <input type="range" id="slider-daily-vans" min="5" max="150" value="35" style="flex:1;">
+            <span id="lbl-daily-vans" style="font-family:var(--font-mono); font-weight:800; font-size:14px; width:65px; text-align:right;">35 Vans</span>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label class="field-label">3. Peak Operating Window</label>
+            <select id="sel-peak-hours">
+              <option value="3">3 Hours (Morning Rush)</option>
+              <option value="4" selected>4 Hours (Standard Wave)</option>
+              <option value="8">8 Hours (Full Shift)</option>
+              <option value="16">16 Hours (2 Shifts)</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">4. Unloading Handling</label>
+            <select id="sel-dock-handling">
+              <option value="forklift" selected>Forklift / Pallets (25 mins)</option>
+              <option value="manual">Manual Loose Crates (60 mins)</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="dock-calc-ai-result" style="background:var(--brand-cream-2); border:1px solid var(--border-strong); border-radius:var(--r-md); padding:12px; font-size:12px; line-height:1.5;">
+          <div style="font-weight:800; color:var(--emerald); margin-bottom:4px;">💡 AI Calculation Breakdown:</div>
+          <div id="dock-calc-result-txt">Estimated: <strong>3 Inbound Docks</strong> &amp; <strong>4 Outbound Docks</strong> needed to prevent road queueing.</div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button class="btn ghost" id="modal-dock-cancel">Cancel</button>
+        <button class="btn primary" id="modal-dock-apply">✨ Apply Sizing to Canvas Grid →</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Gemini API Key Settings Modal -->
   <div class="modal-overlay" id="modal-api-key">
@@ -503,7 +585,7 @@
         <button class="btn ghost icon" id="modal-key-close">✕</button>
       </div>
       <p style="color:var(--ink-soft); font-size:var(--fs-sm); margin-bottom:16px;">
-        Plano AI uses Gemini 2.5 Flash for architectural layout intelligence. If you have an API key, enter it below. Plano AI also features a built-in veteran architect engine fallback.
+        Blitz Planogram uses Gemini 2.5 Flash for architectural layout intelligence. If you have an API key, enter it below. Blitz Planogram also features a built-in veteran architect engine fallback.
       </p>
       <div style="margin-bottom:16px;">
         <label class="field-label">Gemini API Key</label>
@@ -867,6 +949,27 @@
         <div class="canvas-hud-top">
           <span class="pill" id="hud-active-tool-pill">Tool: Selective Pallet Rack</span>
           <span class="pill" id="hud-cursor-coords">Col: 0, Row: 0</span>
+          <button class="btn btn-sm amber" id="hud-btn-dock-calc" style="padding:4px 10px; font-size:11px;">🤖 AI Dock Sizer</button>
+          <button class="btn btn-sm ghost" id="hud-btn-flow-sim" style="padding:4px 10px; font-size:11px; background:var(--surface); border:1px solid var(--border-strong);">🌊 Live Flow: OFF</button>
+        </div>
+
+        <!-- Interactive AI Zone Popover on Canvas -->
+        <div class="canvas-zone-popover" id="canvas-zone-popover">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <div class="pop-title" id="pop-zone-title">Inbound Linehaul Dock #1</div>
+              <div style="font-size:11px; color:var(--emerald); font-weight:700;" id="pop-zone-cat">Docks &amp; Linehaul</div>
+            </div>
+            <button class="btn ghost icon btn-sm" id="pop-zone-close" style="width:24px; height:24px; padding:0;">✕</button>
+          </div>
+          <div class="pop-ai-box" id="pop-zone-ai-advice">
+            💡 <strong>AI Architect Advice:</strong> Keep 4-cell staging buffers clear behind this dock to maintain zero truck dwell time.
+          </div>
+          <div style="display:flex; gap:6px; margin-top:4px;">
+            <button class="btn primary btn-sm" id="pop-btn-ai-optimize" style="flex:1; padding:5px 8px; font-size:11px;">✨ AI Optimize Zone</button>
+            <button class="btn ghost btn-sm" id="pop-btn-rotate" style="padding:5px 8px; font-size:11px;">🔄</button>
+            <button class="btn danger ghost btn-sm" id="pop-btn-erase" style="padding:5px 8px; font-size:11px;">🗑️</button>
+          </div>
         </div>
 
         <canvas id="main-canvas"></canvas>
@@ -883,14 +986,15 @@
         <div class="studio-ai-copilot-bar">
           <div class="copilot-input-row">
             <span style="font-size:16px;">✨</span>
-            <input type="text" id="ai-prompt-input" placeholder="Ask AI Copilot (e.g. 'Add 3 packing tables near outbound docks', 'Widen central aisle')...">
+            <input type="text" id="ai-prompt-input" placeholder="Ask AI Copilot (e.g. 'Calculate docks for 15 trucks & 40 vans', 'Widen central aisle')...">
             <button class="btn primary btn-sm" id="ai-prompt-submit" style="padding:6px 14px; font-size:12px;">Apply AI Tweak →</button>
           </div>
           <div class="copilot-suggestions">
+            <span class="copilot-chip" id="chip-open-dock-calc">🤖 Sizing: Inbound &amp; Outbound Docks</span>
+            <span class="copilot-chip" data-prompt="Re-balance 4 Linehaul Inbound Docks & 4 Dispatch Docks with staging">⚡ Optimize Mother Hub Flow</span>
             <span class="copilot-chip" data-prompt="Add 3 packing tables near outbound docks">+3 Packing Tables</span>
-            <span class="copilot-chip" data-prompt="Widen central forklift aisle for reach trucks">Widen Forklift Aisle</span>
-            <span class="copilot-chip" data-prompt="Construct cold storage buffer in northwest sector">Add Cold Room</span>
-            <span class="copilot-chip" data-prompt="Allocate MHE battery charging bay">Battery Charging Bay</span>
+            <span class="copilot-chip" data-prompt="Widen central forklift thoroughfare for reach trucks">Widen Forklift Aisle</span>
+            <span class="copilot-chip" data-prompt="Allocate MHE battery charging bay in Northwest">Battery Charging Bay</span>
           </div>
         </div>
       </div>
