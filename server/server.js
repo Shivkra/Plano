@@ -135,6 +135,10 @@ const GEMINI_MODELS = [
   "gemini-1.5-flash",
   "gemini-1.5-pro",
 ].filter(Boolean);
+/* Text calls (interview, AI tweak, assistant) use a separate model from
+   vision — keeps them on their own free-tier quota bucket instead of
+   competing with image analysis for the same per-model daily cap. */
+const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || "gemini-3.1-flash-lite";
 
 async function callGeminiVision(base64Image, mimeType) {
   let lastErr = null;
