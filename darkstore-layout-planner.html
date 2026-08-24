@@ -4935,7 +4935,7 @@
         <button class="btn secondary sm" id="ed-photo-btn" style="font-weight:700;">📁 Import Floor Plan</button>
         <input type="file" id="ed-photo-input"
           accept="image/jpeg,image/png,image/webp,image/svg+xml,application/pdf,.dwg,.dxf" style="display:none;">
-        <button class="btn ghost sm" id="ed-ai-tweak" title="Ask AI to adjust this layout">✨ AI Tweak</button>
+        <button class="btn ghost sm" id="ed-ai-tweak" title="Ask AI to adjust this layout">✨ Ask AI</button>
         <button class="btn ghost sm" id="ed-export">Export</button>
         <button class="btn primary sm" id="ed-present">▶ Present</button>
         <div class="ed-nav-sep"></div>
@@ -5727,7 +5727,7 @@
 
   <div class="modal-overlay" id="ai-tweak-overlay">
     <div class="modal ai-refine-modal">
-      <h2>AI Tweak</h2>
+      <h2>Ask AI</h2>
       <p class="hint">Tell it what you'd like to change, in plain language — e.g. "make the aisles wider" or "I don't
         need a conference room."</p>
       <div class="interview-input-row" style="margin:14px 0;">
@@ -8736,7 +8736,7 @@
         });
         renderAiTweakProposals(data.proposals || [], data.note);
       } catch (e) {
-        $("#ai-tweak-sub").textContent = e.message || "AI Tweak failed — try again in a moment.";
+        $("#ai-tweak-sub").textContent = e.message || "Ask AI failed — try again in a moment.";
       } finally {
         askBtn.disabled = false;
       }
