@@ -1,0 +1,13 @@
+{
+  "name": "warehouse-layout-planner-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend for the Warehouse Layout Planner — email login + JSON-file storage for saved sites.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

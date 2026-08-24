@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planogram Pro — Canvas Studio</title>
+<style>
+  :root{
+    --bg:#0f1218; --panel:#171c26; --panel2:#1e2532; --line:#2a3344;
+    --text:#e8ecf4; --muted:#8b96a8; --accent:#4f7df9; --accent-glow:rgba(79,125,249,0.35);
+    --radius:10px;
+  }
+  [data-theme="light"] {
+    --bg:#f6f4ef; --panel:#ffffff; --panel2:#f1ede3; --line:#e5e0d4;
+    --text:#1d1b17; --muted:#64748b; --accent:#2563eb; --accent-glow:rgba(37,99,235,0.25);
+  }
+
+  .theme-toggle-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 54px;
+    height: 28px;
+    padding: 2px 5px;
+    border-radius: 999px;
+    background: var(--panel2);
+    border: 1.5px solid var(--line);
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+  .theme-toggle-btn .theme-icon { font-size: 12px; line-height: 1; z-index: 2; }
+  .theme-toggle-btn .theme-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 1px 3px rgba(0,0,0,.3);
+    transition: transform 0.2s ease;
+    z-index: 1;
+  }
+  [data-theme="light"] .theme-toggle-btn .theme-thumb {
+    transform: translateX(0px);
+    background: #f59e0b;
+  }
+  :root:not([data-theme="light"]) .theme-toggle-btn .theme-thumb {
+    transform: translateX(25px);
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:14px; overflow:hidden;
+  }
+
+  /* ---------- App layout ---------- */
+  #app{display:flex; height:100vh; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:12px; padding:10px 16px;
+    background:var(--panel); border-bottom:1px solid var(--line); flex-shrink:0; z-index:20;
+  }
+  .back-btn{
+    background:transparent; border:1px solid var(--line); color:var(--text);
+    border-radius:8px; width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+    font-size:16px; font-weight:700; cursor:pointer; transition:all .15s;
+  }
+  .back-btn:hover{background:var(--panel2); border-color:var(--accent);}
+  header .title{font-weight:700; font-size:15px; display:flex; align-items:center; gap:8px;}
+  header .title input{
+    background:transparent; border:none; color:var(--text); font-weight:700; font-size:15px;
+    outline:none; width:220px; border-bottom:1px dashed transparent; padding:2px 4px;
+  }
+  header .title input:hover, header .title input:focus{border-bottom-color:var(--muted); background:var(--panel2); border-radius:4px;}
+  header .dim-badge{color:var(--muted); font-size:12px; background:var(--panel2); padding:4px 10px; border-radius:20px; font-weight:600;}
+  
+  .view-toggle{
+    display:flex; background:var(--bg); border:1px solid var(--line); border-radius:20px; padding:2px; gap:2px;
+  }
+  .view-btn{
+    border:none; background:transparent; color:var(--muted); padding:5px 12px;
+    border-radius:16px; font-size:12px; font-weight:700; cursor:pointer; transition:all .15s;
+  }
+  .view-btn.active{background:var(--accent); color:#fff; box-shadow:0 2px 8px var(--accent-glow);}
+
+  header .spacer{flex:1;}
+  .hbtn{
+    background:var(--panel2); border:1px solid var(--line); color:var(--text);
+    border-radius:8px; padding:7px 12px; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+    user-select:none; font-weight:500;
+  }
+  .hbtn:hover{border-color:var(--accent);}
+  .hbtn:disabled{opacity:.4; cursor:default;}
+  .hbtn:disabled:hover{border-color:var(--line);}
+  .hbtn.accent-sync{
+    background:rgba(16,185,129,0.15); border-color:rgba(16,185,129,0.4); color:#34d399; font-weight:700;
+  }
+  .hbtn.accent-sync:hover{background:rgba(16,185,129,0.3); color:#fff;}
+
+  main{flex:1; display:flex; min-height:0;}
+
+  /* ---------- Palette sidebar ---------- */
+  aside{
+    width:230px; background:var(--panel); border-right:1px solid var(--line);
+    padding:14px 12px 30px; overflow-y:auto; flex-shrink:0;
+  }
+  aside h3{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:14px 4px 8px; font-weight:700;}
+  aside h3:first-child{margin-top:0;}
+
+  /* CAD Tools grid */
+  .cad-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:4px; margin-bottom:12px;}
+  .cad-btn{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:var(--panel2); border:1px solid var(--line); color:var(--muted);
+    border-radius:6px; height:38px; cursor:pointer; font-size:10px; font-weight:700;
+  }
+  .cad-btn:hover{color:var(--text); border-color:var(--accent);}
+  .cad-btn.active{background:var(--accent); color:#fff; border-color:var(--accent);}
+
+  .tool{
+    display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px;
+    cursor:pointer; border:1px solid transparent; margin-bottom:4px; user-select:none;
+  }
+  .tool:hover{background:var(--panel2);}
+  .tool.active{background:var(--panel2); border-color:var(--accent);}
+  .swatch{
+    width:22px; height:22px; border-radius:5px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:700; color:#0f1218;
+  }
+  .tool .name{flex:1; font-weight:600;}
+  .tool .key{color:var(--muted); font-size:11px; background:var(--bg); border:1px solid var(--line); border-radius:4px; padding:1px 6px;}
+  .tool .cnt{color:var(--muted); font-size:12px; min-width:24px; text-align:right;}
+
+  .opt{display:flex; align-items:center; gap:8px; padding:6px 10px; color:var(--muted); font-size:13px; user-select:none; cursor:pointer;}
+  .opt input{accent-color:var(--accent);}
+
+  /* ---------- Board ---------- */
+  #boardwrap{flex:1; overflow:auto; position:relative; background:
+    radial-gradient(circle at 30% 20%, #131826 0%, var(--bg) 70%); user-select:none;}
+  #board{padding:34px; display:inline-block; position:relative;}
+  canvas#grid, canvas#grid-3d{
+    display:block; border-radius:8px; box-shadow:0 8px 40px rgba(0,0,0,.5); cursor:crosshair; touch-action:none;
+  }
+  canvas#grid-3d{display:none; background:#0f1420;}
+
+  /* ---------- Status bar ---------- */
+  footer{
+    display:flex; align-items:center; gap:18px; padding:7px 16px;
+    background:var(--panel); border-top:1px solid var(--line); color:var(--muted); font-size:12px; flex-shrink:0;
+  }
+  footer .cell-pos{min-width:90px; font-weight:600; color:var(--text);}
+  footer .zoom{display:flex; align-items:center; gap:8px; margin-left:auto;}
+  footer input[type=range]{accent-color:var(--accent); width:120px;}
+
+  .hint{color:var(--muted); font-size:12px; line-height:1.6; padding:8px 10px;}
+
+  /* ---------- Grid tabs ---------- */
+  #tabs{
+    display:flex; align-items:center; gap:6px; padding:6px 12px;
+    background:var(--panel); border-bottom:1px solid var(--line); flex-shrink:0; overflow-x:auto;
+  }
+  .tab{
+    display:flex; align-items:center; gap:8px; padding:5px 12px; border-radius:8px;
+    background:var(--panel2); border:1px solid var(--line); color:var(--muted);
+    font-size:13px; cursor:pointer; user-select:none; white-space:nowrap;
+  }
+  .tab:hover{color:var(--text);}
+  .tab.active{color:var(--text); border-color:var(--accent); background:#1c2740;}
+  .tab .x{opacity:.5; font-size:11px; padding:0 2px; border-radius:3px;}
+  .tab .x:hover{opacity:1; color:#f87171;}
+  #tab-add{
+    background:transparent; border:1px dashed var(--line); color:var(--muted);
+    border-radius:8px; padding:5px 12px; font-size:13px; cursor:pointer; white-space:nowrap;
+  }
+  #tab-add:hover{color:var(--text); border-color:var(--accent);}
+
+  /* ---------- Grid size steppers ---------- */
+  .size-row{
+    display:flex; align-items:center; gap:8px; padding:4px 10px; color:var(--muted); font-size:13px;
+  }
+  .size-row span{flex:1;}
+  .size-row b{min-width:26px; text-align:center; color:var(--text); font-size:13px;}
+  .size-row button{
+    width:28px; height:28px; background:var(--panel2); border:1px solid var(--line);
+    color:var(--text); border-radius:7px; cursor:pointer; font-size:15px; line-height:1;
+  }
+  .size-row button:hover{border-color:var(--accent);}
+
+  /* ---------- Shift pad ---------- */
+  .shift-pad{display:grid; grid-template-columns:repeat(3,38px); gap:4px; justify-content:start; padding:2px 10px 4px;}
+  .shift-pad button{
+    height:32px; background:var(--panel2); border:1px solid var(--line); color:var(--text);
+    border-radius:7px; cursor:pointer; font-size:14px;
+  }
+  .shift-pad button:hover{border-color:var(--accent);}
+  .shift-pad .blank{visibility:hidden;}
+
+  /* ---------- Delete-confirm bin ---------- */
+  #bin-pop{
+    position:absolute; display:none; z-index:30; transform:translate(-50%,-100%);
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    box-shadow:0 6px 24px rgba(0,0,0,.5); padding:6px; white-space:nowrap;
+  }
+  #bin-pop.on{display:flex; align-items:center; gap:6px;}
+  #bin-pop::after{
+    content:""; position:absolute; left:50%; bottom:-6px; transform:translateX(-50%);
+    border:6px solid transparent; border-top-color:var(--line); border-bottom:none;
+  }
+  #bin-pop .bp-name{color:var(--muted); font-size:12px; padding:0 4px 0 6px; font-weight:700;}
+  #bin-pop button{
+    border:none; border-radius:7px; cursor:pointer; font-size:14px;
+    width:30px; height:30px; display:flex; align-items:center; justify-content:center;
+  }
+  #bin-del{background:#3a1d22; color:#f87171; border:1px solid #5c2a31;}
+  #bin-del:hover{background:#54242c;}
+  #bin-keep{background:var(--panel2); color:var(--muted); border:1px solid var(--line);}
+  #bin-keep:hover{color:var(--text);}
+  #bin-rot{background:#1c2740; color:#7ea2ff; border:1px solid #2c3f6b;}
+  #bin-rot:hover{background:#24325a;}
+  kbd{background:var(--bg); border:1px solid var(--line); border-radius:4px; padding:0 5px; font-size:11px; font-family:inherit;}
+
+  #toast{
+    position:fixed; bottom:40px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--panel2); border:1px solid var(--accent); color:#fff; padding:9px 18px;
+    border-radius:20px; font-size:13px; font-weight:600; opacity:0; pointer-events:none;
+    transition:all .25s; z-index:999; box-shadow:0 10px 30px rgba(0,0,0,.5);
+  }
+  #toast.on{opacity:1; transform:translateX(-50%) translateY(0);}
+  .logo-pill {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    padding: 0;
+    flex-shrink: 0;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+  .logo-pill:hover {
+    transform: scale(1.1);
+    opacity: 0.85;
+  }
+  .logo-pill img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: invert(1);
+    transition: filter 0.2s ease;
+  }
+  [data-theme="light"] .logo-pill img {
+    filter: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= APP ================= -->
+<div id="app">
+  <header>
+    <div class="logo-pill" onclick="location.href='/'" title="Back to Site Hub">
+      <img src="Logo.png" alt="Blitz">
+    </div>
+    <button class="back-btn" id="canvas-back-btn" title="Back to Layout Planner">←</button>
+    <div class="title"><input id="layout-name" value="Warehouse Floor 1"></div>
+    <span class="dim-badge" id="dim-badge">30 × 20 (120 × 80 ft)</span>
+    
+    <div class="view-toggle">
+      <button class="view-btn active" id="view-mode-2d" onclick="switchViewMode('2d')">2D CAD</button>
+      <button class="view-btn" id="view-mode-3d" onclick="switchViewMode('3d')">2.5D Iso 3D</button>
+      <button class="view-btn" id="view-mode-flow" onclick="toggleFlowSimulator()">Flow Path</button>
+    </div>
+
+    <button class="theme-toggle-btn" id="canvas-theme-toggle" title="Toggle Light / Dark mode" aria-label="Toggle theme">
+      <span class="theme-icon">☀️</span>
+      <span class="theme-icon">🌙</span>
+      <span class="theme-thumb"></span>
+    </button>
+
+    <div class="spacer"></div>
+    <button class="hbtn" id="btn-undo" title="Cmd/Ctrl+Z">↩ Undo</button>
+    <button class="hbtn" id="btn-redo" title="Cmd/Ctrl+Shift+Z">↪ Redo</button>
+    <button class="hbtn" id="btn-clear">✕ Clear</button>
+    <button class="hbtn" id="btn-resize">⤢ Resize</button>
+    <button class="hbtn accent-sync" id="btn-sync" title="Sync layout directly into Layout Planner">⚡ Sync to Planner</button>
+    <button class="hbtn" id="btn-load">📂 Open</button>
+    <button class="hbtn" id="btn-save">💾 Save JSON</button>
+    <button class="hbtn" id="btn-png">🖼 Export PNG</button>
+  </header>
+
+  <div id="tabs">
+    <div id="tab-list" style="display:flex;gap:6px;"></div>
+    <button id="tab-add">+ Add grid</button>
+  </div>
+
+  <main>
+    <aside>
+      <h3>CAD Tools</h3>
+      <div class="cad-grid">
+        <button class="cad-btn active" data-tool="paint" onclick="setCadTool('paint')" title="Brush / Paint (P)">Brush</button>
+        <button class="cad-btn" data-tool="line" onclick="setCadTool('line')" title="Straight Line (L)">Line</button>
+        <button class="cad-btn" data-tool="rect" onclick="setCadTool('rect')" title="Filled Rect (R)">Rect</button>
+        <button class="cad-btn" data-tool="box" onclick="setCadTool('box')" title="Perimeter Box (B)">Box</button>
+        <button class="cad-btn" data-tool="aisle" onclick="setCadTool('aisle')" title="Dual Aisle Generator (A)">Aisle</button>
+        <button class="cad-btn" data-tool="fill" onclick="setCadTool('fill')" title="Flood Fill (G)">Fill</button>
+        <button class="cad-btn" data-tool="measure" onclick="setCadTool('measure')" title="Measure Distance (M)">Ruler</button>
+        <button class="cad-btn" data-tool="erase" onclick="setCadTool('erase')" title="Eraser (E)">Erase</button>
+      </div>
+
+      <h3>Place</h3>
+      <div id="palette"></div>
+      
+      <h3>Options</h3>
+      <label class="opt"><input type="checkbox" id="opt-labels" checked> Number rack rows (R1, R2..)</label>
+      <label class="opt"><input type="checkbox" id="opt-coords" checked> Show grid coordinates</label>
+      <label class="opt"><input type="checkbox" id="opt-heat" onchange="redraw()"> Congestion heatmap</label>
+
+      <h3>Grid size (4ft / cell)</h3>
+      <div class="size-row"><span>Columns</span><button id="col-del" title="Remove last column">−</button><b id="col-n">30</b><button id="col-add" title="Add a column">+</button></div>
+      <div class="size-row"><span>Rows</span><button id="row-del" title="Remove last row">−</button><b id="row-n">20</b><button id="row-add" title="Add a row">+</button></div>
+      <div class="hint" style="padding-top:2px;">Adds/removes at the right &amp; bottom edge. Undoable.</div>
+
+      <h3>Shift layout</h3>
+      <div class="shift-pad">
+        <span class="blank"></span><button data-shift="0,-1" title="Shift everything up">↑</button><span class="blank"></span>
+        <button data-shift="-1,0" title="Shift everything left">←</button><span class="blank"></span><button data-shift="1,0" title="Shift everything right">→</button>
+        <span class="blank"></span><button data-shift="0,1" title="Shift everything down">↓</button><span class="blank"></span>
+      </div>
+      <div class="hint" style="padding-top:2px;">Moves all placed objects one cell over the grid. Undoable.</div>
+
+      <h3>How to use</h3>
+      <div class="hint">
+        Click &amp; drag to paint cells.<br>
+        Hold <kbd>Shift</kbd> to lock 90° straight row.<br>
+        Click a placed object to delete (🗑) or rotate (↻).<br>
+        Right-click drag (or <kbd>E</kbd>) to erase.<br>
+        <kbd>1</kbd>–<kbd>9</kbd> switch elements. <kbd>Cmd/Ctrl+Z</kbd> undo.
+      </div>
+    </aside>
+
+    <div id="boardwrap">
+      <div id="board" style="position:relative;">
+        <canvas id="grid"></canvas>
+        <canvas id="grid-3d"></canvas>
+        <div id="bin-pop">
+          <span class="bp-name" id="bin-name">Rack</span>
+          <button id="bin-rot" title="Rotate 90°">↻</button>
+          <button id="bin-del" title="Delete">🗑</button>
+          <button id="bin-keep" title="Keep">✕</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <span class="cell-pos" id="cell-pos">–</span>
+    <span id="stat-used">0 cells used</span>
+    <span id="stat-occ">0% occupancy</span>
+    <span id="stat-racks">0 rack rows</span>
+    <span id="measure-result" style="color:#f59e0b; display:none;">📏 Distance: 0 ft</span>
+    <div class="zoom">
+      <span>Zoom</span>
+      <input type="range" id="zoom" min="14" max="52" value="30">
+    </div>
+  </footer>
+</div>
+
+<input type="file" id="file-input" accept=".json,application/json" style="display:none">
+<div id="toast">Layout Synced!</div>
+
+<script>
+"use strict";
+
+/* ============ Element definitions ============ */
+const ELEMENTS = [
+  {id:1,  key:"1", name:"Rack",            glyph:"R",  color:"#4f7df9", height: 3.2},
+  {id:2,  key:"2", name:"Table",           glyph:"T",  color:"#f59e0b", height: 1.0},
+  {id:5,  key:"3", name:"Packing station", glyph:"P",  color:"#34d399", height: 1.2},
+  {id:9,  key:"4", name:"Conveyor",        glyph:"»",  color:"#aab8cc", height: 0.8},
+  {id:10, key:"5", name:"Delivery Center", glyph:"DC", color:"#f472b6", height: 0.5},
+  {id:11, key:"6", name:"Pickup",          glyph:"PU", color:"#a78bfa", height: 1.2},
+  {id:6,  key:"7", name:"Entry",           glyph:"▶",  color:"#10b981", height: 2.8},
+  {id:7,  key:"8", name:"Exit",            glyph:"◀",  color:"#f87171", height: 2.8},
+  {id:8,  key:"9", name:"Wall / blocked",  glyph:"",   color:"#5b6474", height: 3.6},
+];
+const ERASER = {id:0, key:"E", name:"Eraser", glyph:"⌫", color:"#2a3344"};
+const byId = Object.fromEntries(ELEMENTS.map(e=>[e.id,e]));
+const ROTATABLE = new Set([6,7,9]); // entry, exit, conveyor
+
+/* ============ State ============ */
+let grids=[], gi=0;
+let cols=30, rows=20, cells=null, rots=null;
+let name="Planogram Floor 1";
+let tool=1;
+let cadTool="paint"; // paint, line, rect, box, aisle, fill, measure, erase
+let viewMode="2d";
+let showPickingFlow=false;
+let cellPx=30;
+let undoStack=[], redoStack=[];
+let painting=false, strokeAnchor=null, lastCell=null, strokeErase=false;
+let pendingCell=null, strokeStarted=false, binCell=null;
+let hoverCell=null;
+let rackLabels=[];
+let measurePoints=[];
+
+const $ = s => document.querySelector(s);
+const canvas = $("#grid"), ctx = canvas.getContext("2d");
+const canvas3d = $("#grid-3d"), ctx3d = canvas3d.getContext("2d");
+
+/* Cross-tab sync */
+let syncChannel = null;
+try {
+  syncChannel = new BroadcastChannel("planogram-sync");
+  syncChannel.onmessage = (ev) => { if(ev.data && ev.data.type === "REQUEST_LAYOUT") sendSync(); };
+} catch(e) {}
+
+function sendSync() {
+  const g = grids[gi];
+  const payload = {
+    type: "LAYOUT_UPDATED",
+    name: name,
+    L: g.cols * 4,
+    W: g.rows * 4,
+    cols: g.cols,
+    rows: g.rows,
+    cells: Array.from(g.cells),
+    rots: Array.from(g.rots),
+    timestamp: Date.now()
+  };
+  localStorage.setItem("planogram_last_synced_layout", JSON.stringify(payload));
+  if(syncChannel) syncChannel.postMessage(payload);
+  showToast("⚡ Layout synced to Planner!");
+}
+$("#btn-sync").addEventListener("click", sendSync);
+
+$("#canvas-back-btn").addEventListener("click", () => {
+  sendSync();
+  if (window.opener && !window.opener.closed) {
+    window.close();
+  } else if (window.history.length > 1) {
+    window.history.back();
+  } else {
+    window.location.href = "planogram-layout-planner.html";
+  }
+});
+
+/* ============ Grids ============ */
+function clampDim(n){ return Math.max(2,Math.min(160,n|0||0)); }
+function makeGrid(gname,c,r){
+  c=clampDim(c); r=clampDim(r);
+  return {name:gname, cols:c, rows:r, cells:new Uint8Array(c*r), rots:new Uint8Array(c*r), undo:[], redo:[]};
+}
+function bindGrid(){
+  if (!grids || !grids.length) {
+    grids = [makeGrid("Grid 1", cols || 30, rows || 20)];
+    gi = 0;
+  }
+  const g=grids[gi] || grids[0];
+  cols=g.cols; rows=g.rows; cells=g.cells; rots=g.rots;
+  undoStack=g.undo || []; redoStack=g.redo || [];
+  const dimEl = $("#dim-badge");
+  if (dimEl) dimEl.textContent=`${cols} × ${rows} (${cols*4} × ${rows*4} ft)`;
+  updateSizeUI(); renderTabs(); sizeCanvas(); redraw(); updateStats(); updateUndoBtns();
+}
+function renderTabs(){
+  const tl=$("#tab-list"); tl.innerHTML="";
+  grids.forEach((g,i)=>{
+    const t=document.createElement("div");
+    t.className="tab"+(i===gi?" active":"");
+    t.title="Double-click to rename";
+    const nm=document.createElement("span"); nm.textContent=g.name; t.appendChild(nm);
+    if(grids.length>1){
+      const x=document.createElement("span"); x.className="x"; x.textContent="✕"; x.title="Delete this grid";
+      x.addEventListener("click", ev=>{
+        ev.stopPropagation();
+        if(!confirmQuiet(`Delete "${g.name}" and everything on it?`)) return;
+        grids.splice(i,1); if(gi>=grids.length) gi=grids.length-1;
+        hideBin(); bindGrid();
+      });
+      t.appendChild(x);
+    }
+    t.addEventListener("click", ()=>{ if(i!==gi){ gi=i; hideBin(); bindGrid(); }});
+    t.addEventListener("dblclick", ()=>{
+      const n=prompt("Grid name:", g.name);
+      if(n!==null){ g.name=n.trim()||g.name; renderTabs(); }
+    });
+    tl.appendChild(t);
+  });
+}
+$("#tab-add").addEventListener("click", ()=>{
+  const c=prompt("New grid — width (columns):", cols); if(c===null) return;
+  const r=prompt("New grid — depth (rows):", rows);    if(r===null) return;
+  grids.push(makeGrid("Grid "+(grids.length+1), +c, +r));
+  gi=grids.length-1; hideBin(); bindGrid();
+});
+
+function initGrid(nc,nr,keep){
+  const g=grids[gi];
+  const old=cells, oldRot=rots, oc=cols, or_=rows;
+  cols=clampDim(nc); rows=clampDim(nr);
+  cells=new Uint8Array(cols*rows); rots=new Uint8Array(cols*rows);
+  if(keep&&old){
+    for(let r=0;r<Math.min(rows,or_);r++)
+      for(let c=0;c<Math.min(cols,oc);c++){
+        cells[r*cols+c]=old[r*oc+c];
+        rots[r*cols+c]=oldRot[r*oc+c];
+      }
+  }
+  g.cols=cols; g.rows=rows; g.cells=cells; g.rots=rots;
+  $("#dim-badge").textContent=`${cols} × ${rows} (${cols*4} × ${rows*4} ft)`;
+  updateSizeUI(); sizeCanvas(); redraw(); updateStats();
+}
+
+function updateSizeUI(){ $("#col-n").textContent=cols; $("#row-n").textContent=rows; }
+function edgeOccupied(isCol){
+  if(isCol){ for(let r=0;r<rows;r++) if(cells[r*cols+cols-1]) return true; }
+  else     { for(let c=0;c<cols;c++) if(cells[(rows-1)*cols+c]) return true; }
+  return false;
+}
+function resizeBy(dc,dr){
+  const nc=cols+dc, nr=rows+dr;
+  if(nc<2||nr<2||nc>160||nr>160) return;
+  if(dc<0&&edgeOccupied(true) &&!confirmQuiet("The last column has objects on it. Remove it anyway?")) return;
+  if(dr<0&&edgeOccupied(false)&&!confirmQuiet("The last row has objects on it. Remove it anyway?")) return;
+  hideBin(); snapshot();
+  initGrid(nc,nr,true);
+}
+$("#col-add").addEventListener("click", ()=>resizeBy(1,0));
+$("#col-del").addEventListener("click", ()=>resizeBy(-1,0));
+$("#row-add").addEventListener("click", ()=>resizeBy(0,1));
+$("#row-del").addEventListener("click", ()=>resizeBy(0,-1));
+
+/* ============ Palette ============ */
+const paletteEl=$("#palette");
+function buildPalette(){
+  paletteEl.innerHTML="";
+  [...ELEMENTS, ERASER].forEach(el=>{
+    const d=document.createElement("div");
+    d.className="tool"+(tool===el.id?" active":"");
+    d.dataset.id=el.id;
+    d.innerHTML=`<span class="swatch" style="background:${el.color};${el.id===0?'color:#8b96a8;border:1px solid #3a4557;':''}">${el.glyph||"■"}</span>
+      <span class="name">${el.name}</span>
+      <span class="cnt" data-cnt="${el.id}"></span>
+      <span class="key">${el.key}</span>`;
+    d.addEventListener("click",()=>{tool=el.id; cadTool="paint"; updateCadBtns(); if(typeof hideBin==="function") hideBin(); buildPalette();});
+    paletteEl.appendChild(d);
+  });
+  updateStats();
+}
+
+function setCadTool(t){
+  cadTool=t;
+  if(t==="erase") tool=0;
+  else if(tool===0) tool=1;
+  updateCadBtns(); buildPalette();
+}
+function updateCadBtns(){
+  document.querySelectorAll(".cad-btn").forEach(b=>b.classList.toggle("active", b.dataset.tool===cadTool));
+}
+
+/* ============ Canvas drawing ============ */
+const M = 26;
+function showCoords(){ return $("#opt-coords").checked; }
+function marginPx(){ return showCoords()? M : 4; }
+
+function sizeCanvas(){
+  const m=marginPx();
+  const dpr=window.devicePixelRatio||1;
+  const w=cols*cellPx+m+4, h=rows*cellPx+m+4;
+  canvas.width=w*dpr; canvas.height=h*dpr;
+  canvas.style.width=w+"px"; canvas.style.height=h+"px";
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+
+  const isoW = (cols + rows) * cellPx * 1.4 + 80, isoH = (cols + rows) * cellPx * 0.7 + 160;
+  canvas3d.width = isoW * dpr; canvas3d.height = isoH * dpr;
+  canvas3d.style.width = isoW + "px"; canvas3d.style.height = isoH + "px";
+  ctx3d.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function colName(i){ let s=""; i++; while(i>0){ i--; s=String.fromCharCode(65+i%26)+s; i=Math.floor(i/26);} return s; }
+
+function computeRackLabels(){
+  rackLabels=[];
+  if(!$("#opt-labels").checked) return;
+  const inRun=new Uint8Array(cols*rows);
+  let n=1;
+  for(let r=0;r<rows;r++){
+    let c=0;
+    while(c<cols){
+      if(cells[r*cols+c]===1){
+        let e=c; while(e+1<cols&&cells[r*cols+e+1]===1) e++;
+        if(e>c){ rackLabels.push({c,r,label:"R"+n++}); for(let x=c;x<=e;x++) inRun[r*cols+x]=1; }
+        c=e+1;
+      } else c++;
+    }
+  }
+  for(let c=0;c<cols;c++){
+    let r=0;
+    while(r<rows){
+      if(cells[r*cols+c]===1&&!inRun[r*cols+c]){
+        let e=r; while(e+1<rows&&cells[(e+1)*cols+c]===1&&!inRun[(e+1)*cols+c]) e++;
+        if(e>r){ rackLabels.push({c,r,label:"R"+n++}); for(let y=r;y<=e;y++) inRun[y*cols+c]=1; }
+        r=e+1;
+      } else r++;
+    }
+  }
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++)
+    if(cells[r*cols+c]===1&&!inRun[r*cols+c]) rackLabels.push({c,r,label:"R"+n++});
+  rackLabels.sort((a,b)=>a.r-b.r||a.c-b.c).forEach((l,i)=>l.label="R"+(i+1));
+}
+
+function drawBoard(g, px, m, forExport){
+  const W=cols*px, H=rows*px;
+  g.fillStyle=forExport?"#ffffff":"#121722";
+  g.fillRect(m,m,W,H);
+
+  if ($("#opt-heat").checked && !forExport) {
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const dist = Math.hypot(c - cols / 2, r - rows / 2);
+      const intensity = Math.max(0, 1 - dist / (cols * 0.65));
+      if (intensity > 0.1) { g.fillStyle = `rgba(244, 63, 94, ${intensity * 0.16})`; g.fillRect(m + c * px, m + r * px, px, px); }
+    }
+  }
+
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const v=cells[r*cols+c];
+      if(!v) continue;
+      const el=byId[v];
+      if(!el) continue;
+      const x=m+c*px, y=m+r*px;
+      g.fillStyle=el.color;
+      const pad=Math.max(1,px*0.06);
+      roundRect(g,x+pad,y+pad,px-2*pad,px-2*pad,Math.max(2,px*0.12));
+      g.fill();
+
+      if(v===8){ // wall hatch
+        g.save(); g.beginPath();
+        roundRect(g,x+pad,y+pad,px-2*pad,px-2*pad,Math.max(2,px*0.12)); g.clip();
+        g.strokeStyle="rgba(0,0,0,.28)"; g.lineWidth=Math.max(1,px*0.08);
+        for(let i=-px;i<px*2;i+=px/2.5){ g.beginPath(); g.moveTo(x+i,y+px); g.lineTo(x+i+px,y); g.stroke(); }
+        g.restore();
+      } else if(v===9){ // conveyor
+        const rot=rots[r*cols+c]||0;
+        g.save();
+        g.translate(x+px/2, y+px/2);
+        g.rotate(rot*Math.PI/2);
+        g.strokeStyle="rgba(10,14,20,.7)";
+        g.lineWidth=Math.max(1.5,px*0.09);
+        g.lineJoin="round"; g.lineCap="round";
+        const s=px*0.15;
+        for(const off of [-s*1.8, 0, s*1.8]){
+          g.beginPath();
+          g.moveTo(off-s*0.7,-s); g.lineTo(off+s*0.7,0); g.lineTo(off-s*0.7,s);
+          g.stroke();
+        }
+        g.restore();
+      } else if(v===6||v===7){ // entry/exit
+        const rot=rots[r*cols+c]||0;
+        g.save();
+        g.translate(x+px/2, y+px/2);
+        g.rotate(rot*Math.PI/2 + (v===7?Math.PI:0));
+        const s=px*0.24;
+        g.fillStyle="rgba(10,14,20,.8)";
+        g.beginPath(); g.moveTo(s*1.2,0); g.lineTo(-s,-s); g.lineTo(-s*0.4,0); g.lineTo(-s,s); g.closePath(); g.fill();
+        g.restore();
+      } else if(px>=16 && el.glyph){
+        g.fillStyle="rgba(10,14,20,.75)";
+        g.font=`700 ${Math.floor(px*(el.glyph.length>1?0.32:0.42))}px -apple-system,Segoe UI,Roboto,sans-serif`;
+        g.textAlign="center"; g.textBaseline="middle";
+        g.fillText(el.glyph, x+px/2, y+px/2+px*0.02);
+      }
+    }
+  }
+
+  // grid lines
+  g.strokeStyle=forExport?"rgba(0,0,0,.14)":"rgba(255,255,255,.07)";
+  g.lineWidth=1;
+  g.beginPath();
+  for(let c=0;c<=cols;c++){ g.moveTo(m+c*px+.5,m); g.lineTo(m+c*px+.5,m+H); }
+  for(let r=0;r<=rows;r++){ g.moveTo(m,m+r*px+.5); g.lineTo(m+W,m+r*px+.5); }
+  g.stroke();
+
+  // border
+  g.strokeStyle=forExport?"rgba(0,0,0,.5)":"rgba(255,255,255,.25)";
+  g.lineWidth=2; g.strokeRect(m,m,W,H);
+
+  // rack row labels
+  computeRackLabels();
+  if(rackLabels.length&&px>=14){
+    g.font=`700 ${Math.max(9,Math.floor(px*0.3))}px -apple-system,Segoe UI,Roboto,sans-serif`;
+    g.textAlign="left"; g.textBaseline="top";
+    for(const l of rackLabels){
+      const x=m+l.c*px+3, y=m+l.r*px+2;
+      const w=g.measureText(l.label).width+6;
+      g.fillStyle="rgba(10,14,20,.8)";
+      roundRect(g,x-1,y-1,w,Math.max(11,px*0.34),3); g.fill();
+      g.fillStyle="#fff"; g.fillText(l.label,x+2,y+1);
+    }
+  }
+
+  if (showPickingFlow) {
+    let entry = {c: 1, r: 1}, exit = {c: cols - 2, r: rows - 2}, pack = {c: Math.floor(cols/2), r: Math.floor(rows/2)};
+    for (let i = 0; i < cells.length; i++) {
+      if (cells[i] === 6) entry = {c: i % cols, r: Math.floor(i / cols)};
+      if (cells[i] === 7) exit = {c: i % cols, r: Math.floor(i / cols)};
+      if (cells[i] === 5) pack = {c: i % cols, r: Math.floor(i / cols)};
+    }
+    const pts = [entry, {c: entry.c + 4, r: Math.max(1, entry.r - 2)}, {c: pack.c - 4, r: pack.r}, pack, {c: exit.c - 4, r: exit.r}, exit];
+    g.save(); g.strokeStyle = "#38bdf8"; g.lineWidth = 3; g.setLineDash([6, 6]); g.beginPath();
+    pts.forEach((pt, i) => { const x = m + pt.c * px + px / 2, y = m + pt.r * px + px / 2; if (i === 0) g.moveTo(x, y); else g.lineTo(x, y); });
+    g.stroke(); g.restore();
+  }
+
+  // rulers
+  if(m>=M){
+    g.fillStyle=forExport?"#555":"#8b96a8";
+    g.font=`${Math.max(9,Math.min(11,px*0.35))}px -apple-system,Segoe UI,Roboto,sans-serif`;
+    g.textAlign="center"; g.textBaseline="middle";
+    const step=px<18?2:1;
+    for(let c=0;c<cols;c+=step) g.fillText(colName(c), m+c*px+px/2, m/2+2);
+    g.textAlign="right";
+    for(let r=0;r<rows;r+=step) g.fillText(r+1, m-6, m+r*px+px/2);
+  }
+}
+
+function draw3D() {
+  const px = cellPx;
+  const isoW = canvas3d.width / (window.devicePixelRatio || 1), isoH = canvas3d.height / (window.devicePixelRatio || 1);
+  ctx3d.clearRect(0, 0, isoW, isoH);
+  const originX = isoW / 2, originY = 80;
+
+  function toIso(c, r, h) {
+    return { x: originX + (c - r) * px * 0.7, y: originY + (c + r) * px * 0.35 - (h || 0) * px * 0.4 };
+  }
+
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const p0 = toIso(c, r, 0), p1 = toIso(c + 1, r, 0), p2 = toIso(c + 1, r + 1, 0), p3 = toIso(c, r + 1, 0);
+    ctx3d.fillStyle = (c + r) % 2 === 0 ? "#1e293b" : "#0f172a";
+    ctx3d.beginPath(); ctx3d.moveTo(p0.x, p0.y); ctx3d.lineTo(p1.x, p1.y); ctx3d.lineTo(p2.x, p2.y); ctx3d.lineTo(p3.x, p3.y); ctx3d.closePath(); ctx3d.fill();
+    ctx3d.strokeStyle = "rgba(255,255,255,0.06)"; ctx3d.stroke();
+  }
+
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const val = cells[r * cols + c];
+    if (!val) continue;
+    const el = byId[val];
+    if (!el) continue;
+
+    const height = el.height || 1.4;
+    const p1 = toIso(c + 1, r, 0), p2 = toIso(c + 1, r + 1, 0), p3 = toIso(c, r + 1, 0);
+    const t0 = toIso(c, r, height), t1 = toIso(c + 1, r, height), t2 = toIso(c + 1, r + 1, height), t3 = toIso(c, r + 1, height);
+
+    ctx3d.fillStyle = adjustColor(el.color, -30);
+    ctx3d.beginPath(); ctx3d.moveTo(p3.x, p3.y); ctx3d.lineTo(t3.x, t3.y); ctx3d.lineTo(t2.x, t2.y); ctx3d.lineTo(p2.x, p2.y); ctx3d.closePath(); ctx3d.fill();
+
+    ctx3d.fillStyle = adjustColor(el.color, -15);
+    ctx3d.beginPath(); ctx3d.moveTo(p1.x, p1.y); ctx3d.lineTo(t1.x, t1.y); ctx3d.lineTo(t2.x, t2.y); ctx3d.lineTo(p2.x, p2.y); ctx3d.closePath(); ctx3d.fill();
+
+    ctx3d.fillStyle = el.color;
+    ctx3d.beginPath(); ctx3d.moveTo(t0.x, t0.y); ctx3d.lineTo(t1.x, t1.y); ctx3d.lineTo(t2.x, t2.y); ctx3d.lineTo(t3.x, t3.y); ctx3d.closePath(); ctx3d.fill();
+    ctx3d.strokeStyle = "rgba(0,0,0,0.3)"; ctx3d.lineWidth = 1; ctx3d.stroke();
+  }
+}
+
+function adjustColor(col, amt) {
+  let num = parseInt(col.replace("#",""), 16);
+  let r = Math.max(0, Math.min(255, (num >> 16) + amt));
+  let g = Math.max(0, Math.min(255, ((num >> 8) & 0x00ff) + amt));
+  let b = Math.max(0, Math.min(255, (num & 0x0000ff) + amt));
+  return `rgb(${r},${g},${b})`;
+}
+
+function switchViewMode(mode) {
+  viewMode = mode;
+  $("#view-mode-2d").classList.toggle("active", mode === "2d");
+  $("#view-mode-3d").classList.toggle("active", mode === "3d");
+  canvas.style.display = mode === "2d" ? "block" : "none";
+  canvas3d.style.display = mode === "3d" ? "block" : "none";
+  redraw();
+}
+function toggleFlowSimulator() {
+  showPickingFlow = !showPickingFlow;
+  $("#view-mode-flow").classList.toggle("active", showPickingFlow);
+  redraw();
+}
+
+function roundRect(g,x,y,w,h,r){
+  g.beginPath();
+  g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r);
+  g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath();
+}
+
+function redraw(){
+  if (viewMode === "2d") {
+    const m=marginPx();
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drawBoard(ctx, cellPx, m, false);
+    if(hoverCell&&!painting){
+      const {c,r}=hoverCell;
+      ctx.strokeStyle="#fff"; ctx.lineWidth=2;
+      ctx.strokeRect(m+c*cellPx+1,m+r*cellPx+1,cellPx-2,cellPx-2);
+    }
+  } else {
+    draw3D();
+  }
+}
+
+/* ============ Painting ============ */
+function cellFromEvent(ev){
+  const rect=canvas.getBoundingClientRect(), m=marginPx();
+  const c=Math.floor((ev.clientX-rect.left-m)/cellPx);
+  const r=Math.floor((ev.clientY-rect.top-m)/cellPx);
+  if(c<0||r<0||c>=cols||r>=rows) return null;
+  return {c,r};
+}
+
+function setCell(c,r,v){ const i=r*cols+c; cells[i]=v; rots[i]=0; }
+
+function paintLine(a,b,v){
+  let x0=a.c,y0=a.r,x1=b.c,y1=b.r;
+  const dx=Math.abs(x1-x0), dy=Math.abs(y1-y0), sx=x0<x1?1:-1, sy=y0<y1?1:-1;
+  let err=dx-dy;
+  while(true){
+    setCell(x0,y0,v);
+    if(x0===x1&&y0===y1) break;
+    const e2=2*err;
+    if(e2>-dy){ err-=dy; x0+=sx; }
+    if(e2<dx){ err+=dx; y0+=sy; }
+  }
+}
+
+function floodFill(start, targetVal, fillVal) {
+  if (targetVal === fillVal) return;
+  const queue = [start], visited = new Uint8Array(cols * rows);
+  while (queue.length > 0) {
+    const {c, r} = queue.pop();
+    const idx = r * cols + c;
+    if (c < 0 || r < 0 || c >= cols || r >= rows || visited[idx]) continue;
+    if (cells[idx] !== targetVal) continue;
+    visited[idx] = 1; cells[idx] = fillVal;
+    queue.push({c: c + 1, r}, {c: c - 1, r}, {c, r: r + 1}, {c, r: r - 1});
+  }
+}
+
+function generateAisle(p0, p1, val) {
+  const rMin = Math.min(p0.r, p1.r), rMax = Math.max(p0.r, p1.r);
+  const cMin = Math.min(p0.c, p1.c), cMax = Math.max(p0.c, p1.c);
+  if (Math.abs(p1.c - p0.c) >= Math.abs(p1.r - p0.r)) {
+    for (let c = cMin; c <= cMax; c++) {
+      setCell(c, rMin, val);
+      if (rMin + 2 <= rows - 1) setCell(c, rMin + 2, val);
+    }
+  } else {
+    for (let r = rMin; r <= rMax; r++) {
+      setCell(cMin, r, val);
+      if (cMin + 2 <= cols - 1) setCell(cMin + 2, r, val);
+    }
+  }
+}
+
+function snapshot(){ undoStack.push({c:cells.slice(), r:rots.slice(), cols, rows}); if(undoStack.length>80) undoStack.shift(); redoStack.length=0; updateUndoBtns(); }
+function applySnap(s){
+  cols=s.cols; rows=s.rows;
+  cells=Uint8Array.from(s.c); rots=Uint8Array.from(s.r);
+  const g=grids[gi]; g.cols=cols; g.rows=rows; g.cells=cells; g.rots=rots;
+  $("#dim-badge").textContent=`${cols} × ${rows} (${cols*4} × ${rows*4} ft)`;
+  updateSizeUI(); sizeCanvas();
+}
+
+canvas.addEventListener("contextmenu", e=>e.preventDefault());
+
+canvas.addEventListener("pointerdown", ev=>{
+  hideBin();
+  const cell=cellFromEvent(ev); if(!cell) return;
+  try { canvas.setPointerCapture(ev.pointerId); } catch(e){}
+  painting=true; strokeAnchor=cell; lastCell=cell;
+  strokeErase=(ev.button===2)||cadTool==="erase"||tool===0;
+
+  if (cadTool === "measure") {
+    measurePoints.push(cell);
+    if (measurePoints.length === 2) {
+      const dist = Math.hypot(measurePoints[1].c - measurePoints[0].c, measurePoints[1].r - measurePoints[0].r);
+      const ft = Math.round(dist * 4);
+      $("#measure-result").textContent = `📏 Distance: ${ft} ft (${dist.toFixed(1)} cells) · Walk ~${Math.round(ft / 4.4)}s`;
+      $("#measure-result").style.display = "";
+      measurePoints = [];
+    }
+    redraw(); return;
+  }
+
+  if (cadTool === "fill") {
+    snapshot(); floodFill(cell, cells[cell.r * cols + cell.c], strokeErase ? 0 : tool);
+    redraw(); updateStats(); return;
+  }
+
+  if(!strokeErase && cells[cell.r*cols+cell.c]!==0 && cadTool==="paint" && cells[cell.r*cols+cell.c]===tool){
+    pendingCell=cell; strokeStarted=false;
+    return;
+  }
+  pendingCell=null; strokeStarted=true;
+  snapshot();
+  setCell(cell.c,cell.r, strokeErase?0:tool);
+  redraw(); updateStats();
+});
+
+canvas.addEventListener("pointermove", ev=>{
+  const cell=cellFromEvent(ev);
+  $("#cell-pos").textContent=cell?`${colName(cell.c)}${cell.r+1} (${cell.c*4}ft, ${cell.r*4}ft)`:"–";
+  if(!painting){
+    if((cell&&(!hoverCell||cell.c!==hoverCell.c||cell.r!==hoverCell.r))||(!cell&&hoverCell)){
+      hoverCell=cell; redraw();
+    }
+    return;
+  }
+  if(!cell) return;
+  const v=strokeErase?0:tool;
+  if(!strokeStarted){
+    if(cell.c===strokeAnchor.c&&cell.r===strokeAnchor.r) return;
+    strokeStarted=true; pendingCell=null;
+    snapshot();
+    setCell(strokeAnchor.c,strokeAnchor.r,v);
+  }
+
+  if(cadTool==="paint"){
+    if(ev.shiftKey&&strokeAnchor){
+      const top=undoStack[undoStack.length-1];
+      cells.set(top.c); rots.set(top.r);
+      const dc=Math.abs(cell.c-strokeAnchor.c), dr=Math.abs(cell.r-strokeAnchor.r);
+      const end = dc>=dr ? {c:cell.c,r:strokeAnchor.r} : {c:strokeAnchor.c,r:cell.r};
+      paintLine(strokeAnchor,end,v);
+    } else if(lastCell&&(cell.c!==lastCell.c||cell.r!==lastCell.r)){
+      paintLine(lastCell,cell,v);
+    } else {
+      setCell(cell.c, cell.r, v);
+    }
+  } else if(cadTool==="line"&&strokeAnchor){
+    const top=undoStack[undoStack.length-1]; cells.set(top.c); rots.set(top.r);
+    paintLine(strokeAnchor,cell,v);
+  } else if(cadTool==="rect"&&strokeAnchor){
+    const top=undoStack[undoStack.length-1]; cells.set(top.c); rots.set(top.r);
+    const rMin=Math.min(strokeAnchor.r,cell.r), rMax=Math.max(strokeAnchor.r,cell.r);
+    const cMin=Math.min(strokeAnchor.c,cell.c), cMax=Math.max(strokeAnchor.c,cell.c);
+    for(let r=rMin;r<=rMax;r++) for(let c=cMin;c<=cMax;c++) setCell(c,r,v);
+  } else if(cadTool==="box"&&strokeAnchor){
+    const top=undoStack[undoStack.length-1]; cells.set(top.c); rots.set(top.r);
+    const rMin=Math.min(strokeAnchor.r,cell.r), rMax=Math.max(strokeAnchor.r,cell.r);
+    const cMin=Math.min(strokeAnchor.c,cell.c), cMax=Math.max(strokeAnchor.c,cell.c);
+    for(let c=cMin;c<=cMax;c++){ setCell(c,rMin,v); setCell(c,rMax,v); }
+    for(let r=rMin;r<=rMax;r++){ setCell(cMin,r,v); setCell(cMax,r,v); }
+  } else if(cadTool==="aisle"&&strokeAnchor){
+    const top=undoStack[undoStack.length-1]; cells.set(top.c); rots.set(top.r);
+    generateAisle(strokeAnchor,cell,v);
+  }
+
+  lastCell=cell;
+  redraw(); updateStats();
+});
+
+function endStroke(ev){
+  if(painting&&!strokeStarted&&pendingCell) showBin(pendingCell);
+  if(ev && ev.pointerId){ try{ canvas.releasePointerCapture(ev.pointerId); }catch(e){} }
+  painting=false; strokeAnchor=null; lastCell=null; pendingCell=null; strokeStarted=false;
+}
+canvas.addEventListener("pointerup", endStroke);
+canvas.addEventListener("pointercancel", endStroke);
+canvas.addEventListener("pointerleave", ()=>{ if(!painting){ hoverCell=null; $("#cell-pos").textContent="–"; redraw(); }});
+
+/* ============ Delete-confirm bin ============ */
+const binPop=$("#bin-pop");
+function showBin(cell){
+  const v=cells[cell.r*cols+cell.c];
+  if(!v) return;
+  binCell=cell;
+  $("#bin-name").textContent=byId[v].name+" · "+colName(cell.c)+(cell.r+1);
+  $("#bin-rot").style.display=ROTATABLE.has(v)?"":"none";
+  const m=marginPx();
+  binPop.style.left=(canvas.offsetLeft+m+cell.c*cellPx+cellPx/2)+"px";
+  binPop.style.top =(canvas.offsetTop +m+cell.r*cellPx-8)+"px";
+  binPop.classList.add("on");
+}
+function hideBin(){ binCell=null; binPop.classList.remove("on"); }
+$("#bin-del").addEventListener("click", ()=>{
+  if(!binCell) return hideBin();
+  snapshot();
+  setCell(binCell.c,binCell.r,0);
+  hideBin(); redraw(); updateStats();
+});
+$("#bin-rot").addEventListener("click", ()=>{
+  if(!binCell) return hideBin();
+  const i=binCell.r*cols+binCell.c;
+  if(!cells[i]) return hideBin();
+  snapshot();
+  rots[i]=(rots[i]+1)&3;
+  redraw();
+});
+$("#bin-keep").addEventListener("click", hideBin);
+
+/* ============ Shift layout ============ */
+function shiftLayout(dc,dr){
+  snapshot();
+  const nc=new Uint8Array(cols*rows), nr=new Uint8Array(cols*rows);
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+    const v=cells[r*cols+c]; if(!v) continue;
+    const c2=c+dc, r2=r+dr;
+    if(c2<0||r2<0||c2>=cols||r2>=rows) continue;
+    nc[r2*cols+c2]=v; nr[r2*cols+c2]=rots[r*cols+c];
+  }
+  cells=nc; rots=nr;
+  const g=grids[gi]; g.cells=cells; g.rots=rots;
+  hideBin(); redraw(); updateStats();
+}
+document.querySelectorAll("[data-shift]").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    const [dc,dr]=b.dataset.shift.split(",").map(Number);
+    shiftLayout(dc,dr);
+  });
+});
+$("#boardwrap").addEventListener("scroll", hideBin);
+document.addEventListener("keydown", ev=>{ if(ev.key==="Escape") hideBin(); });
+
+/* ============ Undo / redo ============ */
+function undo(){ if(!undoStack.length) return; hideBin(); redoStack.push({c:cells.slice(),r:rots.slice(),cols,rows}); applySnap(undoStack.pop()); redraw(); updateStats(); updateUndoBtns(); }
+function redo(){ if(!redoStack.length) return; hideBin(); undoStack.push({c:cells.slice(),r:rots.slice(),cols,rows}); applySnap(redoStack.pop()); redraw(); updateStats(); updateUndoBtns(); }
+function updateUndoBtns(){ $("#btn-undo").disabled=!undoStack.length; $("#btn-redo").disabled=!redoStack.length; }
+
+$("#btn-undo").addEventListener("click", undo);
+$("#btn-redo").addEventListener("click", redo);
+
+document.addEventListener("keydown", ev=>{
+  if(ev.target.tagName==="INPUT"&&ev.target.type==="text") return;
+  const k=ev.key.toLowerCase();
+  if((ev.metaKey||ev.ctrlKey)&&k==="z"){ ev.preventDefault(); ev.shiftKey?redo():undo(); return; }
+  if((ev.metaKey||ev.ctrlKey)&&k==="s"){ ev.preventDefault(); sendSync(); return; }
+  if(k==="e"){ setCadTool("erase"); return; }
+  if(k==="p"){ setCadTool("paint"); return; }
+  if(k==="l"){ setCadTool("line"); return; }
+  if(k==="r"&&!ev.ctrlKey&&!ev.metaKey){ setCadTool("rect"); return; }
+  if(k==="b"){ setCadTool("box"); return; }
+  if(k==="a"){ setCadTool("aisle"); return; }
+  if(k==="m"){ setCadTool("measure"); return; }
+  if(k==="3"){ switchViewMode(viewMode==="2d"?"3d":"2d"); return; }
+  const el=ELEMENTS.find(e=>e.key===ev.key);
+  if(el){ tool=el.id; cadTool="paint"; updateCadBtns(); buildPalette(); }
+});
+
+/* ============ Stats ============ */
+function updateStats(){
+  if(!cells) return;
+  const counts=new Array(14).fill(0);
+  for(let i=0;i<cells.length;i++) counts[cells[i]]++;
+  ELEMENTS.forEach(el=>{
+    const n=counts[el.id];
+    const span=paletteEl.querySelector(`[data-cnt="${el.id}"]`);
+    if(span) span.textContent=n||"";
+  });
+  const used=cells.length-counts[0];
+  $("#stat-used").textContent=used+" cells used";
+  $("#stat-occ").textContent=Math.round(used/cells.length*100)+"% occupancy";
+  $("#stat-racks").textContent=(counts[1]||0)+" rack rows";
+}
+
+/* ============ Header actions ============ */
+$("#layout-name").addEventListener("input", e=>name=e.target.value);
+
+$("#btn-clear").addEventListener("click", ()=>{
+  if(!confirmQuiet("Clear this entire grid?")) return;
+  snapshot(); cells.fill(0); rots.fill(0); hideBin(); redraw(); updateStats();
+});
+function confirmQuiet(msg){ return window.confirm ? window.confirm(msg) : true; }
+
+$("#btn-resize").addEventListener("click", ()=>{
+  const nc=prompt("Width (columns):", cols); if(nc===null) return;
+  const nr=prompt("Depth (rows):", rows);    if(nr===null) return;
+  snapshot(); initGrid(+nc,+nr,true);
+});
+
+$("#opt-labels").addEventListener("change", redraw);
+$("#opt-coords").addEventListener("change", ()=>{ sizeCanvas(); redraw(); });
+
+$("#zoom").addEventListener("input", e=>{ cellPx=+e.target.value; hideBin(); sizeCanvas(); redraw(); });
+
+/* ============ Save / load ============ */
+$("#btn-save").addEventListener("click", ()=>{
+  const data={format:"planogram-planogram", version:2, name, active:gi,
+    grids:grids.map(g=>({name:g.name, cols:g.cols, rows:g.rows,
+      cells:Array.from(g.cells), rots:Array.from(g.rots)})),
+    savedAt:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(data, null, 2)],{type:"application/json"});
+  downloadBlob(blob, slug(name)+".json");
+});
+
+$("#btn-load").addEventListener("click", ()=>$("#file-input").click());
+$("#file-input").addEventListener("change", ev=>{
+  const f=ev.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{ loadData(JSON.parse(rd.result)); }catch(e){ alert("Could not read that file: "+e.message); } };
+  rd.readAsText(f);
+  ev.target.value="";
+});
+
+function toArr(a,len){ const t=new Uint8Array(len); if(Array.isArray(a)) t.set(Uint8Array.from(a.slice(0,len))); return t; }
+function loadData(d){
+  if (!d) return;
+  name=d.name||"Floor 1";
+  const nameEl = $("#layout-name");
+  if (nameEl) nameEl.value=name;
+  if(Array.isArray(d.grids)&&d.grids.length){
+    grids=d.grids.map((g,i)=>{
+      const c = clampDim(g.cols || 30);
+      const r = clampDim(g.rows || 20);
+      const gg=makeGrid(g.name||("Grid "+(i+1)), c, r);
+      gg.cells=toArr(g.cells, c * r);
+      gg.rots =toArr(g.rots,  c * r);
+      return gg;
+    });
+    gi=Math.min(Math.max(0,d.active|0), grids.length-1);
+  } else if(Array.isArray(d.cells)){
+    const c = clampDim(d.cols || 30);
+    const r = clampDim(d.rows || 20);
+    const gg=makeGrid("Grid 1", c, r);
+    gg.cells=toArr(d.cells, c * r);
+    gg.rots =toArr(d.rots, c * r);
+    grids=[gg]; gi=0;
+  } else {
+    grids=[makeGrid("Grid 1", 30, 20)]; gi=0;
+  }
+  if (typeof hideBin === "function") hideBin();
+  bindGrid();
+  buildPalette();
+}
+
+/* ============ PNG export ============ */
+$("#btn-png").addEventListener("click", ()=>{
+  const px=34, m=40, legendH=64, titleH=52;
+  const W=cols*px+m*2, H=rows*px+m+titleH+legendH;
+  const off=document.createElement("canvas");
+  off.width=W*2; off.height=H*2;
+  const g=off.getContext("2d"); g.scale(2,2);
+  g.fillStyle="#ffffff"; g.fillRect(0,0,W,H);
+  g.fillStyle="#111"; g.font="700 20px -apple-system,Segoe UI,Roboto,sans-serif";
+  g.textAlign="left"; g.textBaseline="top";
+  const title=grids.length>1 ? name+" — "+grids[gi].name : name;
+  g.fillText(title, m, 16);
+  g.fillStyle="#777"; g.font="12px -apple-system,Segoe UI,Roboto,sans-serif";
+  g.fillText(cols+" × "+rows+" grid · exported "+new Date().toLocaleDateString(), m, 40-2);
+  g.save(); g.translate(m-M, titleH-M);
+  drawBoard(g, px, M, true);
+  g.restore();
+  const ly=titleH+rows*px+18;
+  let lx=m;
+  g.font="12px -apple-system,Segoe UI,Roboto,sans-serif"; g.textBaseline="middle";
+  const counts=new Array(14).fill(0);
+  for(let i=0;i<cells.length;i++) counts[cells[i]]++;
+  ELEMENTS.forEach(el=>{
+    if(!counts[el.id]) return;
+    g.fillStyle=el.color; roundRect(g,lx,ly,14,14,3); g.fill();
+    g.fillStyle="#333"; g.textAlign="left";
+    const t=el.name+" ×"+counts[el.id];
+    g.fillText(t, lx+20, ly+7);
+    lx+=20+g.measureText(t).width+22;
+  });
+  off.toBlob(b=>downloadBlob(b, slug(grids.length>1 ? name+"-"+grids[gi].name : name)+".png"));
+});
+
+function slug(s){ return (s||"layout").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")||"layout"; }
+function downloadBlob(blob, fname){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=fname;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500);
+}
+
+function showToast(msg) {
+  const t = $("#toast"); t.textContent = msg;
+  t.classList.add("on"); setTimeout(() => t.classList.remove("on"), 2600);
+}
+
+/* ============ Theme Management ============ */
+let canvasTheme = localStorage.getItem("planogram_theme") || "dark";
+function applyCanvasTheme(theme) {
+  canvasTheme = theme;
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("planogram_theme", theme);
+  if (typeof redraw === "function") redraw();
+}
+applyCanvasTheme(canvasTheme);
+
+document.getElementById("canvas-theme-toggle")?.addEventListener("click", () => {
+  const next = canvasTheme === "dark" ? "light" : "dark";
+  applyCanvasTheme(next);
+});
+
+/* ============ Boot ============ */
+function initPlanogramApp() {
+  buildPalette();
+  const urlParams = new URLSearchParams(window.location.search);
+  const pL = urlParams.get("L"), pW = urlParams.get("W"), pName = urlParams.get("name");
+  const pCols = urlParams.get("cols"), pRows = urlParams.get("rows");
+
+  let loaded = false;
+  const pendingRaw = localStorage.getItem("planogram_pending_canvas");
+  if (pendingRaw) {
+    try {
+      const data = JSON.parse(pendingRaw);
+      if (data && (Array.isArray(data.grids) || Array.isArray(data.cells))) {
+        loadData(data);
+        localStorage.removeItem("planogram_pending_canvas");
+        loaded = true;
+      }
+    } catch(e) {
+      console.warn("Could not load pending canvas:", e);
+    }
+  }
+
+  if (!loaded) {
+    const c = pCols && !isNaN(+pCols) && +pCols > 1 ? +pCols : (pL && !isNaN(+pL) && +pL > 4 ? Math.round(+pL / 4) : 30);
+    const r = pRows && !isNaN(+pRows) && +pRows > 1 ? +pRows : (pW && !isNaN(+pW) && +pW > 4 ? Math.round(+pW / 4) : 20);
+    name = pName || "Floor 1";
+    const nameEl = $("#layout-name");
+    if (nameEl) nameEl.value = name;
+    grids = [makeGrid("Grid 1", c, r)];
+    gi = 0;
+    bindGrid();
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initPlanogramApp);
+} else {
+  initPlanogramApp();
+}
+</script>
+</body>
+</html>

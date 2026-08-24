@@ -1,0 +1,8 @@
+{
+  "name": "blitz-planogram-planner",
+  "private": true,
+  "description": "Blitz Planogram Planner — cross-dock sortation hub layout planner.",
+  "engines": {
+    "node": ">=18"
+  }
+}
