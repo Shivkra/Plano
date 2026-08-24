@@ -3126,23 +3126,14 @@
       justify-content: space-between;
     }
 
-    /* DEEP QA ASIDE */
-    aside.deep-qa {
-      display: none;
-      width: 340px;
-      flex-shrink: 0;
-      background: var(--surface);
-      border-right: 1px solid var(--border);
+    /* DEEP QA — shown as a centered pop-up over the canvas (one question at
+       a time), not docked in the sidebar. */
+    .modal.deep-qa {
+      width: 520px;
+      max-width: 92vw;
+      max-height: 82vh;
       overflow-y: auto;
-      padding: 20px 18px 32px;
-    }
-
-    #editor.qa-locked aside.deep-qa {
-      display: block;
-    }
-
-    #editor.qa-locked aside.palette {
-      display: none;
+      text-align: left;
     }
 
     #editor.qa-locked #boardwrap {
@@ -3266,19 +3257,21 @@
       padding-top: 8px;
     }
 
-    .dq-opt .o-m {
+    /* Scoped to .deep-qa (not just .dq-opt) since renderDqSummary's "Key
+       numbers" block reuses .o-m outside any .dq-opt card. */
+    .deep-qa .o-m {
       display: flex;
       justify-content: space-between;
       gap: 8px;
       font-size: var(--fs-2xs);
     }
 
-    .dq-opt .o-m .k {
+    .deep-qa .o-m .k {
       color: var(--ink-faint);
       font-weight: 600;
     }
 
-    .dq-opt .o-m .v {
+    .deep-qa .o-m .v {
       font-weight: 800;
     }
 
@@ -4775,27 +4768,6 @@
     </div>
 
     <div class="ed-body" style="position:relative;">
-      <!-- Guided setup: a short run of computed decisions (destinations, wave
-           pattern, sortation method, docks...), each with real consequences
-           on this site's own dimensions. Shown instead of the palette while
-           #editor.qa-locked is set (see startDeepQa/finishDeepQa). -->
-      <aside class="deep-qa" id="deep-qa-panel">
-        <div class="dq-head">
-          <span class="dq-badge" id="dq-progress">Decision 1</span>
-          <h3 id="dq-title"></h3>
-          <p class="dq-why" id="dq-why"></p>
-        </div>
-        <div id="dq-body"></div>
-        <div id="deep-qa-done-actions" style="display:none; margin-top:4px;">
-          <button class="btn primary full" id="deep-qa-unlock">Looks good — unlock the canvas</button>
-        </div>
-        <div id="deep-qa-input-row" style="display:none;"></div>
-        <div id="deep-qa-chat" style="display:none;"></div>
-        <div style="display:flex; gap:8px; margin-top:14px;">
-          <button class="btn ghost sm full" id="deep-qa-assistant" title="Ask what a term means">🤖 Ask AI</button>
-          <button class="btn ghost sm full" id="deep-qa-skip">Skip the questions</button>
-        </div>
-      </aside>
       <!-- Primary Canva-like Left Palette -->
       <aside class="palette" id="palette">
         <div class="smart-nav-tools">
@@ -5535,6 +5507,30 @@
           <button class="btn ghost" onclick="closeSettingsModal()">Cancel</button>
           <button class="btn primary" id="set-save-close" onclick="saveSettings()">Save & Done</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Guided setup: a short run of computed decisions (destinations, wave
+       pattern, sortation method, docks...), each with real consequences on
+       this site's own dimensions, shown one at a time over the canvas
+       (see startDeepQa/finishDeepQa). -->
+  <div class="modal-overlay" id="deep-qa-panel">
+    <div class="modal deep-qa">
+      <div class="dq-head">
+        <span class="dq-badge" id="dq-progress">Decision 1</span>
+        <h3 id="dq-title"></h3>
+        <p class="dq-why" id="dq-why"></p>
+      </div>
+      <div id="dq-body"></div>
+      <div id="deep-qa-done-actions" style="display:none; margin-top:4px;">
+        <button class="btn primary full" id="deep-qa-unlock">Looks good — unlock the canvas</button>
+      </div>
+      <div id="deep-qa-input-row" style="display:none;"></div>
+      <div id="deep-qa-chat" style="display:none;"></div>
+      <div style="display:flex; gap:8px; margin-top:14px;">
+        <button class="btn ghost sm full" id="deep-qa-assistant" title="Ask what a term means">🤖 Ask AI</button>
+        <button class="btn ghost sm full" id="deep-qa-skip">Skip the questions</button>
       </div>
     </div>
   </div>
@@ -6954,7 +6950,7 @@
       // Hide deep QA during freehand sketch
       $("#editor").classList.remove("qa-locked");
       const qaPanel = document.getElementById("deep-qa-panel");
-      if (qaPanel) qaPanel.style.display = "none";
+      if (qaPanel) qaPanel.classList.remove("on");
 
       toast("✏️ Pro Canvas Opened! Mark walls, racks, docks & aisles, then click 'Generate & Refine Layout' above.", 4000);
     }
@@ -7495,6 +7491,7 @@
       wizInterviewSummaryLine = ""; wizInterviewRationale = ""; wizInterviewLoading = false;
       wizInterviewCurrentQuickReplies = []; dqChoices = {}; dqIndex = 0;
       $("#editor").classList.add("qa-locked");
+      $("#deep-qa-panel").classList.add("on");
       $("#deep-qa-chat").innerHTML = ""; $("#deep-qa-input-row").style.display = "none";
       $("#deep-qa-done-actions").style.display = "none";
       renderDqStep();
@@ -7585,6 +7582,7 @@
     function finishDeepQa() {
       site._deepQaDone = true;
       $("#editor").classList.remove("qa-locked");
+      $("#deep-qa-panel").classList.remove("on");
       // Saved immediately, NOT via the debounced queueSave() — otherwise going
       // straight back to the library and reopening re-fetches a version that
       // hasn't got the flag yet and re-runs the whole Q&A. Caught in testing;
@@ -8192,7 +8190,7 @@
       const presBtn = $("#ed-present");
       if (presBtn) presBtn.style.display = "";
       const qaPanel = document.getElementById("deep-qa-panel");
-      if (qaPanel) qaPanel.style.display = "";
+      if (qaPanel) qaPanel.classList.remove("on");
 
       requestAnimationFrame(() => {
         sizeCanvas();
