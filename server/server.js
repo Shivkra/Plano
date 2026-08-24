@@ -127,13 +127,15 @@ function extractJsonObject(text) {
    Chosen specifically for its multimodal strength (not just a second text
    provider) — this is a job Claude's text-only AI-refine endpoint can't do. */
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-/* Vision and text run with graceful multi-model fallback (gemini-2.5-flash, gemini-2.0-flash, gemini-1.5-flash). */
+/* Vision runs with graceful multi-model fallback. The 2.x/1.5 models this
+   list used to carry have since been retired ("no longer available to new
+   users" / 404) — Google's own error for that points at gemini-3.6-flash,
+   confirmed live against this project's key alongside the other two. */
 const GEMINI_MODELS = [
   process.env.GEMINI_MODEL,
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
-  "gemini-1.5-pro",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-3.1-flash-lite",
 ].filter(Boolean);
 /* Text calls (interview, AI tweak, assistant) use a separate model from
    vision — keeps them on their own free-tier quota bucket instead of
