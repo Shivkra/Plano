@@ -7359,7 +7359,81 @@
         rationale: "Through-flow is the default for sortation because arriving and departing vehicles never cross. Only pick same-side if the building physically has doors on one wall.",
       });
 
-      // ---- 2. Lane strategy — the single biggest carve-up of the floor.
+      /* ---- 2. How boxes move. Asked BEFORE lanes because it sets the aisle
+         width every later decision has to budget around, and the minimum lane
+         width the lane question is allowed to recommend. Previously assumed
+         "trolley" and never asked. */
+      const equip = [
+        { key: "manual", label: "Carried by hand", rows: 2, note: "Cheapest. Only workable at low volume and short runs." },
+        { key: "trolley", label: "Trolleys / pallet trucks", rows: 3, note: "The common choice for box sortation." },
+        { key: "cage", label: "Roll-cages", rows: 4, note: "Good when boxes are already caged by destination." },
+        { key: "forklift", label: "Forklifts", rows: 6, note: "Needed for pallets. Costs the most floor of any option." },
+      ];
+      D.push({
+        id: "equipment",
+        title: "How do boxes move around the floor?",
+        why: "This sets how wide every working aisle has to be — the biggest claim on your floor after the lanes themselves.",
+        options: equip.map(e => ({
+          key: e.key, label: e.label, detail: e.note,
+          metrics: [["Aisle width needed", e.rows * CELL_FT + " ft"],
+          ["Floor left for sorting", Math.max(0, 100 - Math.round(e.rows * CELL_FT / W * 100 * 4)) + "%"],
+          ["Meets safe minimum", e.rows * CELL_FT >= MIN_AISLE_FT ? "Yes" : "No"]],
+          patch: { handlingEquipment: e.key, aisleRows: e.rows }
+        })),
+        recommend: "trolley",
+        rationale: "Trolleys are the usual answer for packed-box sortation — they clear a 6 ft aisle, which is wide enough to pass two-way without giving up the floor a forklift would demand. Only pick forklifts if you actually handle pallets on the sort floor.",
+      });
+
+      /* ---- 3. When trucks leave. Drives peak concurrency (staging depth) AND
+         the hours available to sort (which sizes the sorter). Previously
+         assumed a 6-hour night window and never asked — meaning the sortation
+         recommendation, a capital decision, rested on a guess. */
+      D.push({
+        id: "dispatch",
+        title: "When do trucks leave?",
+        why: "This decides how many boxes sit on the floor at once, and how many hours you have to clear them.",
+        options: WAVE_PATTERN_DEFS.map(wp => {
+          const wh = OP_WINDOW_HOURS[wp.key], dh = DWELL_HOURS[wp.key];
+          const peak = Math.max(1, Math.round(boxes / wh * dh));
+          return {
+            key: wp.key, label: wp.label, detail: wp.hint,
+            metrics: [["Hours to sort", wh + " hrs"], ["Boxes on floor at peak", "~" + fmtNum(peak)],
+            ["Sort rate needed", fmtNum(Math.round(boxes / wh)) + "/hr"]],
+            patch: { wavePattern: wp.key }
+          };
+        }),
+        recommend: "waves",
+        rationale: "A few dispatch windows is the steadiest pattern for most hubs — one big night sort peaks hard on floor space and staffing, while running continuously needs cover all day. Pick what your outbound trucks are actually booked for.",
+      });
+
+      /* ---- 4. Door count. The split question below divides this number, and
+         used to divide a hardcoded 4 nobody had supplied. A door plus its apron
+         needs roughly 12 ft of wall, so the building's frontage caps it. */
+      const maxDoors = Math.max(2, Math.floor((L * 0.8) / 12));
+      const doorOpts = [...new Set([
+        Math.max(2, Math.round(maxDoors * 0.35)),
+        Math.max(3, Math.round(maxDoors * 0.6)),
+        maxDoors,
+      ])].sort((a, b) => a - b);
+      const winHrs = OP_WINDOW_HOURS[p.wavePattern] || OP_WINDOW_HOURS.night;
+      D.push({
+        id: "doors",
+        title: "How many dock doors does the building have?",
+        why: "Doors are the hard ceiling on how fast trucks turn around — every other decision has to work inside them.",
+        options: doorOpts.map(n => ({
+          key: "n" + n, label: n + " doors",
+          detail: n >= maxDoors ? `The most a ${L} ft frontage will physically take.`
+            : `Leaves wall free for ${maxDoors - n} more doors later.`,
+          metrics: [["Truck turns per window", "~" + fmtNum(Math.round(n * 1.3 * winHrs))],
+          ["Destinations per door", dests > 0 ? String(Math.ceil(dests / Math.max(1, n))) : "—"],
+          ["Wall used", Math.round(n * 12 / L * 100) + "%"]],
+          patch: { dockBays: n, dockInBays: Math.max(1, Math.round(n * 0.4)), dockOutBays: Math.max(1, n - Math.round(n * 0.4)) }
+        })),
+        recommend: "n" + (doorOpts[1] || doorOpts[0]),
+        rationale: `Count the roller shutters your building actually has — this is a fact, not a preference. At roughly 45 minutes a turn, each door clears about ${Math.round(1.3 * winHrs)} trucks in your dispatch window.`,
+      });
+
+      // ---- 5. Lane strategy — the single biggest carve-up of the floor.
       if (dests > 0) {
         const widths = [6, 8, 12];
         const eqMin = { manual: 6, trolley: 6, cage: 8, forklift: 12 }[p.handlingEquipment] || 8;
