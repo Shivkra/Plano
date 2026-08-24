@@ -7959,7 +7959,7 @@
         const label = rm.name || (ZONE_DEFS[type] ? ZONE_DEFS[type].name : "Room");
         const z = mkZone(type, xFt, yFt, wFt, hFt, label);
         targetSite.zones.push(z);
-        clearPaintUnderZone(z);
+        clearPaintUnderZone(z, targetSite);
       });
 
       // 4. Storage Racking Aisles
@@ -9788,12 +9788,18 @@
       clearTimeout(flashLockedNote._t);
       flashLockedNote._t = setTimeout(() => note.classList.remove("on"), 1200);
     }
-    function clearPaintUnderZone(z) {
+    // Defaults to the open editor's site, but takes an explicit target so
+    // callers building a brand-new site (e.g. applyFullVisionDataToSite,
+    // before it's ever assigned to the global `site`) don't reach past
+    // their own object into whatever site happens to be open elsewhere.
+    function clearPaintUnderZone(z, s) {
+      s = s || site;
+      if (!s) return;
       const c0 = Math.floor(z.x / CELL_FT), c1 = Math.ceil((z.x + z.w) / CELL_FT);
       const r0 = Math.floor(z.y / CELL_FT), r1 = Math.ceil((z.y + z.h) / CELL_FT);
       for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) {
-        if (r < 0 || c < 0 || r >= site.rows || c >= site.cols) continue;
-        const i = r * site.cols + c; site.cells[i] = 0; site.rots[i] = 0;
+        if (r < 0 || c < 0 || r >= s.rows || c >= s.cols) continue;
+        const i = r * s.cols + c; s.cells[i] = 0; s.rots[i] = 0;
       }
     }
     function colName(i) { let s = ""; i++; while (i > 0) { i--; s = String.fromCharCode(65 + i % 26) + s; i = Math.floor(i / 26); } return s; }
