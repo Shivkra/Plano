@@ -3776,6 +3776,7 @@
     }
 
     #present-sheet {
+      --sheet-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
       background: #fff;
       box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
       width: 1400px;
@@ -3786,13 +3787,24 @@
       padding: 44px 52px 40px;
     }
 
+    /* ---- Drawing issue sheet ------------------------------------------
+       This is the artifact the manager prints and hands to a contractor, so
+       it is set as a drawing, not as a web page: every measured value sits in
+       the mono face and carries a stencilled field label, prose stays in the
+       body face, and the only accent is floor-marking yellow. */
     .sheet-titleblock {
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
+      gap: 32px;
       border-bottom: 3px solid #17171A;
-      padding-bottom: 16px;
-      margin-bottom: 22px;
+      padding-bottom: 14px;
+    }
+
+    .sheet-rule-thin {
+      height: 0;
+      border-bottom: 1px solid #17171A;
+      margin: 2px 0 20px;
     }
 
     .sheet-titleblock h1 {
@@ -3809,15 +3821,194 @@
       font-weight: 600;
     }
 
-    .sheet-titleblock .meta-right {
-      text-align: right;
-      font-size: 11px;
-      color: #8c8577;
-      line-height: 1.7;
+    .tb-fields {
+      display: flex;
+      border: 1px solid #17171A;
+      flex-shrink: 0;
     }
 
-    .sheet-titleblock .meta-right b {
+    .tb-field {
+      padding: 7px 14px;
+      border-right: 1px solid #c9c4b8;
+      min-width: 84px;
+    }
+
+    .tb-field:last-child {
+      border-right: 0;
+    }
+
+    .tb-field .k {
+      display: block;
+      font-size: 8.5px;
+      font-weight: 800;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+      color: #8c8577;
+      margin-bottom: 3px;
+    }
+
+    .tb-field .v {
+      font-family: var(--sheet-mono);
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #17171A;
+    }
+
+    /* Design criteria — what the plan was SIZED against. A layout drawing that
+       states only what was drawn, and not the basis it was drawn to, can't be
+       checked by whoever receives it. */
+    .basis-panel {
+      border: 1px solid #17171A;
+      margin-bottom: 20px;
+    }
+
+    .basis-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 14px;
+      background: #17171A;
+    }
+
+    .basis-head b {
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+      color: #fff;
+    }
+
+    .basis-head i {
+      flex: 1;
+      height: 3px;
+      background: #F5C518;
+      font-style: normal;
+    }
+
+    .basis-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .basis-cell {
+      padding: 11px 14px 12px;
+      border-right: 1px solid #e5e1d8;
+      border-top: 1px solid #e5e1d8;
+    }
+
+    .basis-cell:nth-child(4n) {
+      border-right: 0;
+    }
+
+    .basis-cell .k {
+      display: block;
+      font-size: 8.5px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: #8c8577;
+      margin-bottom: 5px;
+    }
+
+    .basis-cell .v {
+      font-family: var(--sheet-mono);
+      font-size: 15px;
+      font-weight: 700;
+      color: #17171A;
+      line-height: 1.25;
+    }
+
+    .basis-cell .sub {
+      display: block;
+      font-size: 10px;
+      color: #8c8577;
+      margin-top: 3px;
+      font-weight: 600;
+    }
+
+    .scale-bar {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-top: 12px;
+      font-family: var(--sheet-mono);
+      font-size: 10px;
       color: #4a453a;
+      font-weight: 700;
+    }
+
+    .scale-bar .bar {
+      display: flex;
+      height: 7px;
+      border: 1px solid #17171A;
+    }
+
+    .scale-bar .bar i {
+      height: 100%;
+    }
+
+    .scale-bar .bar i:nth-child(odd) {
+      background: #17171A;
+    }
+
+    .scale-bar .sc-note {
+      color: #8c8577;
+      font-weight: 600;
+      margin-left: 4px;
+    }
+
+    .sheet-notes {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 30px;
+      border-top: 1px solid #17171A;
+      margin-top: 20px;
+      padding-top: 14px;
+    }
+
+    .sheet-notes h4 {
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+      color: #8c8577;
+      margin-bottom: 7px;
+    }
+
+    .sheet-notes p {
+      font-size: 11.5px;
+      line-height: 1.65;
+      color: #4a453a;
+    }
+
+    .sheet-notes ol {
+      margin: 0;
+      padding-left: 0;
+      list-style: none;
+      counter-reset: n;
+    }
+
+    .sheet-notes li {
+      counter-increment: n;
+      position: relative;
+      padding-left: 24px;
+      font-size: 11.5px;
+      line-height: 1.6;
+      color: #4a453a;
+      margin-bottom: 6px;
+    }
+
+    .sheet-notes li::before {
+      content: counter(n, decimal-leading-zero);
+      position: absolute;
+      left: 0;
+      top: 1px;
+      font-family: var(--sheet-mono);
+      font-size: 9.5px;
+      font-weight: 700;
+      color: #17171A;
+      background: #F5C518;
+      padding: 1px 4px;
     }
 
     .sheet-canvas-wrap {
@@ -10950,33 +11141,109 @@
       const scale = Math.min(760 / site.L, 560 / site.W);
       const canW = site.L * scale, canH = site.W * scale;
 
+      /* The basis this plan was sized against. Everything here comes from the
+         decisions the manager actually made, so the sheet can be checked by
+         whoever receives it instead of taken on trust. */
+      const p = Object.assign(defaultGenParams(), site._genParams || {});
+      const m = computeLayoutMetrics(site, p.aisleRows);
+      const lanes = site.zones.filter(z => z.type === "outboundLane").length;
+      const dests = p.destinationHubs || 0;
+      const boxes = p.ordersPerDay || 0;
+      const winH = OP_WINDOW_HOURS[p.wavePattern] || OP_WINDOW_HOURS.night;
+      const dwellH = DWELL_HOURS[p.wavePattern] || DWELL_HOURS.night;
+      const peak = boxes ? Math.max(1, Math.round(boxes / winH * dwellH)) : 0;
+      const eqLabel = { manual: "Hand-carry", trolley: "Trolleys", cage: "Roll-cages", forklift: "Forklifts" }[p.handlingEquipment] || "Trolleys";
+      const sortLabel = { manual: "Manual to cages", semiauto: "Conveyor + divert", automated: "Automated sorter" }[p.sortationMethod] || "Manual to cages";
+      const waveLabel = (WAVE_PATTERN_DEFS.find(w => w.key === p.wavePattern) || {}).label || "One night sort";
+      const dash = "—";
+
+      const basis = [
+        ["Throughput", boxes ? fmtNum(boxes) : dash, boxes ? "boxes / day" : "not stated"],
+        ["Dispatch", waveLabel, winH + " hr window"],
+        ["Peak on floor", peak ? "~" + fmtNum(peak) : dash, "throughput × dwell"],
+        ["Sort rate req.", boxes ? fmtNum(Math.round(boxes / winH)) + "/hr" : dash, "to clear the window"],
+        ["Handling", eqLabel, m.aisleWidthFt + " ft working aisle"],
+        ["Sortation", sortLabel, "sized to rate above"],
+        ["Dock doors", (p.dockInBays || 0) + " in / " + (p.dockOutBays || 0) + " out", (p.dockBays || 0) + " total"],
+        ["Outbound lanes", lanes + (dests ? " / " + dests : ""), dests ? "lanes / destinations" : "no destinations set"],
+      ];
+
+      // Bar scale — a printed plan needs a graphic scale, not a screen ratio.
+      const segFt = [5, 10, 20, 25, 50, 100].find(n => n * scale >= 38) || 100;
+      const segPx = Math.round(segFt * scale);
+
+      const shared = Math.max(0, dests - lanes);
+      const risks = [];
+      if (dests > 0 && shared > 0) risks.push(`Only ${lanes} outbound lanes fit at the width chosen — ${shared + 1} destinations share a lane. Confirm those are the lowest-volume routes.`);
+      if (!m.aisleOk) risks.push(`Working aisles measure ${m.aisleWidthFt} ft, below the ${MIN_AISLE_FT} ft minimum for two-way movement.`);
+      if (m.hiddenMarks > 0) risks.push(`${m.hiddenMarks} of the fixed points marked on the floor plan sit underneath a zone. Check those columns or walls before setting out.`);
+      if (p.flowPattern === "u-flow") risks.push("All doors are on one wall, so arriving and departing vehicles share the yard. Book inbound and outbound into separate windows where possible.");
+      risks.push("Verify column positions, door heights and floor levels on site before setting out.");
+
       sheet.innerHTML = `
     <div class="sheet-inner">
       <div class="sheet-titleblock">
         <div>
           <h1>${escapeHtml(site.name)}</h1>
-          <div class="meta-line">Layout Plan · ${site.L} ft × ${site.W} ft · ${fmtNum(totalArea)} sq ft total</div>
+          <div class="meta-line">Cross-dock sortation hub · floor layout plan · ${site.L} ft × ${site.W} ft · ${fmtNum(totalArea)} sq ft</div>
         </div>
-        <div class="meta-right">
-          <div><b>Generated</b> ${new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-          <div><b>Scale</b> as noted below</div>
+        <div class="tb-fields">
+          <div class="tb-field"><span class="k">Scale</span><span class="v">See bar</span></div>
+          <div class="tb-field"><span class="k">Flow</span><span class="v">${p.flowPattern === "i-flow" ? "Through" : "Single wall"}</span></div>
+          <div class="tb-field"><span class="k">Issued</span><span class="v">${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span></div>
+          <div class="tb-field"><span class="k">Rev</span><span class="v">A</span></div>
+          <div class="tb-field"><span class="k">Sheet</span><span class="v">1 / 1</span></div>
         </div>
       </div>
+      <div class="sheet-rule-thin"></div>
+
+      <div class="basis-panel">
+        <div class="basis-head"><b>Design basis</b><i></i></div>
+        <div class="basis-grid">
+          ${basis.map(([k, v, sub]) => `
+            <div class="basis-cell">
+              <span class="k">${escapeHtml(k)}</span>
+              <span class="v">${escapeHtml(String(v))}</span>
+              <span class="sub">${escapeHtml(sub)}</span>
+            </div>`).join("")}
+        </div>
+      </div>
+
       <div class="sheet-canvas-wrap">
-        <canvas id="pr-canvas" width="${Math.round(canW + 90)}" height="${Math.round(canH + 50)}" style="width:${Math.round(canW + 90)}px; height:${Math.round(canH + 50)}px;"></canvas>
+        <div>
+          <canvas id="pr-canvas" width="${Math.round(canW + 90)}" height="${Math.round(canH + 50)}" style="width:${Math.round(canW + 90)}px; height:${Math.round(canH + 50)}px;"></canvas>
+          <div class="scale-bar">
+            <span>0</span>
+            <span class="bar">${[0, 1, 2, 3].map(() => `<i style="width:${segPx}px"></i>`).join("")}</span>
+            <span>${segFt * 4} ft</span>
+            <span class="sc-note">grid ${CELL_FT} ft · dimensions to inside face of wall</span>
+          </div>
+        </div>
         <div class="sheet-side">
           <h3>Legend — Rooms &amp; Zones</h3>
           <div id="legend-rooms"></div>
           ${site.zones.some(z => z.type === "office") ? `<div style="font-size:10.5px; color:#928c7c; margin-top:6px;">📹 Manager's Office includes the CCTV monitoring feed</div>` : ""}
           <h3>Legend — Floor Elements</h3>
           <div id="legend-paint"></div>
-          <h3>Area Summary</h3>
+          <h3>Area Schedule</h3>
           <table class="summary-table" id="summary-table"></table>
         </div>
       </div>
+
+      <div class="sheet-notes">
+        <div>
+          <h4>Design intent</h4>
+          <p>A ${fmtNum(totalArea)} sq ft ${p.flowPattern === "i-flow" ? "through-flow" : "single-wall"} sortation hub. Packed boxes arrive ${p.flowPattern === "i-flow" ? "at one end" : "on the dock wall"}, move by ${escapeHtml(eqLabel.toLowerCase())} through ${escapeHtml(sortLabel.toLowerCase())}, stage in ${lanes} outbound lane${lanes === 1 ? "" : "s"}, and load out${p.flowPattern === "i-flow" ? " at the opposite end" : ""}. The centre of the floor is left clear by design — it is the sortation working area and must not be built on.${p.growthHeadroomPct > 0 ? ` ${p.growthHeadroomPct}% of the floor is held back for growth.` : ""}</p>
+        </div>
+        <div>
+          <h4>Check before setting out</h4>
+          <ol>${risks.map(r => `<li>${escapeHtml(r)}</li>`).join("")}</ol>
+        </div>
+      </div>
+
       <div class="sheet-footer">
         <span>${escapeHtml(site.constraintNote || "")}</span>
-        <span>Layout Planner · presentation export</span>
+        <span>Blitz Planogram Planner · issued for construction review</span>
       </div>
     </div>`;
 
