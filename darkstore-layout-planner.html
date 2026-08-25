@@ -3292,6 +3292,30 @@
       color: var(--ink);
     }
 
+    .dq-vision-note {
+      background: rgba(14, 165, 233, .08);
+      border-left: 3px solid #0EA5E9;
+      border-radius: var(--r-sm);
+      padding: 10px 12px;
+      font-size: var(--fs-xs);
+      line-height: 1.6;
+      color: var(--ink-soft);
+      margin-bottom: 14px;
+    }
+
+    .dq-vision-note b {
+      color: var(--ink);
+    }
+
+    .dq-vision-note ul {
+      margin: 6px 0 6px 16px;
+      padding: 0;
+    }
+
+    .dq-vision-note li {
+      margin-bottom: 2px;
+    }
+
     .dq-note {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -6464,15 +6488,51 @@
       return overlap && sides.size <= 2 ? "u-flow" : "i-flow";
     }
 
-    /* Blueprint upload only supplies the facts a photo can actually show —
-       footprint dimensions and where the doors are. Everything that makes a
-       layout "correct" for a cross-dock hub (sortation sizing, lane count,
-       staging depth, equipment) still runs through the exact same guided
-       decisions and deterministic generator as "Start Drawing from Scratch",
-       rather than an AI model's freehand guess at where racks and rooms
-       should go — that guess is what read as inconsistent between the two
-       paths. The photo sets the building; the manager and the generator
-       still design the operation. */
+    /* Blueprint upload doesn't paint the AI vision model's raw guessed wall/
+       room/rack coordinates onto the canvas — that guess is what made the
+       two creation paths (photo vs. guided questions) produce visibly
+       different, inconsistent layouts. Sortation sizing, lane count, staging
+       depth etc. still run through the exact same deterministic generator as
+       "Start Drawing from Scratch".
+
+       But the photo IS real evidence, and ignoring all of it made the upload
+       feel pointless — same 8 questions either way, regardless of what was
+       actually in the image. So the vision extraction now also answers the
+       specific decisions a photo can genuinely show real evidence for —
+       which wall the doors are on (flow), what's parked on the racking
+       (handling equipment), whether a conveyor is visible (sortation) — and
+       those are skipped in the guided flow, with the reasoning shown so it's
+       clear the skip came from the photo, not a shortcut. Everything a photo
+       can't show (throughput timing, wave pattern, exact door count) is
+       still asked normally. */
+    function inferVisionAnswers(data, flowPattern, entries, exits) {
+      const answered = {};
+      if (entries.length > 0 && exits.length > 0) {
+        answered.flow = {
+          patch: { flowPattern, dockSeparate: true },
+          note: flowPattern === "i-flow"
+            ? `Your doors sit on opposite walls in the photo, so through-flow (I-flow) is set.`
+            : `Your doors sit on the same wall in the photo, so same-wall (U-flow) is set.`,
+        };
+      }
+      const racks = Array.isArray(data.racks) ? data.racks : [];
+      if (racks.length > 0) {
+        const hasPallet = racks.some(r => r.type === "palletrack");
+        const equipment = hasPallet ? "forklift" : "trolley";
+        answered.equipment = {
+          patch: { handlingEquipment: equipment, aisleRows: { manual: 2, trolley: 3, cage: 4, forklift: 6 }[equipment] },
+          note: `${racks.length} racking run${racks.length > 1 ? "s" : ""} visible in the photo${hasPallet ? " (pallet racking)" : ""}, so ${equipment === "forklift" ? "forklift" : "trolley"} clearances are set.`,
+        };
+      }
+      const equip = Array.isArray(data.equipment) ? data.equipment : [];
+      if (equip.some(e => e.type === "conveyor")) {
+        answered.sortation = {
+          patch: { sortationMethod: "semiauto" },
+          note: `A conveyor is visible in the photo, so semi-automated sortation is set.`,
+        };
+      }
+      return answered;
+    }
     async function handleChoiceBlueprintUpload(file) {
       if (!file) return;
       const isPdf = file.type === "application/pdf";
@@ -6512,6 +6572,7 @@
           const flowPattern = inferFlowFromDoors(entries, exits);
           const dockInBays = Math.max(1, entries.length || 2);
           const dockOutBays = Math.max(1, exits.length || 2);
+          const visionAnswered = inferVisionAnswers(data, flowPattern, entries, exits);
 
           const baseName = file.name.replace(/\.[^/.]+$/, "");
           const siteName = baseName ? `Blueprint - ${baseName}` : "AI Extracted Layout";
@@ -6520,11 +6581,14 @@
 
           const newSite = newSiteObject(siteName, l, w);
           ensureCellsArray(newSite);
-          newSite._genParams = Object.assign(defaultGenParams(), {
-            flowPattern, dockInBays, dockOutBays, dockBays: dockInBays + dockOutBays, dockSeparate: true,
-            ordersPerDay, destinationHubs, outboundLanes: destinationHubs > 0,
-          });
+          newSite._genParams = Object.assign(
+            defaultGenParams(),
+            { flowPattern, dockInBays, dockOutBays, dockBays: dockInBays + dockOutBays, dockSeparate: true,
+              ordersPerDay, destinationHubs, outboundLanes: destinationHubs > 0 },
+            ...Object.values(visionAnswered).map(a => a.patch)
+          );
           newSite._businessContext = { ordersPerDay, destinationHubs };
+          newSite._visionAnswered = visionAnswered;
 
           try {
             await saveSite(newSite);
@@ -6533,7 +6597,9 @@
           }
           openEditor(newSite, {});
           startDeepQa();
-          toast(`✓ Read a ${l}×${w} ft footprint with ${dockInBays} inbound and ${dockOutBays} outbound doors — confirm the operating basis below.`);
+          const skipped = Object.keys(visionAnswered);
+          const skipNote = skipped.length ? ` Answered ${skipped.length} question${skipped.length > 1 ? "s" : ""} from the photo (${skipped.join(", ")}) — skipped below.` : "";
+          toast(`✓ Read a ${l}×${w} ft footprint with ${dockInBays} inbound and ${dockOutBays} outbound doors.${skipNote}`, 5000);
         }
       } catch (err) {
         console.error(err);
@@ -7791,7 +7857,11 @@
           : `Your destination count is modest relative to your doors, so an even split keeps both sides flexible.`,
       });
 
-      return D;
+      // A blueprint upload answers some of these directly — door-wall layout
+      // shows flow pattern, racking shows handling equipment, a conveyor in
+      // frame shows sortation method — so don't re-ask what the photo already
+      // told us. See handleChoiceBlueprintUpload, which sets s._visionAnswered.
+      return s._visionAnswered ? D.filter(d => !s._visionAnswered[d.id]) : D;
     }
 
     function applyDeepAnswers(x) {
@@ -7832,7 +7902,10 @@
       $("#dq-progress").textContent = `Decision ${dqIndex + 1} of ${dqDecisions.length}`;
       $("#dq-title").textContent = d.title;
       $("#dq-why").textContent = d.why;
-      body.innerHTML = `<div class="dq-rationale"><b>What I'd do:</b> ${escapeHtml(d.rationale)}</div>` +
+      const visionNote = (dqIndex === 0 && site._visionAnswered && Object.keys(site._visionAnswered).length)
+        ? `<div class="dq-vision-note"><b>📷 Read from your photo:</b><ul>${Object.values(site._visionAnswered).map(a => `<li>${escapeHtml(a.note)}</li>`).join("")}</ul>These aren't asked below — change them afterward from the canvas if the photo got something wrong.</div>`
+        : "";
+      body.innerHTML = visionNote + `<div class="dq-rationale"><b>What I'd do:</b> ${escapeHtml(d.rationale)}</div>` +
         d.options.map((o, i) => `
       <div class="dq-opt ${o.key === d.recommend ? 'rec' : ''}" data-i="${i}">
         <div class="o-top"><span class="o-label">${escapeHtml(o.label)}</span>${o.key === d.recommend ? '<span class="o-pick">My pick</span>' : ''}</div>
