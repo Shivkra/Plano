@@ -3774,6 +3774,12 @@
       overflow: auto;
       display: flex;
       justify-content: center;
+      /* Without this, the flex default (stretch) forces #present-sheet to
+         the viewport's height regardless of its actual content — so a sheet
+         taller than the window renders its lower rows past the white card's
+         background, onto the page behind it. flex-start lets it size to its
+         own content instead. */
+      align-items: flex-start;
       padding: 40px;
     }
 
