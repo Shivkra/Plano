@@ -3277,45 +3277,6 @@
       font-weight: 800;
     }
 
-    .dq-rationale {
-      background: var(--bg-soft);
-      border-left: 3px solid var(--ink);
-      border-radius: var(--r-sm);
-      padding: 10px 12px;
-      font-size: var(--fs-xs);
-      line-height: 1.6;
-      color: var(--ink-soft);
-      margin-bottom: 14px;
-    }
-
-    .dq-rationale b {
-      color: var(--ink);
-    }
-
-    .dq-vision-note {
-      background: rgba(14, 165, 233, .08);
-      border-left: 3px solid #0EA5E9;
-      border-radius: var(--r-sm);
-      padding: 10px 12px;
-      font-size: var(--fs-xs);
-      line-height: 1.6;
-      color: var(--ink-soft);
-      margin-bottom: 14px;
-    }
-
-    .dq-vision-note b {
-      color: var(--ink);
-    }
-
-    .dq-vision-note ul {
-      margin: 6px 0 6px 16px;
-      padding: 0;
-    }
-
-    .dq-vision-note li {
-      margin-bottom: 2px;
-    }
-
     .dq-note {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -7973,11 +7934,7 @@
       $("#dq-progress").textContent = `Decision ${dqIndex + 1} of ${dqDecisions.length}`;
       $("#dq-title").textContent = d.title;
       $("#dq-why").textContent = d.why;
-      const visionNote = (dqIndex === 0 && site._visionAnswered && Object.keys(site._visionAnswered).length)
-        ? `<div class="dq-vision-note"><b>📷 Read from your photo:</b><ul>${Object.values(site._visionAnswered).map(a => `<li>${escapeHtml(a.note)}</li>`).join("")}</ul>These aren't asked below — change them afterward from the canvas if the photo got something wrong.</div>`
-        : "";
-      body.innerHTML = visionNote + `<div class="dq-rationale"><b>What I'd do:</b> ${escapeHtml(d.rationale)}</div>` +
-        d.options.map((o, i) => `
+      body.innerHTML = d.options.map((o, i) => `
       <div class="dq-opt ${o.key === d.recommend ? 'rec' : ''}" data-i="${i}">
         <div class="o-top"><span class="o-label">${escapeHtml(o.label)}</span>${o.key === d.recommend ? '<span class="o-pick">My pick</span>' : ''}</div>
         <div class="o-detail">${escapeHtml(o.detail)}</div>
