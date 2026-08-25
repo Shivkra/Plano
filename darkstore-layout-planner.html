@@ -7651,14 +7651,21 @@
 
       /* ---- 4. Door count. The split question below divides this number, and
          used to divide a hardcoded 4 nobody had supplied. A door plus its apron
-         needs roughly 12 ft of wall, so the building's frontage caps it. */
+         needs roughly 12 ft of wall, so the building's frontage caps it.
+         Recommendation is anchored on the real cross-dock density benchmark
+         (~1 door per 2,500-3,000 sq ft — 3-4x a storage warehouse's density,
+         since inbound and outbound run simultaneously) rather than an
+         arbitrary share of the frontage cap, so a manager who under-counts
+         doors sees the mismatch instead of it silently reading as "wide open". */
       const maxDoors = Math.max(2, Math.floor((L * 0.8) / 12));
+      const densityTarget = clamp(Math.round((L * W) / 2750), 2, maxDoors);
       const doorOpts = [...new Set([
         Math.max(2, Math.round(maxDoors * 0.35)),
-        Math.max(3, Math.round(maxDoors * 0.6)),
+        densityTarget,
         maxDoors,
       ])].sort((a, b) => a - b);
       const winHrs = OP_WINDOW_HOURS[p.wavePattern] || OP_WINDOW_HOURS.night;
+      const doorSqftPer = Math.round((L * W) / densityTarget);
       D.push({
         id: "doors",
         title: "How many dock doors does the building have?",
@@ -7666,14 +7673,15 @@
         options: doorOpts.map(n => ({
           key: "n" + n, label: n + " doors",
           detail: n >= maxDoors ? `The most a ${L} ft frontage will physically take.`
-            : `Leaves wall free for ${maxDoors - n} more doors later.`,
+            : n === densityTarget ? `~${fmtNum(Math.round(L * W / n))} sq ft per door — typical cross-dock density.`
+              : `Leaves wall free for ${maxDoors - n} more doors later.`,
           metrics: [["Truck turns per window", "~" + fmtNum(Math.round(n * 1.3 * winHrs))],
           ["Destinations per door", dests > 0 ? String(Math.ceil(dests / Math.max(1, n))) : "—"],
-          ["Wall used", Math.round(n * 12 / L * 100) + "%"]],
-          patch: { dockBays: n, dockInBays: Math.max(1, Math.round(n * 0.4)), dockOutBays: Math.max(1, n - Math.round(n * 0.4)) }
+          ["Sq ft per door", fmtNum(Math.round(L * W / n))]],
+          patch: { dockBays: n, dockInBays: Math.max(1, Math.round(n * 0.4)), dockOutBays: Math.max(1, n - Math.round(n * 0.4)), doorSpacingFt: n > 30 ? 14 : 12 }
         })),
-        recommend: "n" + (doorOpts[1] || doorOpts[0]),
-        rationale: `Count the roller shutters your building actually has — this is a fact, not a preference. At roughly 45 minutes a turn, each door clears about ${Math.round(1.3 * winHrs)} trucks in your dispatch window.`,
+        recommend: "n" + densityTarget,
+        rationale: `Count the roller shutters your building actually has — this is a fact, not a preference. A cross-dock this size typically runs about one door per ${fmtNum(doorSqftPer)} sq ft (3-4x denser than a storage warehouse, since inbound and outbound work simultaneously) — that's ${densityTarget} doors here. If your building has fewer, later decisions will size around that instead.`,
       });
 
       // ---- 5. Lane strategy — the single biggest carve-up of the floor.
@@ -8055,7 +8063,11 @@
     function generateDefaultLayout(s, input) {
       const L = s.L, W = s.W;
       const zones = [];
-      const bayW = 12;
+      // 12 ft center-to-center is the accepted floor for dock door spacing;
+      // 14 ft is preferred once door count climbs high enough that adjacent-
+      // door MHE traffic starts to interfere with itself (set by the doors
+      // decision once total doors exceeds ~30).
+      const bayW = input.doorSpacingFt || 12;
       const MIN_BAND = 10;
 
       let roomTypes = [];
@@ -8139,12 +8151,18 @@
       // so everything downstream (sorting, lanes) keeps working unchanged.
       let dockTopY, inboundBandDepth = 0;
       if (throughFlow) {
+        // Inbound trunk/linehaul vehicles are fewer and larger than outbound
+        // last-mile vans, so they need more forward clearance at the door —
+        // asymmetric split of the same total depth budget the fit-loop above
+        // already reserved (1.15 + 0.85 = 2.0 = dockBands), not extra floor.
+        const inDockDepth = snap2(dockDepth * 1.15);
+        const outDockDepth = snap2(dockDepth * 0.85);
         const inW = clamp(input.dockInBays * bayW, bayW, L * 0.92);
         const outW = clamp(input.dockOutBays * bayW, bayW, L * 0.92);
-        zones.push(mkZone("dockIn", snap2((L - inW) / 2), 0, snap2(inW), dockDepth, "Inbound Docking"));
-        inboundBandDepth = dockDepth;
-        dockTopY = snap2(W - dockDepth);
-        zones.push(mkZone("dockOut", snap2((L - outW) / 2), dockTopY, snap2(outW), dockDepth, "Outbound Docking"));
+        zones.push(mkZone("dockIn", snap2((L - inW) / 2), 0, snap2(inW), inDockDepth, "Inbound Docking"));
+        inboundBandDepth = inDockDepth;
+        dockTopY = snap2(W - outDockDepth);
+        zones.push(mkZone("dockOut", snap2((L - outW) / 2), dockTopY, snap2(outW), outDockDepth, "Outbound Docking"));
       } else if (input.dockSeparate) {
         const inW = clamp(input.dockInBays * bayW, bayW, L * 0.85);
         const outW = clamp(input.dockOutBays * bayW, bayW, L * 0.85);
@@ -8704,10 +8722,14 @@
     function defaultGenParams() {
       return {
         dockBays: 4, dockSeparate: false, dockInBays: 2, dockOutBays: 2, ordersPerDay: 3000, aisleRows: 2,
-        pedestrianEntry: "left", handlingEquipment: "trolley", flowPattern: "i-flow",
-        sortationMethod: "manual", destinationHubs: 0, outboundLanes: false, inboundStaging: false,
+        pedestrianEntry: "left", handlingEquipment: "trolley", flowPattern: "i-flow", doorSpacingFt: 12,
+        sortationMethod: "manual", destinationHubs: 0, outboundLanes: false,
+        // Receiving scan and missort/exception handling are near-universal in
+        // a real mother hub, not optional extras — default on so a manager
+        // who never surfaces these decisions still gets a complete hub.
+        inboundStaging: true, exceptionArea: true,
         laneWidthFt: 8, laneDepthFt: 0, wavePattern: "night",
-        exceptionArea: false, returnsArea: false, stagingArea: false, chargingArea: false, growthHeadroomPct: 0,
+        returnsArea: false, stagingArea: false, chargingArea: false, growthHeadroomPct: 0,
         rooms: {
           security: { on: true, size: "M" }, medical: { on: true, size: "M" }, conference: { on: true, headcount: 8 },
           office: { on: true, headcount: 2 }, store: { on: true, size: "M" }, ups: { on: true, size: "M" }, bathroom: { on: true, size: "M" }
@@ -8718,6 +8740,7 @@
       const genInput = {
         L: s.L, W: s.W, constraintNote: s.constraintNote,
         dockBays: params.dockBays, dockSeparate: params.dockSeparate, dockInBays: params.dockInBays, dockOutBays: params.dockOutBays,
+        doorSpacingFt: params.doorSpacingFt,
         ordersPerDay: params.ordersPerDay, rooms: params.rooms, pedestrianEntry: params.pedestrianEntry,
         flowPattern: params.flowPattern, sortationMethod: params.sortationMethod,
         destinationHubs: params.destinationHubs || 0, outboundLanes: params.outboundLanes,
