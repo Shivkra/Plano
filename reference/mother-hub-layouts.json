@@ -1,0 +1,153 @@
+{
+  "$schema_note": "Reference facility-layout data for a Mother Hub / cross-dock sortation center — NOT a storage or fulfillment warehouse. Seeds and validates the layout generator in darkstore-layout-planner.html. Vocabulary (flowPattern, sortationMethod, zone type keys) is aligned 1:1 with ZONE_DEFS / PAINT_DEFS / defaultGenParams() in that file so this can be diffed against generator output directly.",
+  "facility_type": "mother_hub",
+  "facility_definition": {
+    "role": "Primary regional sorting and consolidation center in a hub-and-spoke parcel network. Receives packed orders from client dark stores/sellers, segregates each shipment into (a) last-mile-hub-bound or (b) other-city-bound, bags/consolidates by destination, and dispatches.",
+    "not_this": ["storage warehouse", "fulfillment center (pick/pack from inventory)", "cold chain facility", "quick-commerce dark store"],
+    "industry_precedent": "Term used by Ekart for its primary regional sorting/consolidation tier; equivalent to Delhivery's 'processing centre / sortation facility' tier and generic industry 'parcel sortation center' / 'cross-dock hub'.",
+    "core_flow": ["inbound_dock", "induction_scan", "sortation_segregation", "bagging_consolidation", "outbound_staging_by_destination", "outbound_dock"]
+  },
+
+  "design_constants": {
+    "dock_door_spacing_ft": { "minimum": 12, "preferred_at_high_throughput": 14, "note": "12 ft center-to-center is the floor; 14-16 ft reduces MHE congestion at higher door density. Current generator bayW=12 — correct as the safe default, worth exposing 14 ft as a Tier 4-5 option." },
+    "dock_door_density": { "cross_dock_sqft_per_door": "2500-3000", "storage_warehouse_sqft_per_door": "8000-12000+", "implication": "A mother hub needs 3-4x the door density of a storage building of the same footprint — door count should scale with floor area, not just be a flat default." },
+    "truck_court_depth_ft": { "full_trailer": "130-180", "last_mile_van": "40-60", "note": "Inbound (trunk/linehaul) bays generally need deeper apron than outbound (last-mile van) bays — a ratio the generator does not currently distinguish; both dock bands use the same depth." },
+    "aisle_width_ft_by_equipment": { "manual_handcart": 4, "trolley": 6, "roll_cage": 8, "forklift": 12, "note": "Matches EQUIPMENT_AISLE_ROWS in server.js and the equipment decision already in the generator — confirmed correct, no change needed." },
+    "staging_depth_formula": {
+      "description": "Peak concurrent boxes on the floor = throughput / operating_window_hours * dwell_hours. Already implemented (OP_WINDOW_HOURS / DWELL_HOURS / BOX_SQFT_STAGED in darkstore-layout-planner.html) — confirmed matches how real dwell-driven staging is sized, not a share of daily total volume.",
+      "typical_dwell_hours_by_wave_pattern": { "night": "0.75-1.5", "waves": "1.5-3", "continuous": "1-2" }
+    },
+    "sortation_throughput_ceiling": {
+      "manual": { "units_per_hour_per_line": "600-1200", "hard_ceiling": true, "note": "Manual sort throughput does not scale by adding headcount past a point — it hits a physical ceiling of walkable pigeonhole/bin faces. Generator's methods table (manual tph:900) is within this real-world range." },
+      "semiauto_belt_manual_divert": { "units_per_hour": "2000-5000", "note": "Single linear/modular belt with manual pull-off at destination bins. Generator's semiauto tph:2500 sits mid-range — reasonable." },
+      "automated_tilt_tray": { "units_per_hour": "up to 10800" },
+      "automated_cross_belt": { "units_per_hour": "up to 25000", "destinations_supported": "100+" },
+      "generator_note": "Generator's automated tph:6000 is conservative relative to real tilt-tray/cross-belt capability (10.8k-25k UPH) — intentionally so, since it's sizing FLOOR FOOTPRINT and staffing needed to feed the sorter, not the sorter's own rated speed. Leave as-is unless the app starts modeling capital equipment cost, where the real ceiling matters."
+    },
+    "flow_pattern_rule": {
+      "i_flow_through_flow": "Inbound docks and outbound docks on opposite walls. Mandatory above ~15,000 parcels/day — cross-dock design literature treats I/T-shaped long-narrow buildings as the throughput-scale default specifically to keep arriving and departing vehicle traffic from crossing.",
+      "u_flow_same_wall": "Inbound and outbound docks on one wall. Acceptable only at low throughput (Tier 1) or when the building genuinely has doors on one side only — never a first choice at scale.",
+      "generator_status": "Correctly implemented: flowPattern i-flow places dockIn at y=0 / dockOut at y=W with real geometric consequence, u-flow keeps both on one wall. No change needed."
+    },
+    "destination_lane_placement_principle": {
+      "name": "golden_zone_placement",
+      "description": "Highest-volume destination lanes should sit closest to the outbound dock / sortation exit to minimize average travel distance; low-volume/long-tail destinations can sit further out or share a lane.",
+      "generator_status": "NOT currently implemented — outboundLane zones are laid out as evenly-spaced, unweighted slots left-to-right. This is a real gap: a mother hub with a handful of high-volume destinations and many low-volume ones would, in practice, cluster the high-volume lanes nearest the dock. Worth a future decision option (volume-weighted lane order) if per-destination volume ever becomes an input."
+    },
+    "labor_flow_principle": {
+      "one_way_flow": "Sortation-to-bagging-to-staging should read as one direction on the plan, no path doubles back through a zone it already passed.",
+      "no_cross_traffic": "MHE/cart paths for inbound induction and outbound loading should not intersect the same aisle at the same time — this is what the I-flow rule and the lane band sitting strictly between sortation and the outbound dock (not beside it) both protect.",
+      "generator_status": "Confirmed by the flow ordering in generateDefaultLayout: sort -> stage in lanes -> load is enforced (sort.y < lanes.y < dock.y assertion already tested this session)."
+    }
+  },
+
+  "zone_catalog": [
+    { "zone": "dockIn", "generator_type": "dockIn", "purpose": "Inbound vehicle docking — packed boxes from dark stores/sellers arrive here.", "typical_share_of_footprint_pct": "8-14", "adjacency": ["induction_buffer"], "notes": "Fewer, larger vehicles than outbound in most mother-hub feeder patterns (consolidated seller/store pickups) — door count usually LOWER than outbound." },
+    { "zone": "induction_buffer", "generator_type": "inboundStage", "purpose": "Receiving scan / unload buffer directly behind the inbound dock, before boxes enter sortation.", "typical_share_of_footprint_pct": "5-8", "adjacency": ["dockIn", "sortation_core"], "notes": "Only appears when input.inboundStaging is set — should default ON for any mother hub, since receiving scan is universal to the model, not optional." },
+    { "zone": "sortation_core", "generator_type": "sorting (zone) + conveyor (paint, if semiauto/automated)", "purpose": "The segregation step: last-mile-hub-bound vs other-city-bound. Conveyor belt with manual or automated divert, OR manual sort stations/pigeonhole wall, depending on sortationMethod.", "typical_share_of_footprint_pct": "15-25", "adjacency": ["induction_buffer", "bagging"], "notes": "This is the zone whose footprint and equipment should scale hardest with sortationMethod — see design_constants.sortation_throughput_ceiling." },
+    { "zone": "bagging", "generator_type": "packing / dispatch (paint)", "purpose": "Sorted shipments packed into destination bags before moving to outbound staging.", "typical_share_of_footprint_pct": "6-10", "adjacency": ["sortation_core", "outboundLane"], "notes": "Currently placed as a row of packing+dispatch+table cells above the dock in generateOptimalAiLayout, and as sorting-zone-adjacent PAINT_DEFS.packing in the deep-decisions path — correct concept, could be made its own named zone type for clarity in reporting." },
+    { "zone": "outboundLane", "generator_type": "outboundLane", "purpose": "Staging lanes grouped BY DESTINATION (one lane per destination city/hub route) — the heart of a cross-dock sort hub.", "typical_share_of_footprint_pct": "18-28", "adjacency": ["bagging", "dockOut"], "notes": "Confirmed correctly implemented: one lane per destinationHubs count, width capped by handling equipment, depth sized to peak-wave concurrency. This is the single most load-bearing zone in the whole model — get its sizing right before anything else." },
+    { "zone": "dockOut", "generator_type": "dockOut", "purpose": "Outbound vehicle docking — dispatch to destination hub/city.", "typical_share_of_footprint_pct": "10-18", "adjacency": ["outboundLane"], "notes": "Usually MORE doors than inbound — outbound is destination-fragmented (many smaller vehicles, often one per route) vs inbound's fewer/larger consolidated arrivals. Generator's docks decision (even/outHeavy/inHeavy split) already models this correctly." },
+    { "zone": "exception", "generator_type": "exception", "purpose": "Missorts, damaged goods, unscannable/unresolved shipments held for manual review.", "typical_share_of_footprint_pct": "1-3", "adjacency": ["sortation_core"], "notes": "Small but universal — every real sort hub has a missort pile. Should probably default ON, currently opt-in." },
+    { "zone": "returns", "generator_type": "returns", "purpose": "RTO (return-to-origin) processing — reverse flow shipments.", "typical_share_of_footprint_pct": "2-4", "adjacency": ["sortation_core"] },
+    { "zone": "charging", "generator_type": "charging", "purpose": "MHE (trolley/forklift/roll-cage) battery charging bay.", "typical_share_of_footprint_pct": "1-2", "adjacency": ["sortation_core"], "notes": "Only relevant once handlingEquipment moves past manual — could be auto-enabled when equipment != manual instead of a separate opt-in toggle." },
+    { "zone": "support_rooms", "generator_type": "security / medical / office / conference / store / ups / bathroom", "purpose": "Non-operational support — security desk, first-aid, ops manager office, briefing room, spares store, power room, restrooms.", "typical_share_of_footprint_pct": "8-14", "adjacency": ["dockIn wall, packed along one side"], "notes": "Correctly modeled as a packed back-wall band with drop-priority under space pressure." },
+    { "zone": "growth", "generator_type": "growth", "purpose": "Reserved headroom for volume growth — held-back floor, not built out.", "typical_share_of_footprint_pct": "0-15 (manager-set)", "adjacency": [] }
+  ],
+
+  "throughput_tiers": [
+    {
+      "tier": 1,
+      "name": "Micro Manual Hub",
+      "volume_parcels_per_day": { "min": 500, "max": 3000 },
+      "sortationMethod": "manual",
+      "flowPattern": "u-flow",
+      "footprint_sqft": { "min": 8000, "max": 15000 },
+      "typical_dimensions_ft": ["100x100", "120x110", "130x100"],
+      "dock_doors": { "inbound": "2-3", "outbound": "2-4", "total": "4-7", "split": "even to outHeavy" },
+      "labor_headcount": "15-30",
+      "sortation_description": "Pigeonhole wall or bin-sort by destination, fully manual carry from induction to bag.",
+      "conveyor_cells_expected": 0,
+      "notes": "U-flow acceptable at this scale — low door count means arriving/departing traffic rarely actually conflicts. Generator's existing i-flow default is still fine here; u-flow is a valid alternative, not a requirement."
+    },
+    {
+      "tier": 2,
+      "name": "Small Conveyor-Assisted Hub",
+      "volume_parcels_per_day": { "min": 3000, "max": 15000 },
+      "sortationMethod": "semiauto",
+      "flowPattern": "i-flow",
+      "footprint_sqft": { "min": 15000, "max": 40000 },
+      "typical_dimensions_ft": ["150x100", "175x120", "200x100"],
+      "dock_doors": { "inbound": "4-8", "outbound": "6-14", "total": "10-22", "split": "outHeavy" },
+      "labor_headcount": "40-90",
+      "sortation_description": "Single straight conveyor spine from induction to a manual-divert sort line — workers pull parcels off the belt into destination bins as it passes.",
+      "conveyor_cells_expected": "spine 1 cell wide, full span between support-room band and sortation zone",
+      "notes": "This is the tier where I-flow becomes non-negotiable — door count is high enough that same-wall traffic would genuinely conflict."
+    },
+    {
+      "tier": 3,
+      "name": "Medium Hybrid Hub",
+      "volume_parcels_per_day": { "min": 15000, "max": 40000 },
+      "sortationMethod": "semiauto",
+      "flowPattern": "i-flow",
+      "footprint_sqft": { "min": 40000, "max": 80000 },
+      "typical_dimensions_ft": ["250x160", "280x180", "300x150"],
+      "dock_doors": { "inbound": "10-16", "outbound": "18-30", "total": "28-46", "split": "outHeavy" },
+      "labor_headcount": "90-180",
+      "sortation_description": "Modular/roller belt with scan-and-divert chutes at destination points — semi-automated, still some manual handling at induction and exception.",
+      "conveyor_cells_expected": "wider spine (2 cells) or short loop, matches automated-tier footprint but on a modular-belt (5000 UPH class) throughput budget",
+      "notes": "Sits at the manual/automated boundary — generator's binary semiauto/automated choice is a reasonable simplification of what's really a continuum."
+    },
+    {
+      "tier": 4,
+      "name": "Large Automated Mother Hub",
+      "volume_parcels_per_day": { "min": 40000, "max": 100000 },
+      "sortationMethod": "automated",
+      "flowPattern": "i-flow",
+      "footprint_sqft": { "min": 80000, "max": 180000 },
+      "typical_dimensions_ft": ["350x250", "400x280", "450x220"],
+      "dock_doors": { "inbound": "20-35", "outbound": "40-70", "total": "60-105", "split": "outHeavy", "note": "Approaches the 1-per-2500-3000-sqft cross-dock density benchmark at the top of this range." },
+      "labor_headcount": "180-350",
+      "sortation_description": "Tilt-tray or cross-belt automated sorter, dozens to 100+ destination chutes feeding directly into bagging/lane groups.",
+      "conveyor_cells_expected": "double-wide spine, generator's automated method already draws this",
+      "recommended_dock_spacing_ft": 14,
+      "notes": "Consider 14 ft door spacing over the 12 ft default at this scale — door-adjacent MHE congestion becomes a real constraint above ~40 doors on one wall."
+    },
+    {
+      "tier": 5,
+      "name": "Mega Regional Mother Hub",
+      "volume_parcels_per_day": { "min": 100000, "max": 300000 },
+      "sortationMethod": "automated",
+      "flowPattern": "i-flow",
+      "footprint_sqft": { "min": 180000, "max": 400000 },
+      "typical_dimensions_ft": ["500x350", "600x300", "550x400"],
+      "dock_doors": { "inbound": "40-70", "outbound": "80-150", "total": "120-220" },
+      "labor_headcount": "350-700+",
+      "sortation_description": "Multiple parallel cross-belt/tilt-tray sorter loops feeding a large destination-lane bank; often a T- or multi-wing plan with several inbound clusters converging on one central sortation core.",
+      "conveyor_cells_expected": "multiple parallel spines, likely beyond what a single generateDefaultLayout pass models today",
+      "notes": "At this scale a single-block I-flow band model (current generator's whole geometry) starts to understate real layouts, which usually break into wings or multiple sortation cores. Flagged as a known ceiling on the current generator's applicability, not a bug — most mother hubs the app will actually be used for sit in Tiers 1-4."
+    }
+  ],
+
+  "generator_alignment_summary": {
+    "already_correct": [
+      "I-flow vs U-flow real geometric consequence (dockIn/dockOut wall placement)",
+      "Dock door spacing constant (bayW=12ft) matches industry minimum",
+      "Equipment-driven aisle width (EQUIPMENT_AISLE_ROWS) matches real MHE clearance standards",
+      "Peak-concurrent staging depth formula (throughput x dwell / operating window, not daily total)",
+      "Outbound-heavier door split available and correctly reasoned against destination count",
+      "One-way sort -> stage -> load flow ordering enforced in geometry"
+    ],
+    "gaps_found_this_pass": [
+      "sortationMethod had zero geometric effect until this session's fix — now draws 0/1-wide/2-wide conveyor spine for manual/semiauto/automated",
+      "Photo-upload path used to bypass the generator entirely and paint raw AI-guessed geometry — now routed through the same deterministic pipeline as manual entry"
+    ],
+    "gaps_still_open": [
+      "No door-count scaling by floor area (cross-dock density benchmark: 1 door per 2500-3000 sqft) — door count today comes purely from the doors decision's frontage cap, not footprint",
+      "No inbound-vs-outbound truck-court depth distinction (linehaul trucks need deeper apron than last-mile vans)",
+      "No volume-weighted destination-lane placement (golden-zone principle) — lanes are evenly spaced regardless of per-destination volume",
+      "inboundStage and exception zones are opt-in when they're near-universal in a real mother hub — worth defaulting ON",
+      "14 ft door spacing option not exposed for Tier 4-5 scale"
+    ]
+  }
+}
