@@ -4815,6 +4815,17 @@
             </div>
           </div>
 
+          <div class="choice-input-row" style="margin-top:12px;">
+            <div>
+              <label class="choice-field-label" for="choice-vision-orders">Boxes handled / day</label>
+              <input type="number" class="choice-input" id="choice-vision-orders" value="3000" min="0" max="500000" step="100">
+            </div>
+            <div>
+              <label class="choice-field-label" for="choice-vision-dests">Destination hubs shipped to</label>
+              <input type="number" class="choice-input" id="choice-vision-dests" value="0" min="0" max="200">
+            </div>
+          </div>
+
           <div id="choice-ai-status"
             style="display:none; margin-top:14px; padding:12px; background:var(--surface-2); border-radius:var(--r-md); border:1px solid #10B981;">
             <div style="display:flex; align-items:center; gap:8px; font-weight:700; font-size:13px; color:#059669;">
@@ -6436,6 +6447,32 @@
       if (file) handleChoiceBlueprintUpload(file);
     });
 
+    // A door's dominant wall — whichever axis it's most extreme on. Used to
+    // tell an I-flow building (inbound and outbound doors on opposite walls)
+    // from a U-flow one (both on the same wall) from vision-detected door
+    // positions, rather than assuming.
+    function doorWallSide(pt) {
+      const d = { top: pt.y, bottom: 1 - pt.y, left: pt.x, right: 1 - pt.x };
+      return Object.keys(d).reduce((a, b) => (d[a] < d[b] ? a : b));
+    }
+    function inferFlowFromDoors(entries, exits) {
+      if (!entries.length || !exits.length) return "i-flow";
+      const sides = new Set([...entries, ...exits].map(doorWallSide));
+      const entrySides = new Set(entries.map(doorWallSide));
+      const exitSides = new Set(exits.map(doorWallSide));
+      const overlap = [...entrySides].some(s => exitSides.has(s));
+      return overlap && sides.size <= 2 ? "u-flow" : "i-flow";
+    }
+
+    /* Blueprint upload only supplies the facts a photo can actually show —
+       footprint dimensions and where the doors are. Everything that makes a
+       layout "correct" for a cross-dock hub (sortation sizing, lane count,
+       staging depth, equipment) still runs through the exact same guided
+       decisions and deterministic generator as "Start Drawing from Scratch",
+       rather than an AI model's freehand guess at where racks and rooms
+       should go — that guess is what read as inconsistent between the two
+       paths. The photo sets the building; the manager and the generator
+       still design the operation. */
     async function handleChoiceBlueprintUpload(file) {
       if (!file) return;
       const isPdf = file.type === "application/pdf";
@@ -6448,7 +6485,7 @@
         let data = null;
         try {
           const { image, mimeType } = await fileToVisionPayload(file, 1280, 0.85);
-          if (statusTxt) statusTxt.textContent = "📐 AI Vision: Extracting perimeter, docking bays & obstacles…";
+          if (statusTxt) statusTxt.textContent = "📐 AI Vision: Reading footprint & door positions…";
           data = await apiFetch("/api/vision-import", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -6458,38 +6495,45 @@
           console.warn("Vision API fallback:", apiErr);
           data = {
             dimensionsFt: { length: 120, width: 90 },
-            walls: [
-              { x0: 0.02, y0: 0.02, x1: 0.98, y1: 0.02 },
-              { x0: 0.98, y0: 0.02, x1: 0.98, y1: 0.98 },
-              { x0: 0.98, y0: 0.98, x1: 0.02, y1: 0.98 },
-              { x0: 0.02, y0: 0.98, x1: 0.02, y1: 0.02 },
-            ],
             entries: [{ x: 0.02, y: 0.5 }],
             exits: [{ x: 0.98, y: 0.5 }]
           };
         }
 
         if (data) {
-          if (statusTxt) statusTxt.textContent = "✨ AI Vision: Generating optimal layout & opening Canvas…";
+          if (statusTxt) statusTxt.textContent = "✨ Building the site to your operating basis…";
           let l = 150, w = 100;
           if (data.dimensionsFt && data.dimensionsFt.length > 0 && data.dimensionsFt.width > 0) {
             l = clamp(data.dimensionsFt.length, 20, 1000);
             w = clamp(data.dimensionsFt.width, 20, 1000);
           }
+          const entries = Array.isArray(data.entries) ? data.entries : [];
+          const exits = Array.isArray(data.exits) ? data.exits : [];
+          const flowPattern = inferFlowFromDoors(entries, exits);
+          const dockInBays = Math.max(1, entries.length || 2);
+          const dockOutBays = Math.max(1, exits.length || 2);
+
           const baseName = file.name.replace(/\.[^/.]+$/, "");
           const siteName = baseName ? `Blueprint - ${baseName}` : "AI Extracted Layout";
+          const ordersPerDay = clamp(parseInt($("#choice-vision-orders")?.value) || 0, 0, 500000);
+          const destinationHubs = clamp(parseInt($("#choice-vision-dests")?.value) || 0, 0, 200);
+
           const newSite = newSiteObject(siteName, l, w);
           ensureCellsArray(newSite);
-
-          applyFullVisionDataToSite(newSite, data);
+          newSite._genParams = Object.assign(defaultGenParams(), {
+            flowPattern, dockInBays, dockOutBays, dockBays: dockInBays + dockOutBays, dockSeparate: true,
+            ordersPerDay, destinationHubs, outboundLanes: destinationHubs > 0,
+          });
+          newSite._businessContext = { ordersPerDay, destinationHubs };
 
           try {
             await saveSite(newSite);
           } catch (e) {
             console.warn("Save local fallback:", e);
           }
-          openEditor(newSite);
-          toast(`✓ Blueprint analyzed: ${data.walls?.length || 0} walls, ${data.rooms?.length || 0} rooms & racking aisles rendered directly on canvas!`);
+          openEditor(newSite, {});
+          startDeepQa();
+          toast(`✓ Read a ${l}×${w} ft footprint with ${dockInBays} inbound and ${dockOutBays} outbound doors — confirm the operating basis below.`);
         }
       } catch (err) {
         console.error(err);
@@ -8171,8 +8215,19 @@
       // ---- back-wall support rooms (already packed above during the fit pass) ----
       zones.push(...backWallZones);
 
-      const pickTop = supportBandBottom;
-      s._conveyorPlan = { count: sortCount, atY: Math.max(pickTop, sortTopY - CELL_FT * 3), fromX: sx, spanW: sortTotalW };
+      // The sortation method decision has a real physical footprint: manual
+      // sort is hand-carts on open floor (no belt to draw); semiauto runs a
+      // single induction conveyor spine carrying boxes from the inbound side
+      // down to the sorter; automated runs a wider one, matching the bigger
+      // fixed infrastructure a real sorter occupies. This is the open span
+      // between the support-room band and the sortation zone — without it,
+      // every method produced the same drawing regardless of which was
+      // chosen, and that span read as an unexplained empty floor.
+      s._conveyorPlan = {
+        method: input.sortationMethod || "manual",
+        fromX: sx, spanW: sortTotalW,
+        top: snap2(supportBandBottom), bottom: sortTopY,
+      };
       s._pedestrianEntry = input.pedestrianEntry;
 
       return zones;
@@ -8293,21 +8348,30 @@
     }
     window.applyFullVisionDataToSite = applyFullVisionDataToSite;
 
+    // Draws the physical footprint the sortation-method decision implies.
+    // Manual sort is hand-carts on open floor — nothing to draw, and drawing
+    // a belt there would misrepresent the operation. Semiauto runs a single
+    // conveyor spine from sortation down to staging; automated runs a wider
+    // one, matching the larger fixed infrastructure a real sorter occupies.
     function paintConveyorDefaults(s) {
-      if (!s._conveyorPlan) return;
       const plan = s._conveyorPlan;
-      const runLenCells = Math.min(6, Math.floor(plan.spanW / CELL_FT));
-      if (runLenCells < 1) return;
-      const rowIdx = Math.round(plan.atY / CELL_FT);
-      if (rowIdx < 0 || rowIdx >= s.rows) return;
-      const startCol = Math.round((plan.fromX + (plan.spanW - runLenCells * CELL_FT) / 2) / CELL_FT);
-      for (let i = 0; i < runLenCells; i++) {
-        const c = startCol + i;
-        if (c < 0 || c >= s.cols) continue;
-        const idx = rowIdx * s.cols + c;
-        if (cellCoveredByZone(s, c, rowIdx)) continue;
-        s.cells[idx] = PAINT_DEFS.conveyor.id;
-        s.rots[idx] = 3; // pointing away from dock, into open floor
+      if (!plan || plan.method === "manual") return;
+      const laneCols = plan.method === "automated" ? 2 : 1;
+      const rowStart = Math.round(plan.top / CELL_FT);
+      const rowEnd = Math.round(plan.bottom / CELL_FT);
+      if (rowEnd <= rowStart) return;
+      const centerCol = Math.round((plan.fromX + plan.spanW / 2) / CELL_FT);
+      const colStart = centerCol - Math.floor(laneCols / 2);
+      for (let r = rowStart; r < rowEnd; r++) {
+        if (r < 0 || r >= s.rows) continue;
+        for (let i = 0; i < laneCols; i++) {
+          const c = colStart + i;
+          if (c < 0 || c >= s.cols) continue;
+          const idx = r * s.cols + c;
+          if (cellCoveredByZone(s, c, r)) continue;
+          s.cells[idx] = PAINT_DEFS.conveyor.id;
+          s.rots[idx] = 1; // pointing down the floor, from sortation toward staging
+        }
       }
     }
     function cellCoveredByZone(s, c, r) {
