@@ -5951,7 +5951,7 @@
       bathroom: { name: "Bathroom", color: "#0D9488", group: "room" },
       // Unlocked by the deep clarifying-question round (see applyDeepAnswers) —
       // each of these only appears when the manager's answers call for it.
-      inboundStage: { name: "Inbound Staging", color: "#38BDF8", group: "room" },
+      inboundStage: { name: "Inbound Staging", color: "#8B5CF6", group: "room" },
       outboundLane: { name: "Outbound Lane", color: "#F97316", group: "room" },
       exception: { name: "Exceptions / Missorts", color: "#DC2626", group: "room" },
       returns: { name: "Returns (RTO)", color: "#A16207", group: "room" },
@@ -6494,9 +6494,18 @@
     // left-to-right order they're drawn, instead of the generic toggle set.
     function roomsFromVision(dataRooms, L, W) {
       if (!Array.isArray(dataRooms) || !dataRooms.length) return [];
+      // Security always sorts first regardless of where it sat in the photo —
+      // a security post belongs at the inbound entrance so it can watch
+      // trucks arrive, which is where the room band starts (see
+      // generateDefaultLayout: the back-room row packs left-to-right
+      // starting right at the inbound-dock corner).
       return dataRooms
         .filter(r => r.w > 0.005 && r.h > 0.005)
-        .sort((a, b) => a.x - b.x)
+        .sort((a, b) => {
+          const aSec = roomTypeFromVision(a.type, a.name) === "security" ? 0 : 1;
+          const bSec = roomTypeFromVision(b.type, b.name) === "security" ? 0 : 1;
+          return aSec !== bSec ? aSec - bSec : a.x - b.x;
+        })
         .map(r => {
           const areaSqft = clamp(Math.round(r.w * L * r.h * W), 60, L * W * 0.25);
           return [roomTypeFromVision(r.type, r.name), areaSqft, String(r.name || "Room").trim()];
@@ -7755,15 +7764,16 @@
          since inbound and outbound run simultaneously) rather than an
          arbitrary share of the frontage cap, so a manager who under-counts
          doors sees the mismatch instead of it silently reading as "wide open". */
-      const maxDoors = Math.max(2, Math.floor((L * 0.8) / 12));
-      const densityTarget = clamp(Math.round((L * W) / 2750), 2, maxDoors);
+      const maxDoors = Math.max(1, Math.floor((L * 0.8) / 12));
+      const densityTarget = clamp(Math.round((L * W) / 2750), 1, maxDoors);
       const doorOpts = [...new Set([
-        Math.max(2, Math.round(maxDoors * 0.35)),
+        Math.max(1, Math.round(maxDoors * 0.35)),
         densityTarget,
         maxDoors,
       ])].sort((a, b) => a - b);
       const winHrs = OP_WINDOW_HOURS[p.wavePattern] || OP_WINDOW_HOURS.night;
       const doorSqftPer = Math.round((L * W) / densityTarget);
+      const doorPatch = n => ({ dockBays: n, dockInBays: Math.max(1, Math.round(n * 0.4)), dockOutBays: Math.max(1, n - Math.round(n * 0.4)), doorSpacingFt: n > 30 ? 14 : 12 });
       D.push({
         id: "doors",
         title: "How many dock doors does the building have?",
@@ -7776,10 +7786,15 @@
           metrics: [["Truck turns per window", "~" + fmtNum(Math.round(n * 1.3 * winHrs))],
           ["Destinations per door", dests > 0 ? String(Math.ceil(dests / Math.max(1, n))) : "—"],
           ["Sq ft per door", fmtNum(Math.round(L * W / n))]],
-          patch: { dockBays: n, dockInBays: Math.max(1, Math.round(n * 0.4)), dockOutBays: Math.max(1, n - Math.round(n * 0.4)), doorSpacingFt: n > 30 ? 14 : 12 }
+          patch: doorPatch(n)
         })),
         recommend: "n" + densityTarget,
-        rationale: `Count the roller shutters your building actually has — this is a fact, not a preference. A cross-dock this size typically runs about one door per ${fmtNum(doorSqftPer)} sq ft (3-4x denser than a storage warehouse, since inbound and outbound work simultaneously) — that's ${densityTarget} doors here. If your building has fewer, later decisions will size around that instead.`,
+        rationale: `Count the roller shutters your building actually has — this is a fact, not a preference. A cross-dock this size typically runs about one door per ${fmtNum(doorSqftPer)} sq ft (3-4x denser than a storage warehouse, since inbound and outbound work simultaneously) — that's ${densityTarget} doors here. Plenty of real buildings run on just 1-2 — type the exact count below if none of these match.`,
+        // Small operations genuinely run on 1-2 doors and shouldn't be forced
+        // into a preset that doesn't match their building — see feedback that
+        // the door count needed to be typed in directly, not picked from 3
+        // fixed presets.
+        customNumeric: { unit: "doors", min: 1, max: Math.max(maxDoors, 60), buildPatch: doorPatch },
       });
 
       // ---- 5. Lane strategy — the single biggest carve-up of the floor.
@@ -7934,14 +7949,24 @@
       $("#dq-progress").textContent = `Decision ${dqIndex + 1} of ${dqDecisions.length}`;
       $("#dq-title").textContent = d.title;
       $("#dq-why").textContent = d.why;
+      const cn = d.customNumeric;
       body.innerHTML = d.options.map((o, i) => `
       <div class="dq-opt ${o.key === d.recommend ? 'rec' : ''}" data-i="${i}">
         <div class="o-top"><span class="o-label">${escapeHtml(o.label)}</span>${o.key === d.recommend ? '<span class="o-pick">My pick</span>' : ''}</div>
         <div class="o-detail">${escapeHtml(o.detail)}</div>
         <div class="o-metrics">${o.metrics.map(m => `<div class="o-m"><span class="k">${escapeHtml(m[0])}</span><span class="v">${escapeHtml(m[1])}</span></div>`).join("")}</div>
       </div>`).join("") +
+        (cn ? `
+      <div class="dq-opt" id="dq-custom">
+        <div class="o-top"><span class="o-label">Type the exact count</span></div>
+        <div class="o-detail">None of the above? Enter what your building actually has.</div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <div class="unit-suffix" style="flex:1;"><input type="number" id="dq-custom-input" min="${cn.min}" max="${cn.max}" value="${currentGenParams().dockBays || cn.min}"><span>${escapeHtml(cn.unit)}</span></div>
+          <button class="btn" id="dq-custom-go">Use this</button>
+        </div>
+      </div>` : "") +
         (dqIndex > 0 ? `<button class="btn ghost full" id="dq-back" style="margin-top:4px;">← Previous decision</button>` : "");
-      body.querySelectorAll(".dq-opt").forEach(el => {
+      body.querySelectorAll(".dq-opt[data-i]").forEach(el => {
         el.addEventListener("click", () => {
           const o = d.options[+el.dataset.i];
           dqChoices[d.id] = o.key;
@@ -7950,6 +7975,19 @@
           renderDqStep();
         });
       });
+      if (cn) {
+        const go = document.getElementById("dq-custom-go");
+        const input = document.getElementById("dq-custom-input");
+        go.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const n = clamp(parseInt(input.value) || cn.min, cn.min, cn.max);
+          dqChoices[d.id] = "custom" + n;
+          applyGenPatch(cn.buildPatch(n));
+          dqIndex++;
+          renderDqStep();
+        });
+        input.addEventListener("click", (e) => e.stopPropagation());
+      }
       const back = document.getElementById("dq-back");
       if (back) back.addEventListener("click", () => { dqIndex = Math.max(0, dqIndex - 1); renderDqStep(); });
     }
@@ -8192,7 +8230,13 @@
       // (not a fixed box) since a frozen room in a mother hub and one in a
       // small dark store are wildly different things.
       const floorSqft = L * W;
-      if (input.inboundStaging) roomTypes.push(["inboundStage", clamp(Math.round(floorSqft * 0.07), 120, 4000), ZONE_DEFS.inboundStage.name]);
+      // Sized as a scan/induction buffer, not a second dock — it only needs
+      // to hold what's mid-scan between the door and sortation, not a wave's
+      // worth of floor. At 7% it was landing the same order of magnitude as
+      // the dock zone itself, and painted the same blue family, so the two
+      // read as one oversized inbound mass instead of a dock plus a small
+      // buffer behind it.
+      if (input.inboundStaging) roomTypes.push(["inboundStage", clamp(Math.round(floorSqft * 0.03), 100, 1800), ZONE_DEFS.inboundStage.name]);
       if (input.exceptionArea) roomTypes.push(["exception", clamp(Math.round(floorSqft * 0.025), 60, 1200), ZONE_DEFS.exception.name]);
       if (input.returnsArea) roomTypes.push(["returns", clamp(Math.round(floorSqft * 0.035), 80, 2000), ZONE_DEFS.returns.name]);
       if (input.stagingArea) roomTypes.push(["staging", clamp(Math.round(floorSqft * 0.06), 120, 3500), ZONE_DEFS.staging.name]);
@@ -8200,20 +8244,16 @@
       if (input.growthHeadroomPct > 0) roomTypes.push(["growth", Math.round(floorSqft * (input.growthHeadroomPct / 100)), ZONE_DEFS.growth.name]);
       if (input.pedestrianEntry === "right") roomTypes.reverse();
       // Drop lowest-priority zones first if the site is too tight to fit everything.
-      // Reserved-growth space goes first (it's headroom, not a requirement) and the
-      // cold rooms are last — they're structural, and a site storing frozen goods
-      // without a frozen room is a broken layout, not a tight one.
-      //
-      // A blueprint upload's rooms are real, named, photo-evidenced spaces —
-      // Security, Conference Hall, UPS room, etc. inboundStage/exception/
-      // staging/returns are auto-defaulted generic percentage-of-floor zones
-      // the photo never actually showed. When both compete for the same
-      // tight footprint, the synthetic zones must give way first — otherwise
-      // a real photographed room silently vanishes to make room for a filler
-      // box nobody asked to see, which is exactly backwards.
-      const dropOrder = Array.isArray(input.visionRooms) && input.visionRooms.length
-        ? ["growth", "charging", "staging", "returns", "inboundStage", "exception", "store", "ups", "conference", "office", "bathroom", "medical", "security"]
-        : ["growth", "charging", "conference", "ups", "store", "staging", "returns", "office", "bathroom", "exception", "medical", "security", "inboundStage"];
+      // Named business rooms — Security, Medical, Conference, Office, Store,
+      // UPS, Bathroom — are what a manager actually asked for (by toggle, or
+      // by them being real photographed spaces in an uploaded blueprint).
+      // inboundStage/exception/staging/returns/charging/growth are generic,
+      // auto-sized flow buffers nobody specifically asked to see at a given
+      // size — they give way first when space is tight, same as growth
+      // headroom always has. Security and Medical stay protected longest —
+      // they're structural, and a site with neither is a broken layout, not
+      // a tight one.
+      const dropOrder = ["growth", "charging", "staging", "returns", "inboundStage", "exception", "conference", "ups", "store", "office", "bathroom", "medical", "security"];
 
       // Ideal band depths, then a scale-to-fit safety pass so dock + sorting + back-room
       // band never exceeds the site depth (small sites would otherwise overlap bands).
@@ -8237,6 +8277,30 @@
         sortDepth = snap2(Math.max(MIN_BAND, Math.round(sortDepth * scale)));
         roomDepth = snap2(Math.max(MIN_BAND, Math.round(roomDepth * scale)));
         backPack = packBackRooms(roomTypes, roomDepth, L);
+      }
+      // The proportional pass above snaps every band to a 2 ft grid, so a
+      // small remaining overshoot (a handful of feet) can survive all 3
+      // iterations unchanged — 2 ft is too coarse a step to converge on a
+      // few feet of slack. Left alone, that residual overshoot used to fall
+      // straight through to the drop loop below, which — because rooms that
+      // still fit in a single packed row don't get any shallower as they're
+      // removed one at a time — ended up deleting EVERY room, right down to
+      // Security, just to close a gap of a few feet. Shaving the bands
+      // 2 ft at a time first closes that gap without touching a single room.
+      let shaveGuard = 0;
+      while (dockDepth * dockBands + sortDepth + backPack.depth + LANE_BAND_RESERVE > budget
+        && (dockDepth > MIN_BAND || sortDepth > MIN_BAND || roomDepth > MIN_BAND)
+        && shaveGuard++ < 60) {
+        if (roomDepth >= dockDepth && roomDepth >= sortDepth && roomDepth > MIN_BAND) {
+          roomDepth -= CELL_FT;
+          backPack = packBackRooms(roomTypes, roomDepth, L);
+        } else if (sortDepth >= dockDepth && sortDepth > MIN_BAND) {
+          sortDepth -= CELL_FT;
+        } else if (dockDepth > MIN_BAND) {
+          dockDepth -= CELL_FT;
+        } else {
+          break;
+        }
       }
       // still doesn't fit even at minimum band depths: the site is too tight for every
       // room at once — drop the lowest-priority ones until the bands stop overlapping
@@ -8306,8 +8370,12 @@
       const tier = throughputTier(input.ordersPerDay);
       // A blueprint upload can show the real number of sortation/segregation
       // stations (one per destination, e.g. S1-S5) — use that directly
-      // instead of guessing a count from throughput alone.
-      const sortCount = clamp(input.sortCount || { low: 1, med: 2, high: 3 }[tier], 1, 12);
+      // instead of guessing a count from throughput alone. Absent that, a
+      // real mother hub runs one segregation box per destination hub/city
+      // it dispatches to (that's the actual point of sortation), so that's
+      // the next-best default — only falling back to a throughput-tier
+      // guess when neither the photo nor a destination count is known.
+      const sortCount = clamp(input.sortCount || input.destinationHubs || { low: 1, med: 2, high: 3 }[tier], 1, 24);
       const sortAreaEach = { low: 300, med: 450, high: 600 }[tier];
       // Flow order down the plan must be: sort → stage in lanes → load. The lane
       // band is reserved directly above the outbound dock, and sortation is lifted
