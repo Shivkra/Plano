@@ -2298,7 +2298,7 @@
       }
     }
 
-    /* Below ~1090px the header's buttons (Undo/Redo/Import/AI Tweak/
+    /* Below ~1090px the header's buttons (Undo/Redo/Import/
        Export/Present/theme) no longer fit in one row. Without this, the
        overflow is invisible — body has overflow-x:hidden, so Export/Present
        just render off-screen with no way to reach them. Scrolling keeps
@@ -4928,8 +4928,6 @@
         <button class="btn secondary sm" id="ed-photo-btn" style="font-weight:700;">📁 Import Floor Plan</button>
         <input type="file" id="ed-photo-input"
           accept="image/jpeg,image/png,image/webp,image/svg+xml,application/pdf,.dwg,.dxf" style="display:none;">
-        <button class="btn ghost sm" id="ed-ai-tweak" title="Ask AI to adjust this layout">✨ AI Tweak</button>
-        <button class="btn ghost sm" id="ed-ai-assistant" title="Ask AI about this layout" onclick="openAssistant()">🤖 Ask AI</button>
         <button class="btn ghost sm" id="ed-export">Export</button>
         <button class="btn primary sm" id="ed-present">▶ Present</button>
         <div class="ed-nav-sep"></div>
@@ -5746,23 +5744,6 @@
       <div style="display:flex; gap:8px; margin-top:14px;">
         <button class="btn ghost sm full" id="deep-qa-assistant" title="Ask what a term means">🤖 Ask AI</button>
         <button class="btn ghost sm full" id="deep-qa-skip">Skip the questions</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="ai-tweak-overlay">
-    <div class="modal ai-refine-modal">
-      <h2>Ask AI</h2>
-      <p class="hint">Tell it what you'd like to change, in plain language — e.g. "make the aisles wider" or "I don't
-        need a conference room."</p>
-      <div class="interview-input-row" style="margin:14px 0;">
-        <input type="text" id="ai-tweak-request" placeholder="What would you like to change?" maxlength="200">
-        <button class="btn primary" id="ai-tweak-ask">Ask</button>
-      </div>
-      <p class="hint" id="ai-tweak-sub" style="display:none;"></p>
-      <div id="ai-tweak-list"></div>
-      <div class="row" style="margin-top:18px;">
-        <button class="btn" id="ai-tweak-close">Close</button>
       </div>
     </div>
   </div>
@@ -7894,14 +7875,14 @@
        is doing work, whether the pick aisles meet a real minimum width, how
        far a picker has to walk, and a rough fit-out cost estimate. Used by
        the primary "Generate my layout" path (generateSingleLayoutAndOpen,
-       via buildLayoutCandidate below) and by AI Tweak's re-generation.
-    
+       via buildLayoutCandidate below).
+
        Originally this fed a 3-candidate compare screen (density/balanced/
        fast-pick, each scored across six dimensions including a Claude-judged
        design score) — that screen was removed once the flow moved to a
-       single generated output with AI Tweak for adjustments afterward.
-       CANDIDATE_DEFS/buildLayoutCandidate stayed because the single-output
-       path still reuses the "balanced" definition as its default.
+       single generated output. CANDIDATE_DEFS/buildLayoutCandidate stayed
+       because the single-output path still reuses the "balanced" definition
+       as its default.
     const SORTBOX_COST_EACH = 25;     // $/sorting box (2×2 ft unit) — rough estimate, not a quote
     const DOCK_COST_EACH = 12000;     // $/dock door incl. leveler & bumper
     const ROOM_COST_PER_SQFT = 55;    // $/sqft office/amenity finish-out
@@ -7946,9 +7927,9 @@
     /* Primary generation path — one layout straight into the editor, no
        compare-3-options screen. A non-technical manager doesn't need to
        navigate a tradeoff comparison; "balanced" aisle spacing is a sensible
-       default, and AI Tweak (in the editor) can ask for denser storage or
-       wider aisles afterward, which maps directly onto the same aisleRows
-       lever the old compare screen used to let you pick between upfront. */
+       default, and the equipment decision in the guided setup covers denser
+       storage or wider aisles, mapping onto the same aisleRows lever the
+       old compare screen used to let you pick between upfront. */
     async function generateSingleLayoutAndOpen() {
       const btn = $("#wiz-next");
       const origLabel = btn.textContent;
@@ -8634,8 +8615,6 @@
     ===================================================================== */
     async function refreshAiAvailability() {
       await refreshVisionAvailability();
-      const btn = $("#ed-ai-tweak");
-      if (btn) btn.style.display = visionAvailable ? "" : "none";
     }
     function buildLayoutSummary(s, metrics) {
       const lines = [`Site: ${s.name}, ${s.L}x${s.W} ft (${fmtNum(s.L * s.W)} sqft). Pedestrian entry side: ${s._pedestrianEntry || "left"}.`];
@@ -8646,9 +8625,9 @@
       if (metrics.markCount) lines.push(`The manager marked ${metrics.markCount} fixed points (walls/columns/entry/exit) on the floor plan; ${metrics.hiddenMarks} of them ended up hidden underneath a generated zone.`);
       return lines.join("\n");
     }
-    /* Default generation params for sites that predate AI Tweak and never got
-       a site._genParams — keeps "Apply" always working instead of dead-ending
-       on older sites. */
+    /* Default generation params for sites that predate site._genParams —
+       keeps regeneration always working instead of dead-ending on older
+       sites. */
     function defaultGenParams() {
       return {
         dockBays: 4, dockSeparate: false, dockInBays: 2, dockOutBays: 2, ordersPerDay: 3000, aisleRows: 2,
@@ -8662,9 +8641,6 @@
         },
       };
     }
-    const TWEAK_PATCH_KEYS = new Set(["dockBays", "dockSeparate", "dockInBays", "dockOutBays", "ordersPerDay", "aisleRows", "pedestrianEntry", "rooms",
-      "handlingEquipment", "sortationMethod", "destinationHubs", "flowPattern", "outboundLanes", "inboundStaging", "laneWidthFt", "laneDepthFt",
-      "exceptionArea", "returnsArea", "stagingArea", "chargingArea", "growthHeadroomPct"]);
     function regenerateSiteFromParams(s, params) {
       const genInput = {
         L: s.L, W: s.W, constraintNote: s.constraintNote,
@@ -8688,90 +8664,12 @@
          it's actually the part that must stay clear. The Mini Sorting Box tool
          is still in the palette for anyone who wants to place them by hand. */
     }
-    function renderAiTweakProposals(proposals, note) {
-      const list = $("#ai-tweak-list");
-      if (!proposals.length) {
-        $("#ai-tweak-sub").textContent = note || "Nothing to change there — try describing it differently.";
-        list.innerHTML = "";
-        return;
-      }
-      $("#ai-tweak-sub").textContent = note || `${proposals.length} suggested change${proposals.length > 1 ? "s" : ""} — applying will regenerate your layout from these settings (any manual edits since generation will be replaced, but you can Cmd/Ctrl+Z to undo):`;
-      list.innerHTML = "";
-      proposals.forEach((p, i) => {
-        const div = document.createElement("div");
-        div.className = "ai-suggestion suggestion";
-        div.innerHTML = `<div class="ai-sug-title">${escapeHtml(p.title)}</div><div class="ai-sug-detail">${escapeHtml(p.detail)}</div>
-      <button class="btn primary" style="margin-top:8px;" data-apply="${i}">Apply</button>`;
-        list.appendChild(div);
-      });
-      list.querySelectorAll("[data-apply]").forEach(btn => {
-        btn.addEventListener("click", () => {
-          const p = proposals[+btn.dataset.apply];
-          applyAiTweakProposal(p.patch);
-          btn.textContent = "Applied ✓"; btn.disabled = true;
-        });
-      });
-    }
-    function applyAiTweakProposal(patch) {
-      const params = site._genParams ? JSON.parse(JSON.stringify(site._genParams)) : defaultGenParams();
-      Object.keys(patch).forEach(k => {
-        if (!TWEAK_PATCH_KEYS.has(k)) return;
-        if (k === "rooms" && patch.rooms && typeof patch.rooms === "object") {
-          Object.keys(patch.rooms).forEach(roomType => {
-            if (!params.rooms[roomType]) return;
-            Object.assign(params.rooms[roomType], patch.rooms[roomType]);
-          });
-        } else {
-          params[k] = patch[k];
-        }
-      });
-      snapshot();
-      regenerateSiteFromParams(site, params);
-      site._genParams = params;
-      deselectZone();
-      redraw(); updateStats(); queueSave();
-      toast("Applied — your layout was regenerated");
-    }
-    $("#ed-ai-tweak")?.addEventListener("click", () => {
-      if (!visionAvailable) return;
-      $("#ai-tweak-overlay").classList.add("on");
-      $("#ai-tweak-sub").style.display = "none";
-      $("#ai-tweak-list").innerHTML = "";
-      $("#ai-tweak-request").value = "";
-      $("#ai-tweak-request").focus();
-    });
-    async function askAiTweak() {
-      const request = $("#ai-tweak-request").value.trim();
-      if (!request) return;
-      const askBtn = $("#ai-tweak-ask");
-      askBtn.disabled = true;
-      $("#ai-tweak-sub").style.display = "";
-      $("#ai-tweak-sub").textContent = "Thinking…";
-      $("#ai-tweak-list").innerHTML = "";
-      try {
-        const currentParams = site._genParams || defaultGenParams();
-        const metrics = computeLayoutMetrics(site, currentParams.aisleRows);
-        const data = await apiFetch("/api/ai-tweak", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ request, currentParams, siteSummary: buildLayoutSummary(site, metrics) }),
-        });
-        renderAiTweakProposals(data.proposals || [], data.note);
-      } catch (e) {
-        $("#ai-tweak-sub").textContent = e.message || "Ask AI failed — try again in a moment.";
-      } finally {
-        askBtn.disabled = false;
-      }
-    }
-    $("#ai-tweak-ask").addEventListener("click", askAiTweak);
-    $("#ai-tweak-request").addEventListener("keydown", e => { if (e.key === "Enter") askAiTweak(); });
-    $("#ai-tweak-close").addEventListener("click", () => $("#ai-tweak-overlay").classList.remove("on"));
-
     /* =====================================================================
        AI ASSISTANT — a free-form "ask anything" helper, separate from the
        AI interview (which asks the manager questions). This is the reverse
        direction: the manager asks the AI questions and gets a plain-language
        answer. Purely informational — never touches site data, so no
-       snapshot/undo/apply machinery needed, unlike AI Tweak.
+       snapshot/undo/apply machinery is needed.
     ===================================================================== */
     let assistantHistory = [];
     function renderAssistantChat() {

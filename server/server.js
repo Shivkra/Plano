@@ -742,48 +742,6 @@ async function handleAssistant(req, res) {
    Lets the manager ask for a change in plain English after the layout is
    generated. Deliberately NOT free-form spatial editing (an LLM emitting
    raw x/y/w/h zone coordinates is one hallucination away from a broken,
-   overlapping layout) — instead Gemini maps the request onto the SAME
-   small parameter vocabulary the generator already trusts (dock bays,
-   room on/off + size, order volume, aisle density, entry side). Applying
-   a proposal re-runs the app's own deterministic layout algorithm with
-   the patched parameters, so every safety property that algorithm
-   already has (no overlaps, fits the site, etc.) carries over for free. */
-const TWEAK_SYSTEM = `You translate a warehouse manager's plain-English change request into structured adjustments to a layout generator's parameters. You are given the site's current generation parameters and a short summary of the current layout.
-You may only propose changes using this exact vocabulary — nothing else is supported by the tool: dockBays (int), dockSeparate (bool), dockInBays (int), dockOutBays (int), ordersPerDay (int), rooms.<security|medical|conference|office|store|ups|bathroom>.on (bool) and .size ("S"|"M"|"L", or .headcount int for conference/office), equipment ("handcart"|"palletjack"|"reachtruck"|"forklift" — this sets aisle width, so change equipment rather than aisleRows when the request is about what drives around the floor), aisleRows (2=~4ft hand-cart aisles, 3=~6ft, 4=~8ft reach truck, 6=~12ft forklift), flowPattern ("u-flow"|"i-flow"), tempZones.chilled (bool), tempZones.frozen (bool), riderParking (bool), returnsArea (bool), stagingArea (bool), chargingArea (bool), growthHeadroomPct (int 0-40), pedestrianEntry ("left"|"right").
-Propose at most 3 distinct changes, each as a small JSON patch containing ONLY the fields that change (do not restate unchanged fields). If the request can't be mapped to this vocabulary (e.g. "move the medical room to the north wall" — this tool can't target a specific wall side), return zero proposals and explain briefly in "note" what IS possible instead.
-Reply with ONLY strict JSON: {"proposals":[{"title":"short label","detail":"one sentence, plain language, no jargon","patch":{...}}],"note":"optional, only if proposals is empty or something needs caveating"}.`;
-async function handleAiTweak(req, res) {
-  if (!GEMINI_API_KEY) {
-    return sendJson(res, 501, { error: "AI Tweak isn't configured on this server (no GEMINI_API_KEY set)." });
-  }
-  let body;
-  try {
-    body = await readBody(req);
-  } catch (e) {
-    return sendJson(res, 400, { error: "Invalid request body" });
-  }
-  const request = body && typeof body.request === "string" ? body.request.trim().slice(0, 500) : "";
-  const currentParams = body && typeof body.currentParams === "object" && body.currentParams ? body.currentParams : {};
-  const siteSummary = body && typeof body.siteSummary === "string" ? body.siteSummary.slice(0, 3000) : "";
-  if (!request) return sendJson(res, 400, { error: "Tell me what you'd like to change." });
-  const userText = `Current generation parameters: ${JSON.stringify(currentParams)}\nCurrent layout summary: ${siteSummary}\nManager's request: "${request}"`;
-  try {
-    const text = await callGeminiText(TWEAK_SYSTEM, [{ role: "user", parts: [{ text: userText }] }]);
-    const parsed = extractJsonObject(text) || {};
-    const proposals = Array.isArray(parsed.proposals)
-      ? parsed.proposals.slice(0, 3).map((p) => ({
-          title: String((p && p.title) || "Suggested change").slice(0, 80),
-          detail: String((p && p.detail) || "").slice(0, 300),
-          patch: p && typeof p.patch === "object" && p.patch ? p.patch : {},
-        })).filter((p) => Object.keys(p.patch).length > 0)
-      : [];
-    const note = typeof parsed.note === "string" ? parsed.note.slice(0, 300) : "";
-    return sendJson(res, 200, { proposals, note });
-  } catch (e) {
-    return sendJson(res, 502, { error: "AI Tweak failed: " + e.message });
-  }
-}
-
 /* ---------- static frontend ----------
    Read fresh on every request rather than caching in memory — it's one
    small file, disk I/O is cheap at this traffic scale, and it means
@@ -863,11 +821,6 @@ const server = http.createServer(async (req, res) => {
       const email = authenticate(req);
       if (!email) return sendJson(res, 401, { error: "Sign in again — session missing or expired." });
       return await handleInterview(req, res);
-    }
-    if (req.method === "POST" && p === "/api/ai-tweak") {
-      const email = authenticate(req);
-      if (!email) return sendJson(res, 401, { error: "Sign in again — session missing or expired." });
-      return await handleAiTweak(req, res);
     }
     if (req.method === "POST" && p === "/api/assistant") {
       const email = authenticate(req);
