@@ -154,17 +154,20 @@ async function callGeminiVision(base64Image, mimeType) {
               parts: [
                 {
                   text:
-                    "You are an expert warehouse & darkstore architectural CAD spatial extraction model. " +
-                    "Analyze this uploaded architectural blueprint, CAD drawing, PDF floor plan, or warehouse photo in high detail. " +
-                    "Extract the structural footprint, perimeter/interior walls, enclosed rooms, storage racking aisles, equipment/packing tables, and docking doors. " +
+                    "You are an expert cross-dock sortation hub architectural CAD spatial extraction model — a mother hub where already-packed boxes arrive, get sorted by destination, and ship onward the same day. This is NOT a storage warehouse: there is no bulk pallet storage or picking to look for. " +
+                    "Analyze this uploaded architectural blueprint, CAD drawing, PDF floor plan, or facility photo in high detail. Read every text label on the drawing (room names, dimensions, door tags like S1/S2, UPS/network/switch labels) — they are the ground truth for what to extract, more reliable than shape alone. " +
+                    "Extract EVERY door/shutter opening on EVERY wall exactly where it is drawn — doors are commonly on more than one wall (e.g. one long wall plus an adjacent wall), and there is no assumption that inbound and outbound sit on opposite walls. Classify each opening as an entry (inbound) or exit (outbound) only if the drawing marks it as such (arrows, labels); otherwise list it under whichever of entries/exits is a reasonable default and note the ambiguity in \"summary\". " +
+                    "Extract every enclosed support room by its actual label and actual position/size — common ones are security room, conference/meeting room, manager's cabin/office, store room, medical/first-aid room, UPS/network/server room, battery room. Use the room's real name from the drawing even if it doesn't match the type enum exactly. " +
+                    "Extract sortation/segregation stations separately from storage racking — these are the boxes or bays labeled things like S1, S2, S3 (one per destination city or hub), often arranged in a row along one wall. Also note any conveyor belt path. " +
                     "Express every coordinate as a normalized decimal (0.0 to 1.0) of total width (x) and total height (y) from the top-left (0,0). " +
-                    "Estimate total facility length and width in feet (e.g. 150 × 100 ft). " +
+                    "Estimate total facility length and width in feet from the dimension strings on the drawing (e.g. 150 × 100 ft) — prefer explicit dimension labels over visually estimating. " +
                     "Reply with ONLY valid JSON (no markdown formatting, no code fences) with the exact structure:\n" +
                     "{\n" +
                     '  "dimensionsFt": { "length": number, "width": number },\n' +
-                    '  "summary": "Short architectural description of detected layout",\n' +
+                    '  "summary": "Short architectural description of detected layout, including any ambiguity in entry/exit classification or which walls have doors",\n' +
                     '  "walls": [ { "x0": number, "y0": number, "x1": number, "y1": number } ],\n' +
-                    '  "rooms": [ { "name": string, "type": "office"|"security"|"store"|"bathroom"|"inboundStage"|"outboundLane"|"charging", "x": number, "y": number, "w": number, "h": number } ],\n' +
+                    '  "rooms": [ { "name": string, "type": "office"|"security"|"conference"|"medical"|"store"|"ups"|"bathroom"|"inboundStage"|"outboundLane"|"charging", "x": number, "y": number, "w": number, "h": number } ],\n' +
+                    '  "sortStations": [ { "label": string, "x0": number, "y0": number, "x1": number, "y1": number } ],\n' +
                     '  "racks": [ { "type": "doublerack"|"rack"|"palletrack", "x0": number, "y0": number, "x1": number, "y1": number } ],\n' +
                     '  "equipment": [ { "type": "conveyor"|"packing"|"staging"|"dispatch"|"table", "x0": number, "y0": number, "x1": number, "y1": number } ],\n' +
                     '  "entries": [ { "x": number, "y": number } ],\n' +
@@ -254,6 +257,14 @@ function parseVisionResult(text) {
         y1: clamp01(rk.y1 !== undefined ? rk.y1 : rk.y0),
       }))
     : [];
+  const sortStations = Array.isArray(parsed.sortStations)
+    ? parsed.sortStations.slice(0, 100).map((s) => ({
+        label: String(s.label || "S"),
+        x0: clamp01(s.x0), y0: clamp01(s.y0),
+        x1: clamp01(s.x1 !== undefined ? s.x1 : s.x0),
+        y1: clamp01(s.y1 !== undefined ? s.y1 : s.y0),
+      }))
+    : [];
   const equipment = Array.isArray(parsed.equipment)
     ? parsed.equipment.slice(0, 100).map((eq) => ({
         type: String(eq.type || "conveyor"),
@@ -270,7 +281,7 @@ function parseVisionResult(text) {
     dimensionsFt = { length: Math.round(Number(parsed.dimensionsFt.length)), width: Math.round(Number(parsed.dimensionsFt.width)) };
   }
   const summary = parsed.summary || "AI Architectural Floor Plan & Space Modeling";
-  return { walls, rooms, racks, equipment, entries, exits, dimensionsFt, summary };
+  return { walls, rooms, racks, sortStations, equipment, entries, exits, dimensionsFt, summary };
 }
 
 /* ---------- generic Gemini text call (interview + AI tweak) ----------

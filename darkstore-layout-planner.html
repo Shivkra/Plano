@@ -6471,21 +6471,75 @@
       if (file) handleChoiceBlueprintUpload(file);
     });
 
-    // A door's dominant wall — whichever axis it's most extreme on. Used to
-    // tell an I-flow building (inbound and outbound doors on opposite walls)
-    // from a U-flow one (both on the same wall) from vision-detected door
-    // positions, rather than assuming.
+    // A door's dominant wall — whichever axis it's most extreme on.
     function doorWallSide(pt) {
       const d = { top: pt.y, bottom: 1 - pt.y, left: pt.x, right: 1 - pt.x };
       return Object.keys(d).reduce((a, b) => (d[a] < d[b] ? a : b));
     }
-    function inferFlowFromDoors(entries, exits) {
-      if (!entries.length || !exits.length) return "i-flow";
-      const sides = new Set([...entries, ...exits].map(doorWallSide));
-      const entrySides = new Set(entries.map(doorWallSide));
-      const exitSides = new Set(exits.map(doorWallSide));
-      const overlap = [...entrySides].some(s => exitSides.has(s));
-      return overlap && sides.size <= 2 ? "u-flow" : "i-flow";
+    /* Real buildings put doors wherever the wall allows — not necessarily
+       opposite walls, and not necessarily matching the model's own guess at
+       which are "entries" vs "exits". This classifies every detected door by
+       its ACTUAL wall (top/bottom/left/right) rather than trusting the
+       entries/exits split, then decides:
+         - doors on two opposite walls (top+bottom OR left+right) -> through-
+           flow, split by wall (fewer-door wall = inbound, matching the
+           domain default of consolidated inbound / fragmented outbound)
+         - doors on one wall, or on adjacent walls (an L-shaped dock run this
+           tool doesn't yet model as a true corner) -> pooled onto one
+           combined wall, honestly noted as pooled rather than silently
+           misrepresenting the corner as a straight wall. */
+    function inferDockLayout(entries, exits) {
+      const all = [...entries, ...exits];
+      if (!all.length) {
+        return { flowPattern: "i-flow", inCount: 2, outCount: 2, note: "No doors were detected in the photo — defaulted to 2 inbound / 2 outbound." };
+      }
+      const counts = { top: 0, bottom: 0, left: 0, right: 0 };
+      all.forEach(d => counts[doorWallSide(d)]++);
+      const walls = Object.entries(counts).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+      const opposite = { top: "bottom", bottom: "top", left: "right", right: "left" };
+      if (walls.length === 2 && opposite[walls[0][0]] === walls[1][0]) {
+        const [big, small] = walls;
+        return {
+          flowPattern: "i-flow", inCount: Math.max(1, small[1]), outCount: Math.max(1, big[1]),
+          note: `${big[1]} doors on the ${big[0]} wall, ${small[1]} on the ${small[0]} wall (opposite) — through-flow (I-flow) is set: ${big[1]} outbound, ${small[1]} inbound.`,
+        };
+      }
+      const total = all.length;
+      const inCount = Math.max(1, Math.round(total * 0.4)), outCount = Math.max(1, total - Math.round(total * 0.4));
+      const note = walls.length > 1
+        ? `${total} doors across ${walls.length} walls (${walls.map(([w]) => w).join(" + ")}) — this tool models one combined dock wall rather than a true corner run, so they're pooled: same-wall (U-flow) is set.`
+        : `${total} doors, all on the ${walls[0][0]} wall of the photo — same-wall (U-flow) is set.`;
+      return { flowPattern: "u-flow", inCount, outCount, note };
+    }
+    // Freeform vision-model room types -> valid ZONE_DEFS keys. The vision
+    // prompt asks for a matching enum, but this covers whatever it actually
+    // returns (synonyms, near-misses) without silently dropping the room.
+    function roomTypeFromVision(rawType, name) {
+      const t = String(rawType || "").toLowerCase();
+      const n = String(name || "").toLowerCase();
+      const hit = (...words) => words.some(w => t.includes(w) || n.includes(w));
+      if (hit("security", "guard")) return "security";
+      if (hit("conference", "meeting", "hall")) return "conference";
+      if (hit("medical", "first-aid", "firstaid", "clinic")) return "medical";
+      if (hit("ups", "network", "server", "hub", "switch", "battery", "power")) return "ups";
+      if (hit("store", "storage room", "spares")) return "store";
+      if (hit("bathroom", "toilet", "restroom", "washroom")) return "bathroom";
+      if (hit("manager", "cabin", "office")) return "office";
+      return ZONE_DEFS[t] ? t : "office";
+    }
+    // Converts the photo's actual detected rooms into packBackRooms' input
+    // shape — real names, real types, real relative sizes (scaled from the
+    // photo's own proportions to this site's actual sq ft), in the same
+    // left-to-right order they're drawn, instead of the generic toggle set.
+    function roomsFromVision(dataRooms, L, W) {
+      if (!Array.isArray(dataRooms) || !dataRooms.length) return [];
+      return dataRooms
+        .filter(r => r.w > 0.005 && r.h > 0.005)
+        .sort((a, b) => a.x - b.x)
+        .map(r => {
+          const areaSqft = clamp(Math.round(r.w * L * r.h * W), 60, L * W * 0.25);
+          return [roomTypeFromVision(r.type, r.name), areaSqft, String(r.name || "Room").trim()];
+        });
     }
 
     /* Blueprint upload doesn't paint the AI vision model's raw guessed wall/
@@ -6505,16 +6559,15 @@
        clear the skip came from the photo, not a shortcut. Everything a photo
        can't show (throughput timing, wave pattern, exact door count) is
        still asked normally. */
-    function inferVisionAnswers(data, flowPattern, entries, exits) {
+    function inferVisionAnswers(data, dockLayout, roomList, sortStationCount) {
+      // Every key here is shown in the "Read from your photo" banner. Only
+      // the ones matching a buildDesignDecisions id (flow/equipment/
+      // sortation) also skip that question — rooms/sortation-count aren't
+      // guided-flow decisions, they're direct generator inputs, so they're
+      // informational-only entries (no patch needed here; already applied
+      // to _genParams by the caller).
       const answered = {};
-      if (entries.length > 0 && exits.length > 0) {
-        answered.flow = {
-          patch: { flowPattern, dockSeparate: true },
-          note: flowPattern === "i-flow"
-            ? `Your doors sit on opposite walls in the photo, so through-flow (I-flow) is set.`
-            : `Your doors sit on the same wall in the photo, so same-wall (U-flow) is set.`,
-        };
-      }
+      answered.flow = { patch: { flowPattern: dockLayout.flowPattern, dockSeparate: true }, note: dockLayout.note };
       const racks = Array.isArray(data.racks) ? data.racks : [];
       if (racks.length > 0) {
         const hasPallet = racks.some(r => r.type === "palletrack");
@@ -6529,6 +6582,18 @@
         answered.sortation = {
           patch: { sortationMethod: "semiauto" },
           note: `A conveyor is visible in the photo, so semi-automated sortation is set.`,
+        };
+      }
+      if (roomList.length) {
+        answered.rooms = {
+          patch: {},
+          note: `${roomList.length} support room${roomList.length > 1 ? "s" : ""} placed exactly as drawn: ${roomList.map(r => r[2]).join(", ")}.`,
+        };
+      }
+      if (sortStationCount > 0) {
+        answered.sortStations = {
+          patch: {},
+          note: `${sortStationCount} sortation station${sortStationCount > 1 ? "s" : ""} counted in the photo, so the sort area is sized for ${sortStationCount}.`,
         };
       }
       return answered;
@@ -6569,10 +6634,14 @@
           }
           const entries = Array.isArray(data.entries) ? data.entries : [];
           const exits = Array.isArray(data.exits) ? data.exits : [];
-          const flowPattern = inferFlowFromDoors(entries, exits);
-          const dockInBays = Math.max(1, entries.length || 2);
-          const dockOutBays = Math.max(1, exits.length || 2);
-          const visionAnswered = inferVisionAnswers(data, flowPattern, entries, exits);
+          const dockLayout = inferDockLayout(entries, exits);
+          const dockInBays = dockLayout.inCount, dockOutBays = dockLayout.outCount;
+          const roomList = roomsFromVision(data.rooms, l, w);
+          const sortStationCount = Math.max(
+            Array.isArray(data.sortStations) ? data.sortStations.length : 0,
+            Array.isArray(data.racks) ? data.racks.filter(r => r.type !== "palletrack").length : 0
+          );
+          const visionAnswered = inferVisionAnswers(data, dockLayout, roomList, sortStationCount);
 
           const baseName = file.name.replace(/\.[^/.]+$/, "");
           const siteName = baseName ? `Blueprint - ${baseName}` : "AI Extracted Layout";
@@ -6583,8 +6652,9 @@
           ensureCellsArray(newSite);
           newSite._genParams = Object.assign(
             defaultGenParams(),
-            { flowPattern, dockInBays, dockOutBays, dockBays: dockInBays + dockOutBays, dockSeparate: true,
-              ordersPerDay, destinationHubs, outboundLanes: destinationHubs > 0 },
+            { dockInBays, dockOutBays, dockBays: dockInBays + dockOutBays, dockSeparate: true,
+              ordersPerDay, destinationHubs, outboundLanes: destinationHubs > 0,
+              visionRooms: roomList, sortCount: sortStationCount || undefined },
             ...Object.values(visionAnswered).map(a => a.patch)
           );
           newSite._businessContext = { ordersPerDay, destinationHubs };
@@ -6597,9 +6667,10 @@
           }
           openEditor(newSite, {});
           startDeepQa();
-          const skipped = Object.keys(visionAnswered);
-          const skipNote = skipped.length ? ` Answered ${skipped.length} question${skipped.length > 1 ? "s" : ""} from the photo (${skipped.join(", ")}) — skipped below.` : "";
-          toast(`✓ Read a ${l}×${w} ft footprint with ${dockInBays} inbound and ${dockOutBays} outbound doors.${skipNote}`, 5000);
+          const parts = [`${l}×${w} ft footprint`, `${dockInBays} inbound / ${dockOutBays} outbound doors`];
+          if (roomList.length) parts.push(`${roomList.length} rooms`);
+          if (sortStationCount) parts.push(`${sortStationCount} sort stations`);
+          toast(`✓ Read from your photo: ${parts.join(", ")} — see what else was detected below.`, 5000);
         }
       } catch (err) {
         console.error(err);
@@ -8143,14 +8214,20 @@
       const bayW = input.doorSpacingFt || 12;
       const MIN_BAND = 10;
 
-      let roomTypes = [];
-      if (input.rooms.security.on) roomTypes.push(["security", roomAreaSqft("security", input.rooms.security), ZONE_DEFS.security.name]);
-      if (input.rooms.medical.on) roomTypes.push(["medical", roomAreaSqft("medical", input.rooms.medical), ZONE_DEFS.medical.name]);
-      if (input.rooms.bathroom.on) roomTypes.push(["bathroom", roomAreaSqft("bathroom", input.rooms.bathroom), ZONE_DEFS.bathroom.name]);
-      if (input.rooms.conference.on) roomTypes.push(["conference", roomAreaSqft("conference", input.rooms.conference), ZONE_DEFS.conference.name]);
-      if (input.rooms.office.on) roomTypes.push(["office", roomAreaSqft("office", input.rooms.office), ZONE_DEFS.office.name]);
-      if (input.rooms.store.on) roomTypes.push(["store", roomAreaSqft("store", input.rooms.store), ZONE_DEFS.store.name]);
-      if (input.rooms.ups.on) roomTypes.push(["ups", roomAreaSqft("ups", input.rooms.ups), ZONE_DEFS.ups.name]);
+      // A blueprint upload supplies its own room list — real names, real
+      // types, real relative sizes, in the order they actually sit along the
+      // wall in the photo — rather than the generic toggle-driven set below.
+      // See handleChoiceBlueprintUpload / roomsFromVision.
+      let roomTypes = Array.isArray(input.visionRooms) && input.visionRooms.length ? input.visionRooms.slice() : [];
+      if (!roomTypes.length) {
+        if (input.rooms.security.on) roomTypes.push(["security", roomAreaSqft("security", input.rooms.security), ZONE_DEFS.security.name]);
+        if (input.rooms.medical.on) roomTypes.push(["medical", roomAreaSqft("medical", input.rooms.medical), ZONE_DEFS.medical.name]);
+        if (input.rooms.bathroom.on) roomTypes.push(["bathroom", roomAreaSqft("bathroom", input.rooms.bathroom), ZONE_DEFS.bathroom.name]);
+        if (input.rooms.conference.on) roomTypes.push(["conference", roomAreaSqft("conference", input.rooms.conference), ZONE_DEFS.conference.name]);
+        if (input.rooms.office.on) roomTypes.push(["office", roomAreaSqft("office", input.rooms.office), ZONE_DEFS.office.name]);
+        if (input.rooms.store.on) roomTypes.push(["store", roomAreaSqft("store", input.rooms.store), ZONE_DEFS.store.name]);
+        if (input.rooms.ups.on) roomTypes.push(["ups", roomAreaSqft("ups", input.rooms.ups), ZONE_DEFS.ups.name]);
+      }
       // ---- zones unlocked by the deep clarifying-question round ----
       // Each only appears when the manager's answers actually called for it, so
       // the drawing visibly reflects what they told us rather than always
@@ -8260,7 +8337,10 @@
 
       // ---- Sorting (directly above docking) ----
       const tier = throughputTier(input.ordersPerDay);
-      const sortCount = { low: 1, med: 2, high: 3 }[tier];
+      // A blueprint upload can show the real number of sortation/segregation
+      // stations (one per destination, e.g. S1-S5) — use that directly
+      // instead of guessing a count from throughput alone.
+      const sortCount = clamp(input.sortCount || { low: 1, med: 2, high: 3 }[tier], 1, 12);
       const sortAreaEach = { low: 300, med: 450, high: 600 }[tier];
       // Flow order down the plan must be: sort → stage in lanes → load. The lane
       // band is reserved directly above the outbound dock, and sortation is lifted
@@ -8821,6 +8901,7 @@
         inboundStaging: params.inboundStaging, exceptionArea: params.exceptionArea,
         returnsArea: params.returnsArea, stagingArea: params.stagingArea,
         chargingArea: params.chargingArea, growthHeadroomPct: params.growthHeadroomPct || 0,
+        visionRooms: params.visionRooms, sortCount: params.sortCount,
       };
       ensureCellsArray(s);
       s.cells.fill(0); s.rots.fill(0);
