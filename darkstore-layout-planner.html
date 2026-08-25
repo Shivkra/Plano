@@ -4928,6 +4928,7 @@
         <button class="btn secondary sm" id="ed-photo-btn" style="font-weight:700;">📁 Import Floor Plan</button>
         <input type="file" id="ed-photo-input"
           accept="image/jpeg,image/png,image/webp,image/svg+xml,application/pdf,.dwg,.dxf" style="display:none;">
+        <button class="btn ghost sm" id="ed-ai-assistant" title="Ask AI about this layout" onclick="openAssistant()">🤖 Ask AI</button>
         <button class="btn ghost sm" id="ed-export">Export</button>
         <button class="btn primary sm" id="ed-present">▶ Present</button>
         <div class="ed-nav-sep"></div>
@@ -8615,6 +8616,8 @@
     ===================================================================== */
     async function refreshAiAvailability() {
       await refreshVisionAvailability();
+      const btn = $("#ed-ai-assistant");
+      if (btn) btn.style.display = visionAvailable ? "" : "none";
     }
     function buildLayoutSummary(s, metrics) {
       const lines = [`Site: ${s.name}, ${s.L}x${s.W} ft (${fmtNum(s.L * s.W)} sqft). Pedestrian entry side: ${s._pedestrianEntry || "left"}.`];
