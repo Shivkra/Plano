@@ -590,7 +590,7 @@
     }
 
     .toast {
-      background: var(--ink);
+      background: var(--accent);
       color: #fff;
       padding: 11px 20px;
       border-radius: var(--r-pill);
@@ -1444,7 +1444,7 @@
 
     .interview-msg.user {
       align-self: flex-end;
-      background: var(--ink);
+      background: var(--accent);
       color: #fff;
       border-top-right-radius: 4px;
     }
@@ -1670,8 +1670,8 @@
     }
 
     .room-card.on .check {
-      background: var(--ink);
-      border-color: var(--ink);
+      background: var(--accent);
+      border-color: var(--accent);
       color: #fff;
     }
 
@@ -1706,8 +1706,8 @@
     }
 
     .chip.on {
-      background: var(--ink);
-      border-color: var(--ink);
+      background: var(--accent);
+      border-color: var(--accent);
       color: #fff;
     }
 
@@ -1876,8 +1876,8 @@
     }
 
     .mini-tool.on {
-      background: var(--ink);
-      border-color: var(--ink);
+      background: var(--accent);
+      border-color: var(--accent);
       color: #fff;
     }
 
@@ -1913,7 +1913,7 @@
       display: none;
       z-index: 20;
       transform: translate(-50%, -100%);
-      background: var(--ink);
+      background: var(--accent);
       border-radius: var(--r-md);
       box-shadow: var(--shadow-lg);
       padding: 5px;
@@ -3238,7 +3238,7 @@
       font-size: var(--fs-2xs);
       font-weight: 800;
       color: #fff;
-      background: var(--ink);
+      background: var(--accent);
       border-radius: var(--r-pill);
       padding: 2px 8px;
     }
@@ -3643,7 +3643,7 @@
       display: none;
       z-index: 20;
       transform: translate(-50%, -100%);
-      background: var(--ink);
+      background: var(--accent);
       border-radius: var(--r-md);
       box-shadow: var(--shadow-lg);
       padding: 5px;
@@ -3691,7 +3691,7 @@
       display: none;
       z-index: 20;
       transform: translate(-50%, -100%);
-      background: var(--ink);
+      background: var(--accent);
       border-radius: var(--r-md);
       box-shadow: var(--shadow-lg);
       padding: 5px;
@@ -3737,7 +3737,7 @@
     .locked-note {
       position: absolute;
       z-index: 19;
-      background: var(--ink);
+      background: var(--accent);
       color: #fff;
       font-size: 11px;
       font-weight: 600;
@@ -4186,9 +4186,12 @@
     }
 
     .smart-tool-btn.active {
-      background: var(--ink);
+      /* --ink is a text-color token — it flips to near-white in dark mode,
+         which collapsed this background against the white label text below.
+         --accent stays a strong, contrasting color in both themes. */
+      background: var(--accent);
       color: #fff;
-      border-color: var(--ink);
+      border-color: var(--accent);
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
     }
 
@@ -4362,9 +4365,9 @@
     }
 
     .obj-card.active {
-      background: var(--ink);
+      background: var(--accent);
       color: #fff;
-      border-color: var(--ink);
+      border-color: var(--accent);
     }
 
     /* Contextual Properties in Right Panel */
