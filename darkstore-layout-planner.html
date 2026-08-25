@@ -8246,7 +8246,17 @@
       // Reserved-growth space goes first (it's headroom, not a requirement) and the
       // cold rooms are last — they're structural, and a site storing frozen goods
       // without a frozen room is a broken layout, not a tight one.
-      const dropOrder = ["growth", "charging", "conference", "ups", "store", "staging", "returns", "office", "bathroom", "exception", "medical", "security", "inboundStage"];
+      //
+      // A blueprint upload's rooms are real, named, photo-evidenced spaces —
+      // Security, Conference Hall, UPS room, etc. inboundStage/exception/
+      // staging/returns are auto-defaulted generic percentage-of-floor zones
+      // the photo never actually showed. When both compete for the same
+      // tight footprint, the synthetic zones must give way first — otherwise
+      // a real photographed room silently vanishes to make room for a filler
+      // box nobody asked to see, which is exactly backwards.
+      const dropOrder = Array.isArray(input.visionRooms) && input.visionRooms.length
+        ? ["growth", "charging", "staging", "returns", "inboundStage", "exception", "store", "ups", "conference", "office", "bathroom", "medical", "security"]
+        : ["growth", "charging", "conference", "ups", "store", "staging", "returns", "office", "bathroom", "exception", "medical", "security", "inboundStage"];
 
       // Ideal band depths, then a scale-to-fit safety pass so dock + sorting + back-room
       // band never exceeds the site depth (small sites would otherwise overlap bands).
