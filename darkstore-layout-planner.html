@@ -4718,8 +4718,7 @@
         <img class="logo-img" src="Logo.png" alt="Blitz" style="height:40px; width:auto; object-fit:contain;">
         <div>
           <h1>Layout Planner</h1>
-          <div class="lib-subtitle"
-            style="font-size:13px; font-weight:600; color:var(--ink-soft); margin-top:4px;">
+          <div class="lib-subtitle" style="font-size:13px; font-weight:600; color:var(--ink-soft); margin-top:4px;">
             Create the best layout in 2 steps
           </div>
         </div>
@@ -4803,7 +4802,8 @@
           <div class="choice-input-row" style="margin-top:12px;">
             <div>
               <label class="choice-field-label" for="choice-vision-orders">Boxes handled / day</label>
-              <input type="number" class="choice-input" id="choice-vision-orders" value="3000" min="0" max="500000" step="100">
+              <input type="number" class="choice-input" id="choice-vision-orders" value="3000" min="0" max="500000"
+                step="100">
             </div>
             <div>
               <label class="choice-field-label" for="choice-vision-dests">Destination hubs shipped to</label>
@@ -4930,12 +4930,12 @@
         <button class="btn secondary sm" id="ed-photo-btn" style="font-weight:700;">📁 Import Floor Plan</button>
         <input type="file" id="ed-photo-input"
           accept="image/jpeg,image/png,image/webp,image/svg+xml,application/pdf,.dwg,.dxf" style="display:none;">
-        <button class="btn ghost sm" id="ed-ai-assistant" title="Ask AI about this layout" onclick="openAssistant()">🤖 Ask AI</button>
+        <button class="btn ghost sm" id="ed-ai-assistant" title="Ask AI about this layout" onclick="openAssistant()">🤖
+          Ask AI</button>
         <button class="btn ghost sm" id="ed-export">Export</button>
         <button class="btn primary sm" id="ed-present">▶ Present</button>
         <div class="ed-nav-sep"></div>
-        <button class="theme-toggle-btn" title="Toggle Light / Dark mode"
-          aria-label="Toggle theme">
+        <button class="theme-toggle-btn" title="Toggle Light / Dark mode" aria-label="Toggle theme">
           <span class="theme-icon">☀️</span>
           <span class="theme-icon">🌙</span>
           <span class="theme-thumb"></span>
@@ -5012,9 +5012,6 @@
         <div class="flyout-category">
           <div class="flyout-cat-title">Equipment</div>
           <div class="obj-grid">
-            <div class="obj-card" data-obj="printer">🖨️ Thermal Printer</div>
-            <div class="obj-card" data-obj="scanner">⚡ Scanner Stand</div>
-            <div class="obj-card" data-obj="hhd">📱 HHD Gun</div>
             <div class="obj-card" data-obj="scale">⚖️ Weighing Scale</div>
             <div class="obj-card" data-obj="computer">💻 Workstation</div>
             <div class="obj-card" data-obj="ac">❄️ AC Unit</div>
@@ -5026,6 +5023,7 @@
         <div class="flyout-category">
           <div class="flyout-cat-title">Infrastructure &amp; Safety</div>
           <div class="obj-grid">
+            <div class="obj-card" data-obj="wall">🧱 Wall (3×3')</div>
             <div class="obj-card" data-obj="entry">▶ Entry Door</div>
             <div class="obj-card" data-obj="exit">◀ Shutter / Dock</div>
             <div class="obj-card" data-obj="fireexit">🚨 Fire Exit</div>
@@ -5935,7 +5933,7 @@
     /* =====================================================================
        CONSTANTS
     ===================================================================== */
-    const CELL_FT = 2;
+    const CELL_FT = 6;
 
     const ZONE_DEFS = {
       dockIn: { name: "Inbound Docking", color: "#2563EB", group: "dock" },
@@ -6008,7 +6006,7 @@
       washbasin: { id: 9, key: "9", name: "Wash Basin", short: "Washbasin", glyph: "🚰", color: "#38BDF8", category: "equip", w: 2, d: 1.5, h: 3 },
 
       // Infrastructure & Safety
-      wall: { id: 8, key: "8", name: "Wall / Blocked", short: "Wall", glyph: "", color: "#44403C", category: "infra", w: 2, d: 2, h: 8 },
+      wall: { id: 8, key: "8", name: "Wall / Blocked", short: "Wall", glyph: "", color: "#44403C", category: "infra", w: 3, d: 3, h: 8 },
       column: { id: 24, key: "", name: "Structural Column", short: "Column", glyph: "🏛️", color: "#292524", category: "infra", w: 2, d: 2, h: 12 },
       entry: { id: 6, key: "6", name: "Entry Door", short: "Entry", glyph: "▶", color: "#16A34A", category: "infra", w: 3, d: 0.5, h: 7 },
       exit: { id: 7, key: "7", name: "Exit Shutter", short: "Exit", glyph: "◀", color: "#DC2626", category: "infra", w: 6, d: 1, h: 8 },
@@ -6622,9 +6620,11 @@
           ensureCellsArray(newSite);
           newSite._genParams = Object.assign(
             defaultGenParams(),
-            { dockInBays, dockOutBays, dockBays: dockInBays + dockOutBays, dockSeparate: true,
+            {
+              dockInBays, dockOutBays, dockBays: dockInBays + dockOutBays, dockSeparate: true,
               ordersPerDay, destinationHubs, outboundLanes: destinationHubs > 0,
-              visionRooms: roomList, sortCount: sortStationCount || undefined },
+              visionRooms: roomList, sortCount: sortStationCount || undefined
+            },
             ...Object.values(visionAnswered).map(a => a.patch)
           );
           newSite._businessContext = { ordersPerDay, destinationHubs };
@@ -9482,11 +9482,12 @@
           if (def.category === "storage" && !layerVisibility.storage) continue;
           if (def.category === "equip" && !layerVisibility.equipment) continue;
           if (def.category === "ops" && !layerVisibility.operations) continue;
-          drawPaintCell(g, c, r, def, site.rots[r * site.cols + c] || 0);
+          const customDim = site.cellDims && site.cellDims[r * site.cols + c];
+          drawPaintCell(g, c, r, def, site.rots[r * site.cols + c] || 0, customDim);
         }
       }
 
-      // Grid lines
+      // Grid lines (Each box is exactly 6x6 ft)
       if (gridLinesVisible) {
         g.strokeStyle = isDark ? "rgba(255,255,255,.08)" : "rgba(30,27,20,.06)"; g.lineWidth = 1; g.beginPath();
         for (let c = 0; c <= site.cols; c++) { g.moveTo(c * cellPx + .5, 0); g.lineTo(c * cellPx + .5, H); }
@@ -9499,25 +9500,52 @@
         site.zones.forEach(z => drawZone(g, z, z.id === selectedZoneId));
       }
 
-      // Selected Object Highlight (Figma/Canva style)
+      // Selected Object Highlight (Figma/Canva style synced to exact item dimensions)
       if (selectedCell) {
         const sx = selectedCell.c * cellPx, sy = selectedCell.r * cellPx;
-        g.strokeStyle = "#3B82F6"; g.lineWidth = 2.5;
-        g.strokeRect(sx + 1, sy + 1, cellPx - 2, cellPx - 2);
-        // Corner resize handles
-        const hs = 6;
-        g.fillStyle = "#3B82F6";
-        g.fillRect(sx - hs / 2, sy - hs / 2, hs, hs);
-        g.fillRect(sx + cellPx - hs / 2, sy - hs / 2, hs, hs);
-        g.fillRect(sx - hs / 2, sy + cellPx - hs / 2, hs, hs);
-        g.fillRect(sx + cellPx - hs / 2, sy + cellPx - hs / 2, hs, hs);
+        const v = site.cells[selectedCell.r * site.cols + selectedCell.c];
+        const def = v ? PAINT_BY_ID[v] : null;
+        if (def) {
+          const customDim = site.cellDims && site.cellDims[selectedCell.r * site.cols + selectedCell.c];
+          const itemW = (customDim && customDim.w != null) ? customDim.w : (def.w || 2);
+          const itemD = (customDim && customDim.d != null) ? customDim.d : (def.d || 2);
+          const w = Math.max(4, (itemW / CELL_FT) * cellPx);
+          const h = Math.max(4, (itemD / CELL_FT) * cellPx);
+          const ox = sx + cellPx / 2 - w / 2;
+          const oy = sy + cellPx / 2 - h / 2;
+          g.strokeStyle = "#3B82F6"; g.lineWidth = 2;
+          g.strokeRect(ox - 1, oy - 1, w + 2, h + 2);
+          // Corner resize handles
+          const hs = 5;
+          g.fillStyle = "#3B82F6";
+          g.fillRect(ox - hs / 2, oy - hs / 2, hs, hs);
+          g.fillRect(ox + w - hs / 2, oy - hs / 2, hs, hs);
+          g.fillRect(ox - hs / 2, oy + h - hs / 2, hs, hs);
+          g.fillRect(ox + w - hs / 2, oy + h - hs / 2, hs, hs);
+        } else {
+          g.strokeStyle = "#3B82F6"; g.lineWidth = 2;
+          g.strokeRect(sx + 1, sy + 1, cellPx - 2, cellPx - 2);
+        }
       }
 
       // Multi-Selected Cells Highlight
       if (selectedCells && selectedCells.length > 0) {
         g.strokeStyle = "#3B82F6"; g.lineWidth = 2;
         selectedCells.forEach(sc => {
-          g.strokeRect(sc.c * cellPx + 1, sc.r * cellPx + 1, cellPx - 2, cellPx - 2);
+          const v = site.cells[sc.r * site.cols + sc.c];
+          const def = v ? PAINT_BY_ID[v] : null;
+          if (def) {
+            const customDim = site.cellDims && site.cellDims[sc.r * site.cols + sc.c];
+            const itemW = (customDim && customDim.w != null) ? customDim.w : (def.w || 2);
+            const itemD = (customDim && customDim.d != null) ? customDim.d : (def.d || 2);
+            const w = Math.max(4, (itemW / CELL_FT) * cellPx);
+            const h = Math.max(4, (itemD / CELL_FT) * cellPx);
+            const ox = sc.c * cellPx + cellPx / 2 - w / 2;
+            const oy = sc.r * cellPx + cellPx / 2 - h / 2;
+            g.strokeRect(ox - 1, oy - 1, w + 2, h + 2);
+          } else {
+            g.strokeRect(sc.c * cellPx + 1, sc.r * cellPx + 1, cellPx - 2, cellPx - 2);
+          }
         });
       }
 
@@ -9547,7 +9575,7 @@
           if (nc >= 0 && nc < site.cols && nr >= 0 && nr < site.rows) {
             const def = PAINT_BY_ID[it.val];
             if (def) {
-              drawPaintCell(g, nc, nr, def, it.rot);
+              drawPaintCell(g, nc, nr, def, it.rot, it.customDim);
             }
             g.strokeStyle = "#2563EB";
             g.lineWidth = 1.5;
@@ -9589,14 +9617,15 @@
       // Rack row/column labels
       if (showRackLabels && layerVisibility.storage) {
         computeRackLabels();
-        if (rackLabels.length && cellPx >= 14) {
-          g.font = `700 ${Math.max(9, Math.floor(cellPx * 0.3))}px -apple-system,Segoe UI,Roboto,sans-serif`;
+        if (rackLabels.length && cellPx >= 8) {
+          g.font = `700 ${Math.max(8, Math.floor(cellPx * 0.3))}px -apple-system,Segoe UI,Roboto,sans-serif`;
           g.textAlign = "left"; g.textBaseline = "top";
+          const badgeH = Math.max(9, cellPx * 0.34);
           rackLabels.forEach(l => {
             const x = l.c * cellPx + 2, y = l.r * cellPx + 2;
-            const w = g.measureText(l.label).width + 6;
+            const w = g.measureText(l.label).width + 5;
             g.fillStyle = "rgba(23,23,26,.82)";
-            roundRectPath(g, x - 1, y - 1, w, Math.max(11, cellPx * 0.34), 3); g.fill();
+            roundRectPath(g, x - 1, y - 1, w, badgeH, 2); g.fill();
             g.fillStyle = "#fff"; g.fillText(l.label, x + 2, y + 1);
           });
         }
@@ -9604,11 +9633,11 @@
       g.restore();
 
       // Coordinate rulers
-      if (showCoords && cellPx >= 10) {
+      if (showCoords && cellPx >= 8) {
         g.save();
         g.fillStyle = "#8A8478";
-        g.font = `${Math.max(9, Math.min(11, cellPx * 0.35))}px -apple-system,Segoe UI,Roboto,sans-serif`;
-        const step = cellPx < 18 ? 2 : 1;
+        g.font = `${Math.max(8, Math.min(11, cellPx * 0.35))}px -apple-system,Segoe UI,Roboto,sans-serif`;
+        const step = cellPx < 14 ? 4 : (cellPx < 18 ? 2 : 1);
         g.textAlign = "center"; g.textBaseline = "middle";
         for (let c = 0; c < site.cols; c += step) g.fillText(colName(c), MARGIN + c * cellPx + cellPx / 2, MARGIN / 2 + 2);
         g.textAlign = "right";
@@ -9757,14 +9786,18 @@
       g.strokeStyle = selected ? "#17171A" : "rgba(255,255,255,.5)";
       g.lineWidth = selected ? 2.5 : 1.5;
       roundRectPath(g, x, y, w, h, 6); g.stroke();
-      if (w > 50 && h > 26) {
+      if (w > 28 && h > 16) {
         g.fillStyle = "#fff"; g.textAlign = "left"; g.textBaseline = "top";
-        g.font = `700 12px -apple-system,Segoe UI,Roboto,sans-serif`;
-        g.fillText(z.label || def.name, x + 8, y + 7, w - 16);
-        g.font = `600 10px -apple-system,Segoe UI,Roboto,sans-serif`; g.globalAlpha = .85;
-        const areaStr = currentUnit === "m" ? `${Math.round(z.w * z.h * 0.0929)} m²` : `${Math.round(z.w * z.h)} sq ft`;
-        g.fillText(areaStr, x + 8, y + 23, w - 16);
-        g.globalAlpha = 1;
+        const titleFontSize = Math.max(8, Math.min(12, Math.floor(h * 0.35)));
+        g.font = `700 ${titleFontSize}px -apple-system,Segoe UI,Roboto,sans-serif`;
+        g.fillText(z.label || def.name, x + 5, y + 4, w - 10);
+        if (h > 24) {
+          const subFontSize = Math.max(7, Math.min(10, Math.floor(h * 0.26)));
+          g.font = `600 ${subFontSize}px -apple-system,Segoe UI,Roboto,sans-serif`; g.globalAlpha = .85;
+          const areaStr = currentUnit === "m" ? `${Math.round(z.w * z.h * 0.0929)} m²` : `${Math.round(z.w * z.h)} sq ft`;
+          g.fillText(areaStr, x + 5, y + 4 + titleFontSize + 2, w - 10);
+          g.globalAlpha = 1;
+        }
       }
       if (selected) {
         const hs = 9;
@@ -9784,9 +9817,10 @@
     // office's CCTV feed covers this area (see the "office" zone note in
     // renderPresentation / computeZoneSummary).
     function drawCctvBadge(g, zx, zy, zw, size) {
-      const cx = zx + zw - size * 0.7, cy = zy + size * 0.7;
+      if (size < 12) return;
       g.save();
-      g.fillStyle = "rgba(23,23,26,.85)";
+      const cx = zx + zw - size * 0.6 - 4, cy = zy + size * 0.6 + 4;
+      g.fillStyle = "rgba(15,23,42,0.72)";
       g.beginPath(); g.arc(cx, cy, size * 0.5, 0, Math.PI * 2); g.fill();
       g.fillStyle = "#fff";
       g.font = `${Math.round(size * 0.6)}px -apple-system,Segoe UI,Roboto,sans-serif`;
@@ -9795,12 +9829,16 @@
       g.restore();
     }
 
-    function drawPaintCell(g, c, r, def, rot) {
+    function drawPaintCell(g, c, r, def, rot, customDim) {
       const cx = c * cellPx + cellPx / 2;
       const cy = r * cellPx + cellPx / 2;
-      const pad = Math.max(1, cellPx * 0.07);
-      const w = cellPx - 2 * pad;
-      const h = cellPx - 2 * pad;
+      
+      const itemW = (customDim && customDim.w != null) ? customDim.w : (def.w || 2);
+      const itemD = (customDim && customDim.d != null) ? customDim.d : (def.d || 2);
+      
+      // Calculate exact pixel size scaled to the 6x6 ft grid cell
+      const w = Math.max(4, (itemW / CELL_FT) * cellPx);
+      const h = Math.max(4, (itemD / CELL_FT) * cellPx);
 
       g.save();
       g.translate(cx, cy);
@@ -9809,37 +9847,71 @@
       }
 
       g.fillStyle = def.color;
-      roundRectPath(g, -w / 2, -h / 2, w, h, Math.max(2, cellPx * 0.14));
+      roundRectPath(g, -w / 2, -h / 2, w, h, Math.max(1, Math.min(w, h) * 0.14));
       g.fill();
 
       if (def.id === 8) {
         // Wall hatch
         g.save();
         g.beginPath();
-        roundRectPath(g, -w / 2, -h / 2, w, h, Math.max(2, cellPx * 0.14));
+        roundRectPath(g, -w / 2, -h / 2, w, h, Math.max(1, Math.min(w, h) * 0.14));
         g.clip();
         g.strokeStyle = "rgba(255,255,255,.25)";
-        g.lineWidth = Math.max(1, cellPx * 0.08);
-        for (let i = -cellPx; i < cellPx * 2; i += cellPx / 2.5) {
+        g.lineWidth = Math.max(1, Math.min(w, h) * 0.08);
+        const step = Math.max(3, w / 2.5);
+        for (let i = -w; i < w * 2; i += step) {
           g.beginPath();
           g.moveTo(i, h / 2);
-          g.lineTo(i + cellPx, -h / 2);
+          g.lineTo(i + w, -h / 2);
           g.stroke();
         }
         g.restore();
-      } else if (cellPx >= 15 && def.glyph) {
+      } else if (def.id === 5) {
+        // Conveyor belt chevron pattern
+        g.save();
+        g.strokeStyle = "rgba(255,255,255,.85)";
+        g.lineWidth = Math.max(1, Math.min(w, h) * 0.09);
+        g.lineCap = "round";
+        g.lineJoin = "round";
+        const s = Math.min(w, h) * 0.16;
+        for (const off of [-s * 1.6, 0, s * 1.6]) {
+          g.beginPath();
+          g.moveTo(off - s * 0.6, -s);
+          g.lineTo(off + s * 0.6, 0);
+          g.lineTo(off - s * 0.6, s);
+          g.stroke();
+        }
+        g.restore();
+      } else if (def.id === 6 || def.id === 7) {
+        // Entry / Exit directional arrow
+        g.save();
+        if (def.id === 7) g.rotate(Math.PI);
+        const s = Math.min(w, h) * 0.28;
+        g.fillStyle = "rgba(255,255,255,.9)";
+        g.beginPath();
+        g.moveTo(s * 1.1, 0);
+        g.lineTo(-s * 0.9, -s * 0.9);
+        g.lineTo(-s * 0.3, 0);
+        g.lineTo(-s * 0.9, s * 0.9);
+        g.closePath();
+        g.fill();
+        g.restore();
+      } else if (def.glyph) {
+        const glyphLen = Array.from(def.glyph).length;
+        const fontScale = glyphLen > 1 ? 0.36 : 0.52;
+        const fontSize = Math.max(5, Math.floor(Math.min(w, h) * fontScale));
         g.fillStyle = "#fff";
         g.textAlign = "center";
         g.textBaseline = "middle";
-        g.font = `700 ${Math.floor(cellPx * (def.glyph.length > 2 ? 0.32 : 0.44))}px -apple-system,Segoe UI,Roboto,sans-serif`;
-        g.fillText(def.glyph, 0, cellPx * 0.02);
+        g.font = `700 ${fontSize}px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple Color Emoji","Segoe UI Emoji",sans-serif`;
+        g.fillText(def.glyph, 0, Math.min(w, h) * 0.02, Math.max(3, w - 1));
       }
 
       // If rotated, draw orientation indicator
       if (rot) {
         g.fillStyle = "rgba(255,255,255,0.75)";
         g.beginPath();
-        g.arc(w / 2 - 3, 0, 2.5, 0, Math.PI * 2);
+        g.arc(w / 2 - 2.5, 0, Math.max(1.2, Math.min(2.5, Math.min(w, h) * 0.12)), 0, Math.PI * 2);
         g.fill();
       }
 
@@ -9869,7 +9941,7 @@
     }
 
     /* ---------- Snapshot / Undo ---------- */
-    function snapshotState() { return JSON.stringify({ cells: site.cells, rots: site.rots, zones: site.zones, L: site.L, W: site.W, cols: site.cols, rows: site.rows }); }
+    function snapshotState() { return JSON.stringify({ cells: site.cells, rots: site.rots, cellDims: site.cellDims || {}, zones: site.zones, L: site.L, W: site.W, cols: site.cols, rows: site.rows }); }
     function snapshot() {
       undoStack.push(snapshotState());
       if (undoStack.length > 60) undoStack.shift();
@@ -9878,7 +9950,7 @@
     }
     function applySnap(str) {
       const s = JSON.parse(str);
-      site.cells = s.cells; site.rots = s.rots; site.zones = s.zones;
+      site.cells = s.cells; site.rots = s.rots; site.cellDims = s.cellDims || {}; site.zones = s.zones;
       site.L = s.L; site.W = s.W; site.cols = s.cols; site.rows = s.rows;
       if ($("#ed-dims")) $("#ed-dims").textContent = `${site.L} × ${site.W} ft`;
       sizeCanvas();
@@ -9978,7 +10050,8 @@
               c: c.c,
               r: c.r,
               val: site.cells[c.r * site.cols + c.c],
-              rot: site.rots[c.r * site.cols + c.c] || 0
+              rot: site.rots[c.r * site.cols + c.c] || 0,
+              customDim: site.cellDims ? site.cellDims[c.r * site.cols + c.c] : null
             }))
           };
           redraw();
@@ -10188,6 +10261,7 @@
               const idx = it.r * site.cols + it.c;
               site.cells[idx] = 0;
               site.rots[idx] = 0;
+              if (site.cellDims) delete site.cellDims[idx];
             });
             // 2. Set new positions
             const newSelected = [];
@@ -10196,6 +10270,10 @@
               const idx = nr * site.cols + nc;
               site.cells[idx] = it.val;
               site.rots[idx] = it.rot;
+              if (it.customDim) {
+                site.cellDims = site.cellDims || {};
+                site.cellDims[idx] = Object.assign({}, it.customDim);
+              }
               newSelected.push({ c: nc, r: nr });
             });
             selectedCells = newSelected;
@@ -10241,7 +10319,12 @@
         if (e2 < dx) { err += dx; y0 += sy; }
       }
     }
-    function setPaintCell(c, r, v) { const i = r * site.cols + c; site.cells[i] = v; site.rots[i] = 0; }
+    function setPaintCell(c, r, v) {
+      const i = r * site.cols + c;
+      site.cells[i] = v;
+      site.rots[i] = 0;
+      if (v === 0 && site.cellDims) delete site.cellDims[i];
+    }
     function cellLocked(cell) {
       const cx = cell.c * CELL_FT + CELL_FT / 2, cy = cell.r * CELL_FT + CELL_FT / 2;
       return site.zones.some(z => cx >= z.x && cx <= z.x + z.w && cy >= z.y && cy <= z.y + z.h);
@@ -10334,10 +10417,13 @@
           genView.style.display = "none";
           $("#prop-obj-title").textContent = def.name;
           $("#prop-obj-glyph").textContent = def.glyph || "🗄️";
-          $("#prop-obj-w").value = def.w || CELL_FT;
-          $("#prop-obj-d").value = def.d || CELL_FT;
-          $("#prop-obj-h").value = def.h || 8;
-          $("#prop-obj-levels").value = def.levels || 5;
+          
+          const idx = selectedCell.r * site.cols + selectedCell.c;
+          const custom = site.cellDims && site.cellDims[idx];
+          $("#prop-obj-w").value = custom && custom.w != null ? custom.w : (def.w || 2);
+          $("#prop-obj-d").value = custom && custom.d != null ? custom.d : (def.d || 2);
+          $("#prop-obj-h").value = custom && custom.h != null ? custom.h : (def.h || 8);
+          $("#prop-obj-levels").value = custom && custom.levels != null ? custom.levels : (def.levels || 5);
 
           const rotIdx = site.rots[selectedCell.r * site.cols + selectedCell.c] || 0;
           ["0", "90", "180", "270"].forEach((deg, idx) => {
@@ -10505,19 +10591,47 @@
       };
     });
 
+    // Live Custom Dimensions Editing (Width, Depth, Height, Levels)
+    function updateSelectedObjectProps() {
+      if (!site) return;
+      const targets = (selectedCells && selectedCells.length) ? selectedCells : (selectedCell ? [selectedCell] : []);
+      if (!targets.length) return;
+      site.cellDims = site.cellDims || {};
+      const w = parseFloat($("#prop-obj-w")?.value) || 2;
+      const d = parseFloat($("#prop-obj-d")?.value) || 2;
+      const h = parseFloat($("#prop-obj-h")?.value) || 8;
+      const levels = parseInt($("#prop-obj-levels")?.value, 10) || 1;
+      targets.forEach(cell => {
+        const idx = cell.r * site.cols + cell.c;
+        site.cellDims[idx] = { w: Math.max(0.5, w), d: Math.max(0.5, d), h: Math.max(0.5, h), levels: Math.max(1, levels) };
+      });
+      redraw();
+      queueSave();
+    }
+    $("#prop-obj-w")?.addEventListener("input", updateSelectedObjectProps);
+    $("#prop-obj-d")?.addEventListener("input", updateSelectedObjectProps);
+    $("#prop-obj-h")?.addEventListener("input", updateSelectedObjectProps);
+    $("#prop-obj-levels")?.addEventListener("input", updateSelectedObjectProps);
+
     // Object Duplicate
     $("#prop-obj-dup").addEventListener("click", () => duplicateSelectedObject());
     function duplicateSelectedObject() {
       if (!selectedCell) return;
-      const v = site.cells[selectedCell.r * site.cols + selectedCell.c];
-      const rot = site.rots[selectedCell.r * site.cols + selectedCell.c] || 0;
+      const srcIdx = selectedCell.r * site.cols + selectedCell.c;
+      const v = site.cells[srcIdx];
+      const rot = site.rots[srcIdx] || 0;
       if (!v) return;
       let targetC = selectedCell.c + 1, targetR = selectedCell.r;
       if (targetC >= site.cols) { targetC = selectedCell.c; targetR = selectedCell.r + 1; }
       if (targetR >= site.rows) return toast("Cannot duplicate outside boundary");
       snapshot();
       setPaintCell(targetC, targetR, v);
-      site.rots[targetR * site.cols + targetC] = rot;
+      const targetIdx = targetR * site.cols + targetC;
+      site.rots[targetIdx] = rot;
+      if (site.cellDims && site.cellDims[srcIdx]) {
+        site.cellDims = site.cellDims || {};
+        site.cellDims[targetIdx] = Object.assign({}, site.cellDims[srcIdx]);
+      }
       selectedCell = { c: targetC, r: targetR };
       redraw(); updateStats(); queueSave();
       toast("Duplicated object (Ctrl+D)");
@@ -10544,8 +10658,10 @@
       const gapFt = snap2(Math.max(2, +$("#repeat-gap").value || 4));
       const dir = $("#repeat-dir").value;
       if (!selectedCell) return;
-      const v = site.cells[selectedCell.r * site.cols + selectedCell.c];
-      const rot = site.rots[selectedCell.r * site.cols + selectedCell.c] || 0;
+      const srcIdx = selectedCell.r * site.cols + selectedCell.c;
+      const v = site.cells[srcIdx];
+      const rot = site.rots[srcIdx] || 0;
+      const srcDim = site.cellDims && site.cellDims[srcIdx];
       if (!v) return;
       snapshot();
       const stepCells = Math.round((CELL_FT + gapFt) / CELL_FT);
@@ -10554,7 +10670,12 @@
         const nr = dir === "down" ? selectedCell.r + i * stepCells : selectedCell.r;
         if (nc < site.cols && nr < site.rows && !cellLocked({ c: nc, r: nr })) {
           setPaintCell(nc, nr, v);
-          site.rots[nr * site.cols + nc] = rot;
+          const targetIdx = nr * site.cols + nc;
+          site.rots[targetIdx] = rot;
+          if (srcDim) {
+            site.cellDims = site.cellDims || {};
+            site.cellDims[targetIdx] = Object.assign({}, srcDim);
+          }
         }
       }
       $("#repeat-modal-overlay").style.display = "none";
