@@ -5938,7 +5938,15 @@
     const ZONE_DEFS = {
       dockIn: { name: "Inbound Docking", color: "#2563EB", group: "dock" },
       dockOut: { name: "Outbound Docking", color: "#EA580C", group: "dock" },
-      dock: { name: "Vehicle Docking", color: "#2563EB", group: "dock" },
+      dock: { name: "Shared Gate", color: "#2563EB", group: "dock" },
+      // Gate-flow model (spine/corner/loop shapes): one shared gate handles
+      // both loading and unloading, so goods pass through a fixed sequence
+      // — receiving right behind the gate, then sortation, then bagging,
+      // then a dispatch queue back near the gate — rather than the old
+      // separate-dock model's two independent bands.
+      receiving: { name: "Receiving", color: "#64748B", group: "room" },
+      bagging: { name: "Bagging", color: "#16A34A", group: "room" },
+      dispatchQueue: { name: "Dispatch Queue", color: "#9333EA", group: "room" },
       sorting: { name: "Mini Sorting Center", color: "#0891B2", group: "room" },
       security: { name: "Security Room", color: "#1E293B", group: "room" },
       medical: { name: "Medical / First-Aid", color: "#E11D48", group: "room" },
@@ -5962,7 +5970,7 @@
       frozen: { name: "Frozen Zone", color: "#6366F1", group: "room" },
       riderPark: { name: "Rider Parking", color: "#FB923C", group: "room" },
     };
-    const ZONE_PALETTE_ORDER = ["dockIn", "dockOut", "dock", "inboundStage", "sorting", "outboundLane", "exception", "returns", "staging", "charging", "security", "medical", "conference", "office", "store", "ups", "bathroom", "growth"];
+    const ZONE_PALETTE_ORDER = ["dockIn", "dockOut", "dock", "receiving", "inboundStage", "sorting", "bagging", "dispatchQueue", "outboundLane", "exception", "returns", "staging", "charging", "security", "medical", "conference", "office", "store", "ups", "bathroom", "growth"];
     /* Every zone type that gets packed into the back support band by
        generateDefaultLayout. Shared by the sort-box fill (so boxes are never
        painted underneath one of these) and by costing. Kept as one constant
@@ -5970,6 +5978,7 @@
        up with racking drawn through the middle of a freezer room. */
     const SUPPORT_ZONE_TYPES = new Set(["security", "medical", "bathroom", "conference", "office", "store", "ups",
       "inboundStage", "outboundLane", "exception", "returns", "staging", "charging", "growth",
+      "receiving", "bagging", "dispatchQueue",
       "chilled", "frozen", "riderPark"]);
 
     /* `short` is a palette-only display label — used exclusively in the narrow
@@ -5996,9 +6005,6 @@
       staging: { id: 17, key: "", name: "Staging Area", short: "Staging", glyph: "▦", color: "#A8A29E", category: "ops", w: 4, d: 4, h: 0 },
 
       // Equipment
-      printer: { id: 18, key: "", name: "Thermal Printer", short: "Printer", glyph: "🖨️", color: "#6366F1", category: "equip", w: 1, d: 1, h: 1 },
-      scanner: { id: 19, key: "", name: "Scanner Stand", short: "Scanner", glyph: "⚡", color: "#8B5CF6", category: "equip", w: 1, d: 1, h: 3 },
-      hhd: { id: 20, key: "", name: "HHD Gun", short: "HHD", glyph: "📱", color: "#A855F7", category: "equip", w: 1, d: 1, h: 1 },
       scale: { id: 21, key: "", name: "Weighing Scale", short: "Scale", glyph: "⚖️", color: "#06B6D4", category: "equip", w: 2, d: 2, h: 1 },
       computer: { id: 22, key: "", name: "Computer Station", short: "Computer", glyph: "💻", color: "#3B82F6", category: "equip", w: 2, d: 2, h: 3 },
       ac: { id: 23, key: "", name: "AC Unit / HVAC", short: "AC", glyph: "❄️", color: "#38BDF8", category: "equip", w: 2, d: 1, h: 2 },
@@ -6436,39 +6442,43 @@
       return Object.keys(d).reduce((a, b) => (d[a] < d[b] ? a : b));
     }
     /* Real buildings put doors wherever the wall allows — not necessarily
-       opposite walls, and not necessarily matching the model's own guess at
-       which are "entries" vs "exits". This classifies every detected door by
-       its ACTUAL wall (top/bottom/left/right) rather than trusting the
-       entries/exits split, then decides:
-         - doors on two opposite walls (top+bottom OR left+right) -> through-
-           flow, split by wall (fewer-door wall = inbound, matching the
-           domain default of consolidated inbound / fragmented outbound)
-         - doors on one wall, or on adjacent walls (an L-shaped dock run this
-           tool doesn't yet model as a true corner) -> pooled onto one
-           combined wall, honestly noted as pooled rather than silently
-           misrepresenting the corner as a straight wall. */
+       opposite walls. This classifies every detected door by its ACTUAL
+       wall (top/bottom/left/right), which maps directly onto the three
+       flow shapes (spine/corner/loop): doors on two OPPOSITE walls trace a
+       straight line between them (I · Straight Spine); doors on two
+       ADJACENT walls trace one turn between them (L · Corner Turn); doors
+       on a single wall, or scattered across 3+ walls with no clean pairing,
+       default to the loop (U · Loop-Back), which only needs one wall to
+       work off of. All of them still model one shared gate — this only
+       decides the shape of the path away from it, and the total door count
+       still sizes that gate's width. */
     function inferDockLayout(entries, exits) {
       const all = [...entries, ...exits];
       if (!all.length) {
-        return { flowPattern: "i-flow", inCount: 2, outCount: 2, note: "No doors were detected in the photo — defaulted to 2 inbound / 2 outbound." };
+        return { flowShape: "spine", inCount: 2, outCount: 2, note: "No doors were detected in the photo — defaulted to a 4-door shared gate, Straight Spine shape." };
       }
       const counts = { top: 0, bottom: 0, left: 0, right: 0 };
       all.forEach(d => counts[doorWallSide(d)]++);
       const walls = Object.entries(counts).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
       const opposite = { top: "bottom", bottom: "top", left: "right", right: "left" };
-      if (walls.length === 2 && opposite[walls[0][0]] === walls[1][0]) {
-        const [big, small] = walls;
-        return {
-          flowPattern: "i-flow", inCount: Math.max(1, small[1]), outCount: Math.max(1, big[1]),
-          note: `${big[1]} doors on the ${big[0]} wall, ${small[1]} on the ${small[0]} wall (opposite) — through-flow (I-flow) is set: ${big[1]} outbound, ${small[1]} inbound.`,
-        };
-      }
       const total = all.length;
       const inCount = Math.max(1, Math.round(total * 0.4)), outCount = Math.max(1, total - Math.round(total * 0.4));
-      const note = walls.length > 1
-        ? `${total} doors across ${walls.length} walls (${walls.map(([w]) => w).join(" + ")}) — this tool models one combined dock wall rather than a true corner run, so they're pooled: same-wall (U-flow) is set.`
-        : `${total} doors, all on the ${walls[0][0]} wall of the photo — same-wall (U-flow) is set.`;
-      return { flowPattern: "u-flow", inCount, outCount, note };
+      if (walls.length === 2 && opposite[walls[0][0]] === walls[1][0]) {
+        return {
+          flowShape: "spine", inCount, outCount,
+          note: `${total} doors on opposite walls (${walls[0][0]} + ${walls[1][0]}) — Straight Spine shape is set, sized for a ${total}-door shared gate.`,
+        };
+      }
+      if (walls.length === 2) {
+        return {
+          flowShape: "corner", inCount, outCount,
+          note: `${total} doors on adjacent walls (${walls[0][0]} + ${walls[1][0]}) — Corner Turn shape is set, sized for a ${total}-door shared gate.`,
+        };
+      }
+      const note = walls.length > 2
+        ? `${total} doors across ${walls.length} walls (${walls.map(([w]) => w).join(" + ")}) — no single clean pairing, so Loop-Back is set as the safest shape for a ${total}-door shared gate.`
+        : `${total} doors, all on the ${walls[0][0]} wall of the photo — Loop-Back shape is set, sized for a ${total}-door shared gate.`;
+      return { flowShape: "loop", inCount, outCount, note };
     }
     // Freeform vision-model room types -> valid ZONE_DEFS keys. The vision
     // prompt asks for a matching enum, but this covers whatever it actually
@@ -6535,7 +6545,7 @@
       // informational-only entries (no patch needed here; already applied
       // to _genParams by the caller).
       const answered = {};
-      answered.flow = { patch: { flowPattern: dockLayout.flowPattern, dockSeparate: true }, note: dockLayout.note };
+      answered.flow = { patch: { flowShape: dockLayout.flowShape }, note: dockLayout.note };
       const racks = Array.isArray(data.racks) ? data.racks : [];
       if (racks.length > 0) {
         const hasPallet = racks.some(r => r.type === "palletrack");
@@ -7689,24 +7699,31 @@
       const peakBoxes = Math.max(1, Math.round(boxes / winH * dwellH));
       const D = [];
 
-      // ---- 1. Where the doors are. A building fact only they can confirm, but
-      // framed as its consequence rather than as jargon.
+      // ---- 1. What shape the building is. One shared gate handles both
+      // loading and unloading either way (a real truck court, one leveler
+      // bank) — what changes is the SHAPE the goods trace from that gate to
+      // sortation and bagging and back, which depends only on the building's
+      // footprint, not on volume or destinations.
       D.push({
         id: "flow",
-        title: "Where do your trucks come and go?",
-        why: "This decides whether goods travel straight through the building or double back on themselves.",
+        title: "What shape is your building?",
+        why: "This decides the shape goods trace from the gate to sortation and bagging and back — pick whichever fits your footprint.",
         options: [
           {
-            key: "i-flow", label: "Opposite ends", detail: "Unload one end, load the other. Boxes only ever travel one direction.",
-            metrics: [["Cross-traffic", "None"], ["Best for", "Most sort hubs"]], patch: { flowPattern: "i-flow", dockSeparate: true }
+            key: "spine", label: "I · Straight Spine", detail: "Long, narrow building, gate centered on the short wall. Goods go straight back to bagging, no turns.",
+            metrics: [["Turns", "None"], ["Best for", "Long & narrow, has depth to spare"]], patch: { flowShape: "spine" }
           },
           {
-            key: "u-flow", label: "Same side", detail: "All doors on one wall. Necessary if the building only has doors on one side.",
-            metrics: [["Cross-traffic", "Inbound meets outbound"], ["Best for", "Single-wall buildings"]], patch: { flowPattern: "u-flow", dockSeparate: true }
+            key: "corner", label: "L · Corner Turn", detail: "Gate off to one side. Goods go in, turn once, reach sortation and bagging in the far corner.",
+            metrics: [["Turns", "One 90°"], ["Best for", "L-shaped or corner-constrained"]], patch: { flowShape: "corner" }
+          },
+          {
+            key: "loop", label: "U · Loop-Back", detail: "Wide, shallow building, gate centered. Goods loop up one wall, across the back, down the other, ending near the gate.",
+            metrics: [["Turns", "Two 90°"], ["Best for", "Wide & shallow, gate centered"]], patch: { flowShape: "loop" }
           },
         ],
-        recommend: "i-flow",
-        rationale: "Through-flow is the default for sortation because arriving and departing vehicles never cross. Only pick same-side if the building physically has doors on one wall.",
+        recommend: "spine",
+        rationale: "Straight Spine is the default because it's the shortest, most legible process line and the cheapest single conveyor run. Pick Corner Turn if the building or the gate itself can't sit mid-wall, or Loop-Back if the plot is wide and shallow rather than long and narrow.",
       });
 
       /* ---- 2. How boxes move. Asked BEFORE lanes because it sets the aisle
@@ -8013,16 +8030,18 @@
       if (shared > 0) risks.push(`Only ${lanes} lanes fit at the width you chose, so ${shared + 1} destinations share one. Confirm those are your lowest-volume routes.`);
       if (!m.aisleOk) risks.push(`Pick aisles are ${m.aisleWidthFt} ft, below the ${MIN_AISLE_FT} ft working minimum — tight for two-way movement.`);
       if (m.hiddenMarks > 0) risks.push(`${m.hiddenMarks} of the fixed points you marked ended up under a zone. Check those columns or walls before finalising.`);
-      if (p.flowPattern === "u-flow") risks.push("Doors are on one wall, so arriving and departing vehicles share the yard — schedule inbound and outbound in separate windows if you can.");
+      risks.push("One shared gate handles both directions — schedule inbound and outbound trucks into separate windows so they don't queue into each other at the leveler.");
       if (!risks.length) risks.push("Nothing structural stands out. Verify column positions and door heights on site before building.");
       const eqLabel = { manual: "hand-carry", trolley: "trolleys", cage: "roll-cages", forklift: "forklifts" }[p.handlingEquipment] || "trolleys";
       const sortLabel = { manual: "manual sort into cages", semiauto: "conveyor with manual divert", automated: "an automated sorter" }[p.sortationMethod] || "manual sort";
+      const shapeLabel = { spine: "Straight Spine", corner: "Corner Turn", loop: "Loop-Back" }[p.flowShape] || "Straight Spine";
+      const shapeDesc = { spine: "straight back to bagging at the far wall", corner: "in, one turn, then to bagging in the far corner", loop: "up one wall, across the back, and down the other to bagging near the gate" }[p.flowShape] || "straight back to bagging at the far wall";
       $("#dq-body").innerHTML = `
     <div class="dq-note">
       <h5>The design</h5>
-      A ${fmtNum(site.L * site.W)} sq ft ${p.flowPattern === "i-flow" ? "through-flow" : "single-wall"} sort hub.
-      Boxes arrive ${p.flowPattern === "i-flow" ? "at one end" : "on the dock wall"}, move by ${escapeHtml(eqLabel)} through ${escapeHtml(sortLabel)},
-      stage in ${lanes} outbound lane${lanes === 1 ? "" : "s"}, and load out${p.flowPattern === "i-flow" ? " at the opposite end" : ""}.
+      A ${fmtNum(site.L * site.W)} sq ft ${escapeHtml(shapeLabel)} sort hub, one shared gate for both directions.
+      Boxes arrive at the gate, move by ${escapeHtml(eqLabel)} through receiving and ${escapeHtml(sortLabel)} — the path runs ${escapeHtml(shapeDesc)} —
+      stage in ${lanes > 0 ? `${lanes} outbound lane${lanes === 1 ? "" : "s"}` : "the dispatch queue"}, and load back out the same gate.
       ${p.growthHeadroomPct > 0 ? `${p.growthHeadroomPct}% of the floor is held back for growth.` : ""}
       The centre of the floor is left open on purpose — that's your sortation working area and it needs to stay clear.
     </div>
@@ -8164,9 +8183,15 @@
        LAYOUT ALGORITHM
     ===================================================================== */
     function packBackRooms(roomTypes, roomDepth, L, alignRight) {
+      // w is snapped to the grid ONCE, here, and used as-is everywhere below
+      // (both for the pushed zone and for advancing cursorX). Clamping to a
+      // hardcoded floor smaller than CELL_FT and re-snapping afterward (the
+      // previous code did both) can silently change the value between the
+      // two — e.g. floor 8 re-snapped to 9 at CELL_FT=3 — while cursorX kept
+      // advancing by the pre-snap number, so boxes drifted into each other.
       const boxes = roomTypes.map(([type, area, label]) => {
         const h = roomDepth;
-        const w = clamp(snap2(area / h), 8, L * 0.5);
+        const w = snap2(clamp(Math.round(area / h), CELL_FT, L * 0.5));
         return { type, w, h, label };
       });
       let rowY = 0, cursorX = alignRight ? L : 0, rowMaxH = roomDepth, placedAny = false;
@@ -8174,16 +8199,59 @@
       boxes.forEach(b => {
         if (alignRight) {
           if (cursorX - b.w < 0) { cursorX = L; rowY += rowMaxH; }
-          backWallZones.push(mkZone(b.type, snap2(cursorX - b.w), snap2(rowY), snap2(b.w), snap2(b.h), b.label));
+          backWallZones.push(mkZone(b.type, cursorX - b.w, rowY, b.w, b.h, b.label));
           cursorX -= b.w;
         } else {
           if (cursorX + b.w > L) { cursorX = 0; rowY += rowMaxH; }
-          backWallZones.push(mkZone(b.type, snap2(cursorX), snap2(rowY), snap2(b.w), snap2(b.h), b.label));
+          backWallZones.push(mkZone(b.type, cursorX, rowY, b.w, b.h, b.label));
           cursorX += b.w;
         }
         placedAny = true;
       });
       return { zones: backWallZones, depth: placedAny ? snap2(rowY + rowMaxH) : 0 };
+    }
+    /* Same idea as packBackRooms but stacked top-to-bottom in a fixed-width
+       side column instead of left-to-right in a fixed-depth band — the
+       gate-flow shapes (corner, loop) put support rooms in side margins
+       next to the sortation core, not in one horizontal band, so the axes
+       need to be transposed. Wraps into a second column if the room group
+       runs past maxH, same wrap-then-stack behavior as packBackRooms. */
+    function packColumn(roomTypes, colW, x0, y0, maxH) {
+      // Same single-snap fix as packBackRooms — h is snapped once and used
+      // as-is for both the pushed zone and cursorY, so the two can't drift
+      // apart the way a re-snapped-after-clamp value would.
+      const w = snap2(Math.max(CELL_FT, colW));
+      const boxes = roomTypes.map(([type, area, label]) => {
+        const h = snap2(clamp(Math.round(area / w), CELL_FT, Math.max(CELL_FT, maxH)));
+        return { type, w, h, label };
+      });
+      let cursorY = 0, colX = x0, colMaxW = w, placedAny = false;
+      const zones = [];
+      boxes.forEach(b => {
+        if (cursorY + b.h > maxH && cursorY > 0) { colX += colMaxW; cursorY = 0; }
+        zones.push(mkZone(b.type, colX, y0 + cursorY, b.w, b.h, b.label));
+        cursorY += b.h;
+        placedAny = true;
+      });
+      return { zones, width: placedAny ? snap2(colX + colMaxW - x0) : 0 };
+    }
+    /* packColumn wraps into a second column once a room group runs past
+       maxH — fine when there's real floor to the side, but a side MARGIN
+       only ever has room for one column; a second one lands past the edge
+       of the building. Pre-shrinks the room list (same generic-zones-first
+       priority as everywhere else) so it's guaranteed to fit in a single
+       column before packColumn ever runs, instead of silently overflowing
+       the wall. */
+    function fitColumnRooms(rooms, colW, maxH, dropOrder) {
+      const w = snap2(Math.max(CELL_FT, colW));
+      let list = rooms.slice();
+      const totalH = () => list.reduce((sum, [, area]) => sum + snap2(clamp(Math.round(area / w), CELL_FT, Math.max(CELL_FT, maxH))), 0);
+      let dropIdx = 0;
+      while (totalH() > maxH && dropIdx < dropOrder.length) {
+        list = list.filter(([type]) => type !== dropOrder[dropIdx]);
+        dropIdx++;
+      }
+      return list;
     }
     /* How many manager-marked obstacle cells (walls/columns/restricted zones/
        entry/exit — anything already painted onto s.cells before generation
@@ -8199,15 +8267,24 @@
       return n;
     }
 
+    /* =====================================================================
+       GATE-FLOW GENERATOR — replaces the old separate-inbound/outbound-dock
+       model. Reference: a manager-supplied floor-plan spec (three named
+       shapes — I/Straight Spine, L/Corner Turn, U/Loop-Back) built around one
+       hard constraint that holds across all three: a SINGLE shared gate
+       handles both loading and unloading (real small-to-mid mother hubs run
+       this way — one truck court, one leveler bank, trucks queue for
+       whichever direction is next), and Security is a gate cabin at the
+       point of entry, not a room competing for interior floor space. Goods
+       then move Receiving → (conveyor gap) → Sortation → Bagging → Dispatch
+       queue → back out the same gate. The three shapes only change the
+       SHAPE that path traces across the floor — chosen to fit the building's
+       footprint, not the goods themselves.
+    ===================================================================== */
     function generateDefaultLayout(s, input) {
       const L = s.L, W = s.W;
-      const zones = [];
-      // 12 ft center-to-center is the accepted floor for dock door spacing;
-      // 14 ft is preferred once door count climbs high enough that adjacent-
-      // door MHE traffic starts to interfere with itself (set by the doors
-      // decision once total doors exceeds ~30).
       const bayW = input.doorSpacingFt || 12;
-      const MIN_BAND = 10;
+      const MIN_BAND = 8;
 
       // A blueprint upload supplies its own room list — real names, real
       // types, real relative sizes, in the order they actually sit along the
@@ -8223,220 +8300,402 @@
         if (input.rooms.store.on) roomTypes.push(["store", roomAreaSqft("store", input.rooms.store), ZONE_DEFS.store.name]);
         if (input.rooms.ups.on) roomTypes.push(["ups", roomAreaSqft("ups", input.rooms.ups), ZONE_DEFS.ups.name]);
       }
-      // ---- zones unlocked by the deep clarifying-question round ----
-      // Each only appears when the manager's answers actually called for it, so
-      // the drawing visibly reflects what they told us rather than always
-      // rendering the same template. Sized as a share of the real floor area
-      // (not a fixed box) since a frozen room in a mother hub and one in a
-      // small dark store are wildly different things.
       const floorSqft = L * W;
-      // Sized as a scan/induction buffer, not a second dock — it only needs
-      // to hold what's mid-scan between the door and sortation, not a wave's
-      // worth of floor. At 7% it was landing the same order of magnitude as
-      // the dock zone itself, and painted the same blue family, so the two
-      // read as one oversized inbound mass instead of a dock plus a small
-      // buffer behind it.
       if (input.inboundStaging) roomTypes.push(["inboundStage", clamp(Math.round(floorSqft * 0.03), 100, 1800), ZONE_DEFS.inboundStage.name]);
       if (input.exceptionArea) roomTypes.push(["exception", clamp(Math.round(floorSqft * 0.025), 60, 1200), ZONE_DEFS.exception.name]);
       if (input.returnsArea) roomTypes.push(["returns", clamp(Math.round(floorSqft * 0.035), 80, 2000), ZONE_DEFS.returns.name]);
       if (input.stagingArea) roomTypes.push(["staging", clamp(Math.round(floorSqft * 0.06), 120, 3500), ZONE_DEFS.staging.name]);
       if (input.chargingArea) roomTypes.push(["charging", clamp(Math.round(floorSqft * 0.02), 60, 600), ZONE_DEFS.charging.name]);
       if (input.growthHeadroomPct > 0) roomTypes.push(["growth", Math.round(floorSqft * (input.growthHeadroomPct / 100)), ZONE_DEFS.growth.name]);
-      if (input.pedestrianEntry === "right") roomTypes.reverse();
-      // Drop lowest-priority zones first if the site is too tight to fit everything.
-      // Named business rooms — Security, Medical, Conference, Office, Store,
-      // UPS, Bathroom — are what a manager actually asked for (by toggle, or
-      // by them being real photographed spaces in an uploaded blueprint).
-      // inboundStage/exception/staging/returns/charging/growth are generic,
-      // auto-sized flow buffers nobody specifically asked to see at a given
-      // size — they give way first when space is tight, same as growth
-      // headroom always has. Security and Medical stay protected longest —
-      // they're structural, and a site with neither is a broken layout, not
-      // a tight one.
-      const dropOrder = ["growth", "charging", "staging", "returns", "inboundStage", "exception", "conference", "ups", "store", "office", "bathroom", "medical", "security"];
 
-      // Ideal band depths, then a scale-to-fit safety pass so dock + sorting + back-room
-      // band never exceeds the site depth (small sites would otherwise overlap bands).
-      // Through-flow puts a SECOND dock band on the opposite wall, so the depth
-      // budget has to pay for both — otherwise the fit pass thinks there's room
-      // it hasn't got and downstream bands (outbound lanes) silently vanish.
-      const throughFlow = input.flowPattern === "i-flow" && input.dockSeparate;
-      let dockDepth = snap2(clamp(Math.round(W * 0.32), MIN_BAND, throughFlow ? 28 : 40));
-      let sortDepth = snap2(clamp(Math.round(W * 0.2), MIN_BAND, 32));
-      let roomDepth = snap2(clamp(Math.round(W * 0.22), MIN_BAND, 26));
-      let backPack = packBackRooms(roomTypes, roomDepth, L);
-      const budget = W * 0.94;
-      const dockBands = throughFlow ? 2 : 1;
-      const LANE_BAND_RESERVE = (input.outboundLanes && input.destinationHubs > 0)
-        ? snap2(clamp(input.laneDepthFt || Math.round(W * 0.14), MIN_BAND, 40)) : 0;
-      for (let i = 0; i < 3; i++) {
-        const total = dockDepth * dockBands + sortDepth + backPack.depth + LANE_BAND_RESERVE;
-        if (total <= budget || (dockDepth <= MIN_BAND && sortDepth <= MIN_BAND && roomDepth <= MIN_BAND)) break;
-        const scale = Math.max(0.5, budget / total);
-        dockDepth = snap2(Math.max(MIN_BAND, Math.round(dockDepth * scale)));
-        sortDepth = snap2(Math.max(MIN_BAND, Math.round(sortDepth * scale)));
-        roomDepth = snap2(Math.max(MIN_BAND, Math.round(roomDepth * scale)));
-        backPack = packBackRooms(roomTypes, roomDepth, L);
-      }
-      // The proportional pass above snaps every band to a 2 ft grid, so a
-      // small remaining overshoot (a handful of feet) can survive all 3
-      // iterations unchanged — 2 ft is too coarse a step to converge on a
-      // few feet of slack. Left alone, that residual overshoot used to fall
-      // straight through to the drop loop below, which — because rooms that
-      // still fit in a single packed row don't get any shallower as they're
-      // removed one at a time — ended up deleting EVERY room, right down to
-      // Security, just to close a gap of a few feet. Shaving the bands
-      // 2 ft at a time first closes that gap without touching a single room.
-      let shaveGuard = 0;
-      while (dockDepth * dockBands + sortDepth + backPack.depth + LANE_BAND_RESERVE > budget
-        && (dockDepth > MIN_BAND || sortDepth > MIN_BAND || roomDepth > MIN_BAND)
-        && shaveGuard++ < 60) {
-        if (roomDepth >= dockDepth && roomDepth >= sortDepth && roomDepth > MIN_BAND) {
-          roomDepth -= CELL_FT;
-          backPack = packBackRooms(roomTypes, roomDepth, L);
-        } else if (sortDepth >= dockDepth && sortDepth > MIN_BAND) {
-          sortDepth -= CELL_FT;
-        } else if (dockDepth > MIN_BAND) {
-          dockDepth -= CELL_FT;
-        } else {
-          break;
-        }
-      }
-      // still doesn't fit even at minimum band depths: the site is too tight for every
-      // room at once — drop the lowest-priority ones until the bands stop overlapping
-      let dropIdx = 0;
-      while (dockDepth * dockBands + sortDepth + backPack.depth + LANE_BAND_RESERVE > budget && dropIdx < dropOrder.length) {
-        roomTypes = roomTypes.filter(([type]) => type !== dropOrder[dropIdx]);
-        dropIdx++;
-        backPack = packBackRooms(roomTypes, roomDepth, L);
-      }
-      // Obstacle-aware placement: the room row can pack left-to-right (default)
-      // or right-to-left — same total footprint either way, just mirrored. If
-      // the manager marked walls/columns/restricted areas on the canvas, try
-      // both and keep whichever hides fewer of those marks under a room. Ties
-      // (most commonly: no marks at all) keep the default left-packed layout.
-      const backPackAlt = packBackRooms(roomTypes, roomDepth, L, true);
-      if (countMarkedObstaclesInZones(s, backPackAlt.zones) < countMarkedObstaclesInZones(s, backPack.zones)) {
-        backPack = backPackAlt;
-      }
-      const backWallZones = backPack.zones;
-      const backBandDepth = backPack.depth;
+      // Security is a gate cabin, not an interior room — pulled out of the
+      // generic room list so it always gets placed right at the gate,
+      // never competes for room-pocket space, and can never be dropped by
+      // a tight-fit pass. Real photo evidence of a security room still
+      // sizes the cabin (secArea/secLabel below); a toggle-only site gets a
+      // sane fixed default.
+      const secIdx = roomTypes.findIndex(r => r[0] === "security");
+      const securityRoom = secIdx >= 0 ? roomTypes.splice(secIdx, 1)[0] : null;
+      const secArea = securityRoom ? securityRoom[1] : 110;
+      const secLabel = securityRoom ? securityRoom[2] : ZONE_DEFS.security.name;
 
-      // ---- Docking ----
-      // I-flow (through-flow) is the cross-dock default and it has to be REAL
-      // geometry, not a label: inbound doors go on the top wall, outbound on the
-      // bottom, so boxes travel one direction only — in, sort, stage, out — and
-      // arriving and departing vehicles never cross. U-flow keeps both on the
-      // bottom wall, which is right only when the building genuinely has doors
-      // on one side. dockTopY is the ceiling of the outbound band either way,
-      // so everything downstream (sorting, lanes) keeps working unchanged.
-      let dockTopY, inboundBandDepth = 0;
-      if (throughFlow) {
-        // Inbound trunk/linehaul vehicles are fewer and larger than outbound
-        // last-mile vans, so they need more forward clearance at the door —
-        // asymmetric split of the same total depth budget the fit-loop above
-        // already reserved (1.15 + 0.85 = 2.0 = dockBands), not extra floor.
-        const inDockDepth = snap2(dockDepth * 1.15);
-        const outDockDepth = snap2(dockDepth * 0.85);
-        const inW = clamp(input.dockInBays * bayW, bayW, L * 0.92);
-        const outW = clamp(input.dockOutBays * bayW, bayW, L * 0.92);
-        zones.push(mkZone("dockIn", snap2((L - inW) / 2), 0, snap2(inW), inDockDepth, "Inbound Docking"));
-        inboundBandDepth = inDockDepth;
-        dockTopY = snap2(W - outDockDepth);
-        zones.push(mkZone("dockOut", snap2((L - outW) / 2), dockTopY, snap2(outW), outDockDepth, "Outbound Docking"));
-      } else if (input.dockSeparate) {
-        const inW = clamp(input.dockInBays * bayW, bayW, L * 0.85);
-        const outW = clamp(input.dockOutBays * bayW, bayW, L * 0.85);
-        const totalW = Math.min(L, inW + outW);
-        const ratio = inW / (inW + outW);
-        const w1 = Math.round(totalW * ratio / CELL_FT) * CELL_FT || CELL_FT;
-        const w2 = snap2(totalW - w1);
-        const startX = snap2((L - (w1 + w2)) / 2);
-        dockTopY = snap2(W - dockDepth);
-        zones.push(mkZone("dockIn", startX, dockTopY, w1, dockDepth, "Inbound Docking"));
-        zones.push(mkZone("dockOut", startX + w1, dockTopY, w2, dockDepth, "Outbound Docking"));
-      } else {
-        const w = clamp(input.dockBays * bayW, bayW, L * 0.9);
-        const startX = snap2((L - w) / 2);
-        dockTopY = snap2(W - dockDepth);
-        zones.push(mkZone("dock", startX, dockTopY, snap2(w), dockDepth, "Vehicle Docking"));
-      }
-      // In through-flow the support band sits below the inbound dock, not at y=0.
-      if (inboundBandDepth > 0) {
-        backWallZones.forEach(z => { z.y = snap2(z.y + inboundBandDepth); });
-      }
+      // Generic, auto-sized filler zones give way first if a room pocket
+      // runs tight — named business rooms are what the manager actually
+      // asked for (by toggle, or by being a real photographed room).
+      const dropOrder = ["growth", "charging", "staging", "returns", "inboundStage", "exception", "conference", "ups", "store", "office", "bathroom", "medical"];
 
-      // ---- Sorting (directly above docking) ----
       const tier = throughputTier(input.ordersPerDay);
       // A blueprint upload can show the real number of sortation/segregation
-      // stations (one per destination, e.g. S1-S5) — use that directly
-      // instead of guessing a count from throughput alone. Absent that, a
-      // real mother hub runs one segregation box per destination hub/city
-      // it dispatches to (that's the actual point of sortation), so that's
-      // the next-best default — only falling back to a throughput-tier
-      // guess when neither the photo nor a destination count is known.
+      // stations (one per destination, e.g. S1-S5) — use that directly.
+      // Absent that, a real mother hub runs one segregation box per
+      // destination hub/city it dispatches to, which is the next-best
+      // default — only falling back to a throughput-tier guess when neither
+      // the photo nor a destination count is known.
       const sortCount = clamp(input.sortCount || input.destinationHubs || { low: 1, med: 2, high: 3 }[tier], 1, 24);
       const sortAreaEach = { low: 300, med: 450, high: 600 }[tier];
-      // Flow order down the plan must be: sort → stage in lanes → load. The lane
-      // band is reserved directly above the outbound dock, and sortation is lifted
-      // to sit above it, rather than sortation hugging the dock.
-      const laneBandDepthPlanned = (input.outboundLanes && input.destinationHubs > 0) ? LANE_BAND_RESERVE : 0;
-      const sortTopY = snap2(dockTopY - laneBandDepthPlanned - sortDepth);
-      let sortTotalW = clamp(Math.round((sortAreaEach * sortCount) / sortDepth / CELL_FT) * CELL_FT, CELL_FT, L * 0.92);
-      let sx = snap2(Math.max(0, (L - sortTotalW) / 2));
-      const eachW = snap2(sortTotalW / sortCount) || CELL_FT;
-      for (let i = 0; i < sortCount; i++) {
-        zones.push(mkZone("sorting", sx + i * eachW, sortTopY, eachW, sortDepth, sortCount > 1 ? `Sortation Area ${i + 1}` : "Sortation Area"));
-      }
+      let sortDepth = snap2(clamp(Math.round(W * 0.2), MIN_BAND, 32));
 
-      // ---- Outbound marshalling lanes — one per destination hub ----
-      // The heart of a cross-dock sort hub: boxes leave sortation and are staged
-      // in a dedicated lane per downstream destination until that vehicle loads.
-      // Drawn as a row of narrow lanes immediately upstream of the dock band so
-      // the sort → stage → load flow reads left-to-right on the plan. Lane count
-      // is capped by what physically fits at a usable width rather than silently
-      // drawing 60 slivers a person could not walk down.
-      const supportBandBottom = backBandDepth + inboundBandDepth;
+      // One shared gate — total physical door count (from the doors decision,
+      // or the sum of vision-detected entries+exits) sets its width, same as
+      // before, but there is exactly one leveler bank, not a split in/out pair.
+      const dockBaysTotal = Math.max(1, Math.round(input.dockBays || (input.dockInBays || 0) + (input.dockOutBays || 0) || 2));
+      const gateW = snap2(clamp(dockBaysTotal * bayW, bayW, L * 0.6));
+      const gateDepth = snap2(clamp(Math.round(W * 0.14), MIN_BAND, 22));
+      const secW = snap2(clamp(Math.round(Math.sqrt(secArea * 1.6)), 10, gateW));
+      const secDepth = snap2(clamp(Math.round(secArea / Math.max(secW, 1)), 8, gateDepth));
+      const receivingDepth = snap2(clamp(Math.round(W * 0.11), MIN_BAND, 18));
+      const baggingDepth = snap2(clamp(Math.round(W * 0.13), MIN_BAND, 20));
+      const dispatchDepth = snap2(clamp(Math.round(W * 0.11), MIN_BAND, 18));
+      // The gap a conveyor runs through between receiving and sortation —
+      // manual sort has no belt, so no gap is reserved for one.
+      const convGap = input.sortationMethod === "manual" ? 0 : snap2(clamp(Math.round(W * 0.03), CELL_FT, 8));
       const laneCount = (input.outboundLanes && input.destinationHubs > 0) ? input.destinationHubs : 0;
-      if (laneCount > 0) {
-        const laneBandDepth = laneBandDepthPlanned;
-        const laneBandTop = snap2(dockTopY - laneBandDepth);
-        if (laneBandDepth > 0 && laneBandTop >= sortTopY + sortDepth - 0.001 && laneBandTop >= supportBandBottom) {
-          const MIN_LANE_W = input.laneWidthFt || 8; // ft — set by the lane-strategy decision
-          const fitLanes = Math.max(1, Math.min(laneCount, Math.floor((L * 0.96) / MIN_LANE_W)));
-          const laneW = snap2(Math.max(MIN_LANE_W, (L * 0.96) / fitLanes));
-          const laneStartX = snap2(Math.max(0, (L - laneW * fitLanes) / 2));
-          for (let i = 0; i < fitLanes; i++) {
-            zones.push(mkZone("outboundLane", laneStartX + i * laneW, laneBandTop, laneW, laneBandDepth,
-              fitLanes < laneCount && i === fitLanes - 1 ? `Lanes ${i + 1}-${laneCount}` : `Lane ${i + 1}`));
-          }
-          s._laneNote = fitLanes < laneCount
-            ? `${laneCount} destinations requested; ${fitLanes} lanes fit at a usable ${laneW} ft width — the last lane is shared.`
-            : "";
-        } else {
-          s._laneNote = "Not enough depth left for outbound lanes — they were left out.";
-        }
-      } else { s._laneNote = ""; }
+      const laneWidthFt = input.laneWidthFt || 8;
 
-      // ---- back-wall support rooms (already packed above during the fit pass) ----
-      zones.push(...backWallZones);
+      const ctx = { L, W, MIN_BAND, roomTypes, dropOrder, secArea, secLabel, secW, secDepth,
+        gateW, gateDepth, receivingDepth, baggingDepth, dispatchDepth, convGap,
+        sortCount, sortAreaEach, sortDepth, laneCount, laneWidthFt, s };
 
-      // The sortation method decision has a real physical footprint: manual
-      // sort is hand-carts on open floor (no belt to draw); semiauto runs a
-      // single induction conveyor spine carrying boxes from the inbound side
-      // down to the sorter; automated runs a wider one, matching the bigger
-      // fixed infrastructure a real sorter occupies. This is the open span
-      // between the support-room band and the sortation zone — without it,
-      // every method produced the same drawing regardless of which was
-      // chosen, and that span read as an unexplained empty floor.
+      const shape = input.flowShape || "spine";
+      const built = shape === "corner" ? buildCornerFlow(ctx)
+        : shape === "loop" ? buildLoopFlow(ctx)
+          : buildSpineFlow(ctx);
+
       s._conveyorPlan = {
         method: input.sortationMethod || "manual",
-        fromX: sx, spanW: sortTotalW,
-        top: snap2(supportBandBottom), bottom: sortTopY,
+        fromX: built.sortX, spanW: built.sortW,
+        top: Math.min(built.convA, built.convB), bottom: Math.max(built.convA, built.convB),
       };
       s._pedestrianEntry = input.pedestrianEntry;
+      s._laneNote = built.laneNote || "";
 
-      return zones;
+      return built.zones;
+    }
+    /* Splits leftover roomTypes round-robin into two side groups for a
+       margin-column placement, moving everything to one side if the other
+       margin is too narrow to hold anything — rooms are never silently
+       dropped just because one side of the floor is tight. */
+    function splitRoomsForMargins(roomTypes, leftW, rightW) {
+      let left = [], right = [];
+      roomTypes.forEach((r, i) => (i % 2 === 0 ? left : right).push(r));
+      if (leftW < 8) { right = right.concat(left); left = []; }
+      if (rightW < 8) { left = left.concat(right); right = []; }
+      return { left, right };
+    }
+    /* Lays out sortCount boxes as a grid within a fixed max width, wrapping
+       to additional rows once a single row would run past maxW — the same
+       two-row H1-H5/C1-C4 grid a real cross-dock reference uses, rather than
+       one row that just keeps getting wider. Without this, a large
+       destination-driven sortCount ate the ENTIRE floor width as one long
+       row, leaving zero side margin for the support rooms flanking it
+       (they'd collapse into a single narrow leftover column instead of two
+       real side pockets) — capping row width and wrapping vertically instead
+       keeps a real margin on both sides regardless of destination count. */
+    function layoutSortGrid(sortCount, sortAreaEach, maxW, rowDepth, x0, y0, maxH) {
+      const MIN_BOX_W = 10;
+      let perRow = Math.max(1, Math.min(sortCount, Math.floor(maxW / MIN_BOX_W)));
+      let rows = Math.ceil(sortCount / perRow);
+      // A high destination count with a narrow maxW wraps into many rows —
+      // fine until those rows would run deeper than the building itself.
+      // When a maxH is given, widen the row (narrower boxes, below
+      // MIN_BOX_W if it comes to that) instead of growing past it: a dense
+      // but legible grid beats one that physically doesn't fit the floor.
+      if (maxH) {
+        const maxRows = Math.max(1, Math.floor(maxH / rowDepth));
+        if (rows > maxRows) {
+          rows = maxRows;
+          perRow = Math.ceil(sortCount / rows);
+        }
+      }
+      // eachW is the single source of truth for spacing — rowW is DERIVED
+      // from it (eachW * perRow), never independently rounded. Rounding
+      // rowW and eachW separately let them disagree (eachW*perRow > rowW),
+      // which produced a negative centering offset that mkZone's
+      // Math.max(0, x) floor then clamped on just the leftmost box —
+      // shrinking only its gap to the next box and creating a real overlap.
+      const idealRowW = clamp(Math.round((sortAreaEach * perRow) / rowDepth / CELL_FT) * CELL_FT, CELL_FT, maxW);
+      // Floor, not round, when deriving eachW from maxW — rounding UP here
+      // could push eachW*perRow past maxW by a few feet, which downstream
+      // callers treat as a hard cap when placing whatever comes right after
+      // the grid (bagging in the corner shape) and would then overflow past
+      // the building wall.
+      const eachW = Math.max(CELL_FT, Math.floor(Math.min(idealRowW, maxW) / perRow / CELL_FT) * CELL_FT);
+      const rowW = eachW * perRow;
+      const zones = [];
+      let idx = 0;
+      for (let r = 0; r < rows; r++) {
+        const countThisRow = Math.min(perRow, sortCount - idx);
+        const rowActualW = eachW * countThisRow;
+        const rx = snap2(x0 + (rowW - rowActualW) / 2);
+        for (let c = 0; c < countThisRow; c++) {
+          zones.push(mkZone("sorting", rx + c * eachW, y0 + r * rowDepth, eachW, rowDepth, sortCount > 1 ? `Sortation Area ${idx + 1}` : "Sortation Area"));
+          idx++;
+        }
+      }
+      return { zones, totalW: rowW, totalH: rows * rowDepth, x: snap2(x0 + (maxW - rowW) / 2) };
+    }
+    // ---- I · Straight Spine: gate centered on the near wall, one straight
+    // line back to bagging at the far wall, rooms flank the sort/bagging core.
+    function buildSpineFlow(ctx) {
+      const { L, W, roomTypes, secW, secDepth, secLabel, gateW, gateDepth,
+        receivingDepth, baggingDepth, dispatchDepth, convGap, sortCount, sortAreaEach, sortDepth,
+        laneCount, laneWidthFt } = ctx;
+      const zones = [];
+      const gateX = snap2((L - gateW) / 2), gateY = snap2(W - gateDepth);
+      zones.push(mkZone("dock", gateX, gateY, gateW, gateDepth, "Shared Gate"));
+
+      let secX = gateX - secW - CELL_FT;
+      const secOnLeft = secX >= CELL_FT;
+      if (!secOnLeft) secX = gateX + gateW + CELL_FT;
+      secX = snap2(clamp(secX, 0, L - secW));
+      const secY = snap2(gateY + gateDepth - secDepth);
+      zones.push(mkZone("security", secX, secY, secW, secDepth, secLabel));
+
+      const receivingX = gateX, receivingY = snap2(gateY - receivingDepth);
+      zones.push(mkZone("receiving", receivingX, receivingY, gateW, receivingDepth, "Receiving"));
+
+      // Dispatch sits on the side of the gate away from security, sized to
+      // whatever room is ACTUALLY left on that side — not just clamped
+      // against the full building width L, which could (and did) leave it
+      // wide enough to get pushed back into the gate itself when the gate
+      // already takes up most of a narrow building's frontage.
+      const availRight = Math.max(0, L - (gateX + gateW + CELL_FT));
+      const availLeft = Math.max(0, gateX - CELL_FT);
+      const dispAvail = secOnLeft ? availRight : availLeft;
+      const dispatchW = snap2(clamp(Math.min(gateW * 0.6, dispAvail), Math.min(10, dispAvail), Math.max(CELL_FT, dispAvail)));
+      let dispX = secOnLeft ? gateX + gateW + CELL_FT : gateX - dispatchW - CELL_FT;
+      dispX = snap2(clamp(dispX, 0, L - dispatchW));
+      const dispY = snap2(gateY + gateDepth - dispatchDepth);
+
+      // Sortation is capped to ~60% of the frontage — not the full width —
+      // so a large destination count wraps into more grid rows instead of
+      // swallowing the side margins the rooms need (see layoutSortGrid).
+      const sortMaxW = snap2(clamp(L * 0.6, 30, L * 0.85));
+      const gridBottomY = snap2(receivingY - convGap);
+      const gridMaxH = Math.max(sortDepth, gridBottomY - CELL_FT * 2);
+      const grid = layoutSortGrid(sortCount, sortAreaEach, sortMaxW, sortDepth, 0, 0, gridMaxH);
+      const sortTopY = snap2(gridBottomY - grid.totalH);
+      // Re-center the grid's actual width in the full building width L, not
+      // in the (narrower) maxW slot the helper laid it out against.
+      const sx = snap2((L - grid.totalW) / 2);
+      grid.zones.forEach(z => { z.x = snap2(z.x + sx); z.y = snap2(z.y + sortTopY); });
+      zones.push(...grid.zones);
+      const sortTotalW = grid.totalW;
+
+      const baggingW = clamp(snap2(sortTotalW * 0.35), 16, sortTotalW);
+      const baggingY = snap2(sortTopY - baggingDepth);
+      const baggingX = snap2(sx + (sortTotalW - baggingW) / 2);
+      zones.push(mkZone("bagging", baggingX, baggingY, baggingW, baggingDepth, "Bagging"));
+
+      let laneNote = "";
+      if (laneCount > 0) {
+        const fitLanes = Math.max(1, Math.min(laneCount, Math.floor(dispatchW / laneWidthFt)));
+        const laneW = snap2(Math.max(laneWidthFt, dispatchW / fitLanes));
+        for (let i = 0; i < fitLanes; i++) {
+          zones.push(mkZone("outboundLane", dispX + i * laneW, dispY, laneW, dispatchDepth,
+            fitLanes < laneCount && i === fitLanes - 1 ? `Lanes ${i + 1}-${laneCount}` : `Lane ${i + 1}`));
+        }
+        laneNote = fitLanes < laneCount ? `${laneCount} destinations requested; ${fitLanes} lanes fit near the gate — the last lane is shared.` : "";
+      } else {
+        zones.push(mkZone("dispatchQueue", dispX, dispY, dispatchW, dispatchDepth, "Dispatch Queue"));
+      }
+
+      const marginTop = baggingY, marginBottom = gridBottomY;
+      const marginH = Math.max(CELL_FT, marginBottom - marginTop);
+      const leftMarginW = Math.max(0, sx - CELL_FT * 2);
+      const rightMarginW = Math.max(0, (L - (sx + sortTotalW)) - CELL_FT * 2);
+      let { left, right } = splitRoomsForMargins(roomTypes, leftMarginW, rightMarginW);
+      left = fitColumnRooms(left, Math.max(8, leftMarginW), marginH, ctx.dropOrder);
+      right = fitColumnRooms(right, Math.max(8, rightMarginW), marginH, ctx.dropOrder);
+      if (left.length) zones.push(...packColumn(left, Math.max(8, leftMarginW), 0, marginTop, marginH).zones);
+      if (right.length) zones.push(...packColumn(right, Math.max(8, rightMarginW), L - Math.max(8, rightMarginW), marginTop, marginH).zones);
+
+      return { zones, sortX: sx, sortW: sortTotalW, convA: receivingY, convB: gridBottomY, laneNote };
+    }
+    // ---- L · Corner Turn: gate in a near-wall column, path turns once into
+    // a sortation band along the top, bagging at the far end of that band.
+    function buildCornerFlow(ctx) {
+      const { L, W, secW, secDepth, secLabel, gateW, gateDepth,
+        receivingDepth, baggingDepth, dispatchDepth, convGap, sortCount, sortAreaEach, sortDepth,
+        laneCount, laneWidthFt } = ctx;
+      let roomTypes = ctx.roomTypes;
+      const zones = [];
+      // The near-gate column has to fit gate+security side by side at its
+      // base, THEN a full-width receiving band, THEN a full-width dispatch
+      // band above that — stacked in separate rows rather than each row
+      // independently sized as a fraction of colW, which could (and did)
+      // add up to more than colW and overlap. colW is sized off the actual
+      // gate+security pair, not an arbitrary fraction of L, so a wide gate
+      // on a modest building still gets the width it actually needs.
+      const neededColW = snap2(gateW + secW + CELL_FT * 3);
+      const colW = snap2(Math.max(neededColW, Math.min(L * 0.34, neededColW * 1.2)));
+      const gateY = snap2(W - gateDepth);
+      const gateX = snap2((colW - gateW - secW - CELL_FT) / 2);
+      zones.push(mkZone("dock", gateX, gateY, gateW, gateDepth, "Shared Gate"));
+
+      const secX = snap2(gateX + gateW + CELL_FT);
+      const secY = snap2(gateY + gateDepth - secDepth);
+      zones.push(mkZone("security", secX, secY, secW, secDepth, secLabel));
+
+      const receivingW = snap2(clamp(colW * 0.85, gateW, colW));
+      const receivingX = snap2((colW - receivingW) / 2), receivingY = snap2(gateY - receivingDepth);
+      zones.push(mkZone("receiving", receivingX, receivingY, receivingW, receivingDepth, "Receiving"));
+
+      const dispatchW = snap2(clamp(colW * 0.85, 14, colW));
+      const dispX = snap2((colW - dispatchW) / 2);
+      const dispY = snap2(receivingY - dispatchDepth - CELL_FT);
+
+      // Horizontal arm: sortation band along the top wall, from the end of
+      // the gate column to the far wall, with bagging at the far end.
+      const topMargin = snap2(clamp(Math.round(W * 0.06), CELL_FT, 14));
+      const armX = snap2(colW + CELL_FT * 2);
+      const armAvailW = Math.max(CELL_FT, L - armX - CELL_FT);
+      const baggingW = clamp(snap2(armAvailW * 0.22), Math.min(16, Math.max(CELL_FT, armAvailW * 0.3)), Math.max(16, armAvailW * 0.4));
+      const sortAvailW = Math.max(CELL_FT, armAvailW - baggingW - CELL_FT * 2);
+      const sortTopY = topMargin;
+      // Wraps into more grid rows rather than one increasingly thin row once
+      // a large destination count would otherwise squeeze each box below a
+      // legible width (see layoutSortGrid) — capped in height so a high
+      // destination count with a narrow arm widens the row instead of
+      // stacking rows straight through the bottom wall.
+      const armMaxH = Math.max(sortDepth, W - sortTopY - CELL_FT * 4);
+      const grid = layoutSortGrid(sortCount, sortAreaEach, sortAvailW, sortDepth, armX, sortTopY, armMaxH);
+      zones.push(...grid.zones);
+      const sortTotalW = grid.totalW;
+
+      // Always placed right after wherever the sort grid actually ended —
+      // sortTotalW is already capped to fit within sortAvailW (which itself
+      // already reserves room for baggingW), so this can't overlap the sort
+      // grid the way choosing whichever candidate was further LEFT could.
+      // The final clamp to L-baggingW is a last-resort backstop for a
+      // building too small for this shape at all (a few hundred sqft) —
+      // real hubs never hit it, but it's cheap insurance against rendering
+      // bagging off the edge of the canvas instead of just tight against it.
+      const baggingX = snap2(clamp(armX + sortTotalW + CELL_FT * 2, armX, Math.max(armX, L - baggingW)));
+      const baggingY = sortTopY;
+      const baggingH = snap2(Math.max(grid.totalH, clamp(Math.round(W * 0.24), sortDepth, sortDepth * 1.6)));
+      zones.push(mkZone("bagging", baggingX, baggingY, baggingW, baggingH, "Bagging"));
+
+      let laneNote = "";
+      if (laneCount > 0) {
+        const fitLanes = Math.max(1, Math.min(laneCount, Math.floor(dispatchW / laneWidthFt)));
+        const laneW = snap2(Math.max(laneWidthFt, dispatchW / fitLanes));
+        for (let i = 0; i < fitLanes; i++) {
+          zones.push(mkZone("outboundLane", dispX + i * laneW, dispY, laneW, dispatchDepth,
+            fitLanes < laneCount && i === fitLanes - 1 ? `Lanes ${i + 1}-${laneCount}` : `Lane ${i + 1}`));
+        }
+        laneNote = fitLanes < laneCount ? `${laneCount} destinations requested; ${fitLanes} lanes fit near the gate — the last lane is shared.` : "";
+      } else {
+        zones.push(mkZone("dispatchQueue", dispX, dispY, dispatchW, dispatchDepth, "Dispatch Queue"));
+      }
+
+      // Leftover lower-right rectangle (below the sort/bagging arm, right of
+      // the gate column) holds the support rooms, packed left-to-right.
+      const roomBandY = snap2(sortTopY + Math.max(sortDepth, baggingH) + CELL_FT);
+      const roomBandW = Math.max(CELL_FT, L - colW - CELL_FT);
+      const roomBandDepth = snap2(clamp(Math.round(W * 0.22), 10, 26));
+      let pack = packBackRooms(roomTypes, roomBandDepth, roomBandW);
+      let dropIdx = 0;
+      while (pack.depth > (W - roomBandY - CELL_FT) && dropIdx < ctx.dropOrder.length) {
+        roomTypes = roomTypes.filter(([type]) => type !== ctx.dropOrder[dropIdx]);
+        dropIdx++;
+        pack = packBackRooms(roomTypes, roomBandDepth, roomBandW);
+      }
+      pack.zones.forEach(z => { z.x = snap2(z.x + colW + CELL_FT); z.y = snap2(z.y + roomBandY); });
+      zones.push(...pack.zones);
+
+      return { zones, sortX: armX, sortW: sortTotalW, convA: receivingY, convB: sortTopY + sortDepth, laneNote };
+    }
+    // ---- U · Loop-Back: gate centered on the near wall, sortation runs the
+    // full back wall, bagging returns to sit beside receiving near the gate.
+    function buildLoopFlow(ctx) {
+      const { L, W, roomTypes, secW, secDepth, secLabel, gateW, gateDepth,
+        receivingDepth, baggingDepth, dispatchDepth, convGap, sortCount, sortAreaEach, sortDepth,
+        laneCount, laneWidthFt } = ctx;
+      const zones = [];
+      const gateX = snap2((L - gateW) / 2), gateY = snap2(W - gateDepth);
+      zones.push(mkZone("dock", gateX, gateY, gateW, gateDepth, "Shared Gate"));
+
+      let secX = gateX - secW - CELL_FT;
+      const secOnLeft = secX >= CELL_FT;
+      if (!secOnLeft) secX = gateX + gateW + CELL_FT;
+      secX = snap2(clamp(secX, 0, L - secW));
+      const secY = snap2(gateY + gateDepth - secDepth);
+      zones.push(mkZone("security", secX, secY, secW, secDepth, secLabel));
+
+      // Receiving and Bagging sit in one row near the gate (the loop returns
+      // to the gate, so bagging comes back here too, right next to it —
+      // there's no separate dispatch queue in this shape; bagging itself is
+      // the last stop before the gate). Laid out as a single sequential row
+      // sized to fit L as a whole, rather than each box independently sized
+      // as a fraction of gateW and only clamped against the full building
+      // width afterward, which could (and did) let their combined width
+      // exceed L and overlap each other — or, since this row shares its Y
+      // band with the gate itself, overlap the gate.
+      let rowW = { receiving: snap2(clamp(gateW * 0.85, 14, gateW)), bagging: snap2(clamp(gateW * 0.65, 14, gateW)) };
+      const rowGaps = CELL_FT;
+      const rowTotal = rowW.receiving + rowW.bagging + rowGaps;
+      if (rowTotal > L) {
+        const scale = Math.max(0.3, (L - rowGaps) / (rowW.receiving + rowW.bagging));
+        rowW = { receiving: snap2(Math.max(10, rowW.receiving * scale)), bagging: snap2(Math.max(10, rowW.bagging * scale)) };
+      }
+      const rowFinalW = rowW.receiving + rowW.bagging + rowGaps;
+      const rowStartX = snap2(Math.max(0, (L - rowFinalW) / 2));
+
+      const receivingW = rowW.receiving;
+      const receivingX = rowStartX, receivingY = snap2(gateY - receivingDepth);
+      zones.push(mkZone("receiving", receivingX, receivingY, receivingW, receivingDepth, "Receiving"));
+
+      const baggingW = rowW.bagging;
+      const bagX = snap2(receivingX + receivingW + CELL_FT);
+      const bagY = receivingY;
+      // Lanes (if any) replace bagging as a row of per-destination boxes in
+      // the same slot — bagging IS the pre-dispatch point in this shape, so
+      // splitting it by destination belongs here, not in a separate zone.
+      const dispatchW = baggingW, dispX = bagX, dispY = bagY, dispatchDepthFinal = receivingDepth;
+
+      // Sortation runs along the back (top) wall, capped short of the full
+      // width so both side columns keep a real margin for support rooms —
+      // a large destination count wraps into more grid rows instead (see
+      // layoutSortGrid).
+      const sortTopY = snap2(clamp(Math.round(W * 0.06), CELL_FT, 14));
+      const sortMaxW = snap2(clamp(L * 0.65, 30, L * 0.85));
+      const gridMaxH = Math.max(sortDepth, Math.min(receivingY, secY, dispY) - sortTopY - CELL_FT * 2);
+      const grid = layoutSortGrid(sortCount, sortAreaEach, sortMaxW, sortDepth, 0, 0, gridMaxH);
+      // Re-center the grid's actual width in the full building width L, not
+      // in the (narrower) maxW slot the helper laid it out against.
+      const sx = snap2((L - grid.totalW) / 2);
+      grid.zones.forEach(z => { z.x = snap2(z.x + sx); z.y = snap2(z.y + sortTopY); });
+      zones.push(...grid.zones);
+      const sortTotalW = grid.totalW, sortTotalH = grid.totalH;
+
+      let laneNote = "";
+      if (laneCount > 0) {
+        const fitLanes = Math.max(1, Math.min(laneCount, Math.floor(dispatchW / laneWidthFt)));
+        const laneW = snap2(Math.max(laneWidthFt, dispatchW / fitLanes));
+        for (let i = 0; i < fitLanes; i++) {
+          zones.push(mkZone("outboundLane", dispX + i * laneW, dispY, laneW, dispatchDepthFinal,
+            fitLanes < laneCount && i === fitLanes - 1 ? `Lanes ${i + 1}-${laneCount}` : `Lane ${i + 1}`));
+        }
+        laneNote = fitLanes < laneCount ? `${laneCount} destinations requested; ${fitLanes} lanes fit near the gate — the last lane is shared.` : "";
+      } else {
+        zones.push(mkZone("bagging", bagX, bagY, baggingW, receivingDepth, "Bagging"));
+      }
+
+      // Rooms fill the two side columns between the sortation band and the
+      // gate/receiving/bagging row — the inside of the loop.
+      const marginTop = sortTopY + sortTotalH + CELL_FT;
+      const marginBottom = Math.min(receivingY, secY, dispY) - CELL_FT;
+      const marginH = Math.max(CELL_FT, marginBottom - marginTop);
+      const leftMarginW = Math.max(0, sx - CELL_FT * 2);
+      const rightMarginW = Math.max(0, (L - (sx + sortTotalW)) - CELL_FT * 2);
+      let { left, right } = splitRoomsForMargins(roomTypes, leftMarginW, rightMarginW);
+      left = fitColumnRooms(left, Math.max(8, leftMarginW), marginH, ctx.dropOrder);
+      right = fitColumnRooms(right, Math.max(8, rightMarginW), marginH, ctx.dropOrder);
+      if (left.length) zones.push(...packColumn(left, Math.max(8, leftMarginW), 0, marginTop, marginH).zones);
+      if (right.length) zones.push(...packColumn(right, Math.max(8, rightMarginW), L - Math.max(8, rightMarginW), marginTop, marginH).zones);
+
+      return { zones, sortX: sx, sortW: sortTotalW, convA: receivingY, convB: sortTopY + sortTotalH, laneNote };
     }
     function mkZone(type, x, y, w, h, label) {
       return { id: uid(), type, x: Math.max(0, x), y: Math.max(0, y), w: Math.max(CELL_FT, w), h: Math.max(CELL_FT, h), label };
@@ -8910,7 +9169,7 @@
     function defaultGenParams() {
       return {
         dockBays: 4, dockSeparate: false, dockInBays: 2, dockOutBays: 2, ordersPerDay: 3000, aisleRows: 2,
-        pedestrianEntry: "left", handlingEquipment: "trolley", flowPattern: "i-flow", doorSpacingFt: 12,
+        pedestrianEntry: "left", handlingEquipment: "trolley", flowShape: "spine", doorSpacingFt: 12,
         sortationMethod: "manual", destinationHubs: 0, outboundLanes: false,
         // Receiving scan and missort/exception handling are near-universal in
         // a real mother hub, not optional extras — default on so a manager
@@ -8930,7 +9189,7 @@
         dockBays: params.dockBays, dockSeparate: params.dockSeparate, dockInBays: params.dockInBays, dockOutBays: params.dockOutBays,
         doorSpacingFt: params.doorSpacingFt,
         ordersPerDay: params.ordersPerDay, rooms: params.rooms, pedestrianEntry: params.pedestrianEntry,
-        flowPattern: params.flowPattern, sortationMethod: params.sortationMethod,
+        flowShape: params.flowShape, sortationMethod: params.sortationMethod,
         destinationHubs: params.destinationHubs || 0, outboundLanes: params.outboundLanes,
         laneWidthFt: params.laneWidthFt, laneDepthFt: params.laneDepthFt,
         inboundStaging: params.inboundStaging, exceptionArea: params.exceptionArea,
@@ -9832,10 +10091,10 @@
     function drawPaintCell(g, c, r, def, rot, customDim) {
       const cx = c * cellPx + cellPx / 2;
       const cy = r * cellPx + cellPx / 2;
-      
+
       const itemW = (customDim && customDim.w != null) ? customDim.w : (def.w || 2);
       const itemD = (customDim && customDim.d != null) ? customDim.d : (def.d || 2);
-      
+
       // Calculate exact pixel size scaled to the 6x6 ft grid cell
       const w = Math.max(4, (itemW / CELL_FT) * cellPx);
       const h = Math.max(4, (itemD / CELL_FT) * cellPx);
@@ -10417,7 +10676,7 @@
           genView.style.display = "none";
           $("#prop-obj-title").textContent = def.name;
           $("#prop-obj-glyph").textContent = def.glyph || "🗄️";
-          
+
           const idx = selectedCell.r * site.cols + selectedCell.c;
           const custom = site.cellDims && site.cellDims[idx];
           $("#prop-obj-w").value = custom && custom.w != null ? custom.w : (def.w || 2);
@@ -11479,6 +11738,8 @@
       const eqLabel = { manual: "Hand-carry", trolley: "Trolleys", cage: "Roll-cages", forklift: "Forklifts" }[p.handlingEquipment] || "Trolleys";
       const sortLabel = { manual: "Manual to cages", semiauto: "Conveyor + divert", automated: "Automated sorter" }[p.sortationMethod] || "Manual to cages";
       const waveLabel = (WAVE_PATTERN_DEFS.find(w => w.key === p.wavePattern) || {}).label || "One night sort";
+      const shapeLabel = { spine: "I · Straight Spine", corner: "L · Corner Turn", loop: "U · Loop-Back" }[p.flowShape] || "I · Straight Spine";
+      const shapeDesc = { spine: "straight back to bagging at the far wall", corner: "in, one turn, then to bagging in the far corner", loop: "up one wall, across the back, and down the other to bagging near the gate" }[p.flowShape] || "straight back to bagging at the far wall";
       const dash = "—";
 
       const basis = [
@@ -11488,8 +11749,8 @@
         ["Sort rate req.", boxes ? fmtNum(Math.round(boxes / winH)) + "/hr" : dash, "to clear the window"],
         ["Handling", eqLabel, m.aisleWidthFt + " ft working aisle"],
         ["Sortation", sortLabel, "sized to rate above"],
-        ["Dock doors", (p.dockInBays || 0) + " in / " + (p.dockOutBays || 0) + " out", (p.dockBays || 0) + " total"],
-        ["Outbound lanes", lanes + (dests ? " / " + dests : ""), dests ? "lanes / destinations" : "no destinations set"],
+        ["Gate doors", fmtNum(p.dockBays || 0), "shared in/out leveler"],
+        ["Outbound lanes", lanes > 0 ? lanes + (dests ? " / " + dests : "") : "dispatch queue", dests ? "lanes / destinations" : "no destinations set"],
       ];
 
       // Bar scale — a printed plan needs a graphic scale, not a screen ratio.
@@ -11501,7 +11762,7 @@
       if (dests > 0 && shared > 0) risks.push(`Only ${lanes} outbound lanes fit at the width chosen — ${shared + 1} destinations share a lane. Confirm those are the lowest-volume routes.`);
       if (!m.aisleOk) risks.push(`Working aisles measure ${m.aisleWidthFt} ft, below the ${MIN_AISLE_FT} ft minimum for two-way movement.`);
       if (m.hiddenMarks > 0) risks.push(`${m.hiddenMarks} of the fixed points marked on the floor plan sit underneath a zone. Check those columns or walls before setting out.`);
-      if (p.flowPattern === "u-flow") risks.push("All doors are on one wall, so arriving and departing vehicles share the yard. Book inbound and outbound into separate windows where possible.");
+      risks.push("One shared gate handles both directions — book inbound and outbound trucks into separate windows so they don't queue into each other at the leveler.");
       risks.push("Verify column positions, door heights and floor levels on site before setting out.");
 
       sheet.innerHTML = `
@@ -11513,7 +11774,7 @@
         </div>
         <div class="tb-fields">
           <div class="tb-field"><span class="k">Scale</span><span class="v">See bar</span></div>
-          <div class="tb-field"><span class="k">Flow</span><span class="v">${p.flowPattern === "i-flow" ? "Through" : "Single wall"}</span></div>
+          <div class="tb-field"><span class="k">Flow</span><span class="v">${escapeHtml(shapeLabel)}</span></div>
           <div class="tb-field"><span class="k">Issued</span><span class="v">${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span></div>
           <div class="tb-field"><span class="k">Rev</span><span class="v">A</span></div>
           <div class="tb-field"><span class="k">Sheet</span><span class="v">1 / 1</span></div>
@@ -11557,7 +11818,7 @@
       <div class="sheet-notes">
         <div>
           <h4>Design intent</h4>
-          <p>A ${fmtNum(totalArea)} sq ft ${p.flowPattern === "i-flow" ? "through-flow" : "single-wall"} sortation hub. Packed boxes arrive ${p.flowPattern === "i-flow" ? "at one end" : "on the dock wall"}, move by ${escapeHtml(eqLabel.toLowerCase())} through ${escapeHtml(sortLabel.toLowerCase())}, stage in ${lanes} outbound lane${lanes === 1 ? "" : "s"}, and load out${p.flowPattern === "i-flow" ? " at the opposite end" : ""}. The centre of the floor is left clear by design — it is the sortation working area and must not be built on.${p.growthHeadroomPct > 0 ? ` ${p.growthHeadroomPct}% of the floor is held back for growth.` : ""}</p>
+          <p>A ${fmtNum(totalArea)} sq ft ${escapeHtml(shapeLabel)} sortation hub, one shared gate for both directions. Packed boxes arrive at the gate, move by ${escapeHtml(eqLabel.toLowerCase())} through receiving and ${escapeHtml(sortLabel.toLowerCase())} — the path runs ${escapeHtml(shapeDesc)} — stage in ${lanes > 0 ? `${lanes} outbound lane${lanes === 1 ? "" : "s"}` : "the dispatch queue"}, and load back out the same gate. The centre of the floor is left clear by design — it is the sortation working area and must not be built on.${p.growthHeadroomPct > 0 ? ` ${p.growthHeadroomPct}% of the floor is held back for growth.` : ""}</p>
         </div>
         <div>
           <h4>Check before setting out</h4>
