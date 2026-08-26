@@ -5051,23 +5051,20 @@
           <div class="obj-grid">
             <div class="obj-card" data-obj="rack">🗄️ Rack (3×1.5')</div>
             <div class="obj-card" data-obj="sortbox">📦 Sorting Box (2×2')</div>
-            <div class="obj-card" data-obj="palletrack">🧱 Pallet Rack (4×4')</div>
-            <div class="obj-card" data-obj="trolleycage">🗃️ Trolley Cage</div>
-            <div class="obj-card" data-obj="carton">📦 Carton</div>
+            <div class="obj-card" data-obj="palletrack">🧮 Pallet (4×4')</div>
+            <div class="obj-card" data-obj="trolleycage">🛒 Trolley Cage</div>
           </div>
         </div>
 
         <div class="flyout-category">
           <div class="flyout-cat-title">Operations &amp; Tables</div>
           <div class="obj-grid">
-            <div class="obj-card" data-obj="packing">📦 Packing Area</div>
-            <div class="obj-card" data-obj="receiving">📥 Receiving Table</div>
-            <div class="obj-card" data-obj="dispatch">📤 Dispatch Table</div>
-            <div class="obj-card" data-obj="table">🪑 Work Table</div>
+            <div class="obj-card" data-obj="packing">🗂️ Packing Area</div>
+            <div class="obj-card" data-obj="table">⺇ Work Table</div>
             <div class="obj-card" data-obj="conveyor">» Conveyor Belt</div>
             <div class="obj-card" data-obj="staging">▦ Inward Area</div>
-            <div class="obj-card" data-obj="locker">🔒 Locker</div>
-            <div class="obj-card" data-obj="chair">💺 Chair</div>
+            <div class="obj-card" data-obj="locker">🗃️ Locker</div>
+            <div class="obj-card" data-obj="chair">🪑 Chair</div>
           </div>
         </div>
 
@@ -5075,7 +5072,6 @@
           <div class="flyout-cat-title">Equipment</div>
           <div class="obj-grid">
             <div class="obj-card" data-obj="scale">⚖️ Weighing Scale</div>
-            <div class="obj-card" data-obj="computer">💻 Workstation</div>
             <div class="obj-card" data-obj="ac">❄️ AC Unit</div>
             <div class="obj-card" data-obj="waterdisp">💧 Water Dispenser</div>
             <div class="obj-card" data-obj="trolley">🛒 Normal Trolley</div>
@@ -5085,15 +5081,11 @@
         <div class="flyout-category">
           <div class="flyout-cat-title">Infrastructure &amp; Safety</div>
           <div class="obj-grid">
-            <div class="obj-card" data-obj="wall">🧱 Wall (2×2')</div>
-            <div class="obj-card" data-obj="entry">▶ Entry Door</div>
-            <div class="obj-card" data-obj="exit">◀ Shutter / Dock</div>
+            <div class="obj-card" data-obj="entry">🔻 Entry Door</div>
+            <div class="obj-card" data-obj="exit">🔺 Exit Door</div>
             <div class="obj-card" data-obj="fireexit">🚨 Fire Exit</div>
-            <div class="obj-card" data-obj="column">🏛️ Structural Col</div>
-            <div class="obj-card" data-obj="stairs">🪜 Staircase</div>
-            <div class="obj-card" data-obj="pillar">🏛️ Pillar</div>
+            <div class="obj-card" data-obj="pillar">‖ Pillar</div>
             <div class="obj-card" data-obj="door">🚪 Door</div>
-            <div class="obj-card" data-obj="rollshutter">🚧 Rolling Shutter</div>
             <div class="obj-card" data-obj="drainage">🕳️ Drainage Point</div>
             <div class="obj-card" data-obj="fireext">🧯 Fire Extinguisher</div>
             <div class="obj-card" data-obj="cctv">🔴 CCTV</div>
@@ -5116,7 +5108,7 @@
             <option value="medical">Medical / First-Aid</option>
             <option value="conference">Conference Room</option>
             <option value="store">Store Room</option>
-            <option value="ups">UPS / Power Room</option>
+            <option value="ups">IT / Server Room</option>
             <option value="bathroom">Washroom</option>
             <option value="inboundStage">Inbound Staging</option>
             <option value="outboundLane">Outbound Lane</option>
@@ -5151,15 +5143,18 @@
         <div class="zone-pick-grid">
           <div class="zone-pick-card" data-zone="receiving">
             <span class="zpc-icon">📥</span>
-            <span class="zpc-text"><span class="zpc-label">Inward Zone</span><span class="zpc-sub">Where goods arrive &amp; get scanned</span></span>
+            <span class="zpc-text"><span class="zpc-label">Inward Zone</span><span class="zpc-sub">Where goods arrive
+                &amp; get scanned</span></span>
           </div>
           <div class="zone-pick-card" data-zone="sorting">
             <span class="zpc-icon">🔀</span>
-            <span class="zpc-text"><span class="zpc-label">Sorting Zone</span><span class="zpc-sub">Segregation by destination</span></span>
+            <span class="zpc-text"><span class="zpc-label">Sorting Zone</span><span class="zpc-sub">Segregation by
+                destination</span></span>
           </div>
           <div class="zone-pick-card" data-zone="dispatchQueue">
             <span class="zpc-icon">🚚</span>
-            <span class="zpc-text"><span class="zpc-label">Dispatch Zone</span><span class="zpc-sub">Staged &amp; waiting to load</span></span>
+            <span class="zpc-text"><span class="zpc-label">Dispatch Zone</span><span class="zpc-sub">Staged &amp;
+                waiting to load</span></span>
           </div>
         </div>
       </div>
@@ -5608,7 +5603,10 @@
       <div class="spacer" style="flex:1;"></div>
       <div class="zoom-row">
         <span>Zoom</span>
-        <input type="range" id="zoom" min="8" max="34" value="18">
+        <button class="btn icon ghost sm" id="zoom-out-btn" style="padding:2px 6px; font-size:12px;" title="Zoom Out">−</button>
+        <input type="range" id="zoom" min="8" max="50" value="26" style="width:90px;">
+        <button class="btn icon ghost sm" id="zoom-in-btn" style="padding:2px 6px; font-size:12px;" title="Zoom In">+</button>
+        <span id="zoom-val-txt" style="min-width:34px; font-size:11px; font-weight:700; color:var(--ink-soft);">130%</span>
       </div>
     </footer>
   </div>
@@ -6047,7 +6045,7 @@
       conference: { name: "Conference Room", color: "#7C3AED", group: "room" },
       office: { name: "Manager's Office", color: "#B45309", group: "room" },
       store: { name: "Store Room", color: "#4D7C0F", group: "room" },
-      ups: { name: "UPS / Power Room", color: "#CA8A04", group: "room" },
+      ups: { name: "IT / Server Room", color: "#CA8A04", group: "room" },
       bathroom: { name: "Bathroom", color: "#0D9488", group: "room" },
       // Unlocked by the deep clarifying-question round (see applyDeepAnswers) —
       // each of these only appears when the manager's answers call for it.
@@ -6090,9 +6088,8 @@
       // call site for what is, to the manager, just one rack type now.
       rack: { id: 1, key: "1", name: "Rack (3×1.5 ft)", short: "Rack", glyph: "🗄️", color: "#64748B", category: "storage", w: 3, d: 1.5, h: 8, levels: 5 },
       sortbox: { id: 11, key: "", name: "Sorting Box (2×2 ft)", short: "Sort Box", glyph: "📦", color: "#0EA5E9", category: "storage", w: 2, d: 2, h: 2, levels: 1 },
-      palletrack: { id: 14, key: "", name: "Pallet Rack (4×4 ft)", short: "Pallet Rack", glyph: "🧱", color: "#334155", category: "storage", w: 4, d: 4, h: 12, levels: 3 },
+      palletrack: { id: 14, key: "", name: "Rack (4×4 ft)", short: "Pallet", glyph: "🧱", color: "#334155", category: "storage", w: 4, d: 4, h: 12, levels: 3 },
       trolleycage: { id: 32, key: "", name: "Trolley Cage", short: "Trolley Cage", glyph: "🗃️", color: "#6366F1", category: "storage", w: 3, d: 2, h: 5.5 },
-      carton: { id: 33, key: "", name: "Carton", short: "Carton", glyph: "📦", color: "#D97706", category: "storage", w: 1.5, d: 1.5, h: 1.5 },
 
       // Operations
       packing: { id: 3, key: "3", name: "Packing Area", short: "Packing", glyph: "📦", color: "#10B981", category: "ops", w: 4, d: 2, h: 3 },
@@ -6131,7 +6128,7 @@
     const PAINT_BY_ID = Object.fromEntries(Object.values(PAINT_DEFS).map(e => [e.id, e]));
     const CCTV_ID = PAINT_DEFS.cctv.id;
     const ROTATABLE_PAINT = new Set([1, 2, 3, 5, 6, 7, 14, 15, 16, 17, 21, 22, 23, 25, 26, 29, 30]);
-    const PAINT_ORDER = ["rack", "sortbox", "palletrack", "trolleycage", "carton", "packing", "receiving", "dispatch", "table", "conveyor", "staging", "locker", "chair", "scale", "computer", "ac", "waterdisp", "trolley", "entry", "exit", "fireexit", "column", "stairs", "wall", "pillar", "door", "rollshutter", "drainage", "fireext", "cctv"];
+    const PAINT_ORDER = ["rack", "sortbox", "palletrack", "trolleycage", "packing", "receiving", "dispatch", "table", "conveyor", "staging", "locker", "chair", "scale", "computer", "ac", "waterdisp", "trolley", "entry", "exit", "fireexit", "column", "stairs", "wall", "pillar", "door", "rollshutter", "drainage", "fireext", "cctv"];
 
     /* =====================================================================
        UTIL
@@ -6296,7 +6293,7 @@
     let wizCanvasTool = "wall";
     let undoStack = [], redoStack = [];
     let tool = "select";          // "select" | "wall" | "paint:<key>" | "zone:<key>" | "measure" | "erase"
-    let cellPx = 18;
+    let cellPx = 26;
     let showCoords = true, showRackLabels = true;
     let rackLabels = [];
     let painting = false, strokeAnchor = null, lastCell = null, strokeErase = false;
@@ -6728,6 +6725,15 @@
             Array.isArray(data.sortStations) ? data.sortStations.length : 0,
             Array.isArray(data.racks) ? data.racks.filter(r => r.type !== "palletrack").length : 0
           );
+          // Real structural fixtures — placed at their actual position, not
+          // guessed at or dropped. Kept as their own field, strictly
+          // separate from sortStations: a staircase labeled S1/S2 with an
+          // UP arrow reads a lot like a row of sortation stations unless
+          // the two are told apart explicitly (see the vision prompt).
+          const staircaseList = Array.isArray(data.staircases) ? data.staircases.map(st => ({
+            cx: (st.x0 + (st.x1 !== undefined ? st.x1 : st.x0)) / 2,
+            cy: (st.y0 + (st.y1 !== undefined ? st.y1 : st.y0)) / 2,
+          })) : [];
           const visionAnswered = inferVisionAnswers(data, dockLayout, roomList, sortStationCount);
 
           const baseName = file.name.replace(/\.[^/.]+$/, "");
@@ -6748,6 +6754,7 @@
           );
           newSite._businessContext = { ordersPerDay, destinationHubs };
           newSite._visionAnswered = visionAnswered;
+          newSite._visionStaircases = staircaseList;
 
           try {
             await saveSite(newSite);
@@ -6759,6 +6766,7 @@
           const parts = [`${l}×${w} ft footprint`, `${dockInBays} inbound / ${dockOutBays} outbound doors`];
           if (roomList.length) parts.push(`${roomList.length} rooms`);
           if (sortStationCount) parts.push(`${sortStationCount} sort stations`);
+          if (staircaseList.length) parts.push(`${staircaseList.length} staircase${staircaseList.length > 1 ? "s" : ""}`);
           toast(`✓ Read from your photo: ${parts.join(", ")} — see what else was detected below.`, 5000);
         }
       } catch (err) {
@@ -8461,9 +8469,11 @@
       const laneCount = (input.outboundLanes && input.destinationHubs > 0) ? input.destinationHubs : 0;
       const laneWidthFt = input.laneWidthFt || 8;
 
-      const ctx = { L, W, MIN_BAND, roomTypes, dropOrder, secArea, secLabel, secW, secDepth,
+      const ctx = {
+        L, W, MIN_BAND, roomTypes, dropOrder, secArea, secLabel, secW, secDepth,
         gateW, gateDepth, receivingDepth, baggingDepth, dispatchDepth, convGap,
-        sortCount, sortAreaEach, sortDepth, laneCount, laneWidthFt, s };
+        sortCount, sortAreaEach, sortDepth, laneCount, laneWidthFt, s
+      };
 
       const shape = input.flowShape || "spine";
       const built = shape === "corner" ? buildCornerFlow(ctx)
@@ -8489,6 +8499,26 @@
       roomTypes.forEach((r, i) => (i % 2 === 0 ? left : right).push(r));
       if (leftW < 8) { right = right.concat(left); left = []; }
       if (rightW < 8) { left = left.concat(right); right = []; }
+      return { left, right };
+    }
+    /* Real mother hubs put their whole office row together on one wall —
+       Security, Conference, Manager Cabin, Store, Medical, all in a single
+       band — not split either side of the sortation core the way an even
+       round-robin would (verified against an actual CAD-extracted mother
+       hub floor plan: every support room sat in one contiguous run along
+       the north wall). Tries the whole room list in whichever margin is
+       wider first; only falls back to splitting across both sides if even
+       the wider one can't hold everything without dropping a room a plain
+       one-band fit wouldn't have needed to drop. */
+    function placeMarginRooms(roomTypes, leftMarginW, rightMarginW, marginH, dropOrder) {
+      const widerW = Math.max(leftMarginW, rightMarginW);
+      const oneBand = fitColumnRooms(roomTypes, Math.max(8, widerW), marginH, dropOrder);
+      if (oneBand.length === roomTypes.length || !roomTypes.length) {
+        return leftMarginW >= rightMarginW ? { left: oneBand, right: [] } : { left: [], right: oneBand };
+      }
+      let { left, right } = splitRoomsForMargins(roomTypes, leftMarginW, rightMarginW);
+      left = fitColumnRooms(left, Math.max(8, leftMarginW), marginH, dropOrder);
+      right = fitColumnRooms(right, Math.max(8, rightMarginW), marginH, dropOrder);
       return { left, right };
     }
     /* Lays out sortCount boxes as a grid within a fixed max width, wrapping
@@ -8613,9 +8643,7 @@
       const marginH = Math.max(CELL_FT, marginBottom - marginTop);
       const leftMarginW = Math.max(0, sx - CELL_FT * 2);
       const rightMarginW = Math.max(0, (L - (sx + sortTotalW)) - CELL_FT * 2);
-      let { left, right } = splitRoomsForMargins(roomTypes, leftMarginW, rightMarginW);
-      left = fitColumnRooms(left, Math.max(8, leftMarginW), marginH, ctx.dropOrder);
-      right = fitColumnRooms(right, Math.max(8, rightMarginW), marginH, ctx.dropOrder);
+      const { left, right } = placeMarginRooms(roomTypes, leftMarginW, rightMarginW, marginH, ctx.dropOrder);
       if (left.length) zones.push(...packColumn(left, Math.max(8, leftMarginW), 0, marginTop, marginH).zones);
       if (right.length) zones.push(...packColumn(right, Math.max(8, rightMarginW), L - Math.max(8, rightMarginW), marginTop, marginH).zones);
 
@@ -8798,9 +8826,7 @@
       const marginH = Math.max(CELL_FT, marginBottom - marginTop);
       const leftMarginW = Math.max(0, sx - CELL_FT * 2);
       const rightMarginW = Math.max(0, (L - (sx + sortTotalW)) - CELL_FT * 2);
-      let { left, right } = splitRoomsForMargins(roomTypes, leftMarginW, rightMarginW);
-      left = fitColumnRooms(left, Math.max(8, leftMarginW), marginH, ctx.dropOrder);
-      right = fitColumnRooms(right, Math.max(8, rightMarginW), marginH, ctx.dropOrder);
+      const { left, right } = placeMarginRooms(roomTypes, leftMarginW, rightMarginW, marginH, ctx.dropOrder);
       if (left.length) zones.push(...packColumn(left, Math.max(8, leftMarginW), 0, marginTop, marginH).zones);
       if (right.length) zones.push(...packColumn(right, Math.max(8, rightMarginW), L - Math.max(8, rightMarginW), marginTop, marginH).zones);
 
@@ -8952,6 +8978,25 @@
       const cx = c * CELL_FT + CELL_FT / 2, cy = r * CELL_FT + CELL_FT / 2;
       return s.zones.some(z => cx >= z.x && cx <= z.x + z.w && cy >= z.y && cy <= z.y + z.h);
     }
+    /* Places real staircases at their actual photographed positions — a
+       staircase is a fixed structural fact about the building (it goes to
+       a real upper floor), not something the generator should guess at or
+       silently drop. See handleChoiceBlueprintUpload / the vision prompt's
+       "staircases" field, kept strictly separate from sortStations since a
+       "S1, S2…" + UP-arrow staircase was previously misread as a row of
+       sortation stations. */
+    function paintVisionStaircases(s) {
+      const stairs = s._visionStaircases;
+      if (!Array.isArray(stairs) || !stairs.length) return;
+      stairs.forEach(st => {
+        const cx = clamp(Math.round((st.cx * s.L) / CELL_FT), 0, s.cols - 1);
+        const cy = clamp(Math.round((st.cy * s.W) / CELL_FT), 0, s.rows - 1);
+        if (cellCoveredByZone(s, cx, cy)) return;
+        const idx = cy * s.cols + cx;
+        s.cells[idx] = PAINT_DEFS.stairs.id;
+        s.rots[idx] = 0;
+      });
+    }
 
     /* =====================================================================
        SORT-BOX FILL — every generated site starts with the open pick floor
@@ -9087,6 +9132,8 @@
       if ($("#constraint-note")) $("#constraint-note").textContent = site.constraintNote ? "Note: " + site.constraintNote : "";
 
       showScreen("editor");
+      if ($("#zoom")) $("#zoom").value = cellPx;
+      if (typeof updateZoomTxt === "function") updateZoomTxt();
       buildPalette();
       sizeCanvas();
       bindCanvasEvents();
@@ -9310,6 +9357,7 @@
       s.cells.fill(0); s.rots.fill(0);
       s.zones = generateDefaultLayout(s, genInput);
       paintConveyorDefaults(s);
+      paintVisionStaircases(s);
       /* No auto-fill of the open floor. In a cross-dock hub the middle of the
          building IS the sortation working area — people and cages move through
          it. Filling it with storage furniture (as the old dark-store flow did)
@@ -9853,12 +9901,12 @@
       const isDark = document.documentElement.getAttribute("data-theme") === "dark" || (document.body && document.body.classList.contains("dark-mode"));
 
       g.clearRect(0, 0, canvas().width, canvas().height);
-      g.fillStyle = isDark ? "#0F1218" : "#fff";
+      g.fillStyle = "#ffffff";
       g.fillRect(0, 0, MARGIN * 2 + W, MARGIN * 2 + H);
       g.save(); g.translate(MARGIN, MARGIN);
 
-      // Floor background
-      g.fillStyle = isDark ? "#171C26" : "#FBFAF7";
+      // Floor background (pure clean white in all themes)
+      g.fillStyle = "#ffffff";
       g.fillRect(0, 0, W, H);
 
       // Layer filtering and object rendering
@@ -9877,7 +9925,7 @@
 
       // Grid lines (Each box is exactly 6x6 ft)
       if (gridLinesVisible) {
-        g.strokeStyle = isDark ? "rgba(255,255,255,.08)" : "rgba(30,27,20,.06)"; g.lineWidth = 1; g.beginPath();
+        g.strokeStyle = "rgba(30,27,20,.08)"; g.lineWidth = 1; g.beginPath();
         for (let c = 0; c <= site.cols; c++) { g.moveTo(c * cellPx + .5, 0); g.lineTo(c * cellPx + .5, H); }
         for (let r = 0; r <= site.rows; r++) { g.moveTo(0, r * cellPx + .5); g.lineTo(W, r * cellPx + .5); }
         g.stroke();
