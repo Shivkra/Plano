@@ -4377,6 +4377,51 @@
       border-color: var(--accent);
     }
 
+    /* Zone-type picker — one big obvious card per zone instead of a form,
+       so picking a zone and dragging it out is a single, fast motion. */
+    .zone-pick-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .zone-pick-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: var(--surface-2);
+      border: 1.5px solid var(--border);
+      border-radius: var(--r-md);
+      cursor: pointer;
+      transition: all var(--dur-f) var(--ease);
+    }
+
+    .zone-pick-card:hover {
+      border-color: var(--accent);
+      background: var(--bg-soft);
+      transform: translateY(-1px);
+    }
+
+    .zone-pick-card .zpc-icon {
+      font-size: 22px;
+      flex: none;
+    }
+
+    .zone-pick-card .zpc-label {
+      display: block;
+      font-size: 13.5px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .zone-pick-card .zpc-sub {
+      display: block;
+      font-size: 11px;
+      color: var(--ink-soft);
+      margin-top: 1px;
+    }
+
     /* Contextual Properties in Right Panel */
     .prop-group {
       margin-bottom: 18px;
@@ -5007,6 +5052,8 @@
             <div class="obj-card" data-obj="rack">🗄️ Rack (3×1.5')</div>
             <div class="obj-card" data-obj="sortbox">📦 Sorting Box (2×2')</div>
             <div class="obj-card" data-obj="palletrack">🧱 Pallet Rack (4×4')</div>
+            <div class="obj-card" data-obj="trolleycage">🗃️ Trolley Cage</div>
+            <div class="obj-card" data-obj="carton">📦 Carton</div>
           </div>
         </div>
 
@@ -5019,6 +5066,8 @@
             <div class="obj-card" data-obj="table">🪑 Work Table</div>
             <div class="obj-card" data-obj="conveyor">» Conveyor Belt</div>
             <div class="obj-card" data-obj="staging">▦ Inward Area</div>
+            <div class="obj-card" data-obj="locker">🔒 Locker</div>
+            <div class="obj-card" data-obj="chair">💺 Chair</div>
           </div>
         </div>
 
@@ -5029,6 +5078,7 @@
             <div class="obj-card" data-obj="computer">💻 Workstation</div>
             <div class="obj-card" data-obj="ac">❄️ AC Unit</div>
             <div class="obj-card" data-obj="waterdisp">💧 Water Dispenser</div>
+            <div class="obj-card" data-obj="trolley">🛒 Normal Trolley</div>
           </div>
         </div>
 
@@ -5041,6 +5091,12 @@
             <div class="obj-card" data-obj="fireexit">🚨 Fire Exit</div>
             <div class="obj-card" data-obj="column">🏛️ Structural Col</div>
             <div class="obj-card" data-obj="stairs">🪜 Staircase</div>
+            <div class="obj-card" data-obj="pillar">🏛️ Pillar</div>
+            <div class="obj-card" data-obj="door">🚪 Door</div>
+            <div class="obj-card" data-obj="rollshutter">🚧 Rolling Shutter</div>
+            <div class="obj-card" data-obj="drainage">🕳️ Drainage Point</div>
+            <div class="obj-card" data-obj="fireext">🧯 Fire Extinguisher</div>
+            <div class="obj-card" data-obj="cctv">🔴 CCTV</div>
           </div>
         </div>
       </div>
@@ -5079,6 +5135,33 @@
           </div>
         </div>
         <button class="btn primary full" id="quick-room-create" style="margin-top:16px;">+ Place Room on Canvas</button>
+      </div>
+
+      <!-- Flyout Drawer: Zone Type Picker — pick a type, then drag on the
+           floor to draw it. One click for the three zones a mother hub
+           actually needs; no dimension form to fill in first. -->
+      <div class="flyout-drawer" id="zone-drawer">
+        <div class="flyout-head">
+          <h3>Draw a Zone</h3>
+          <button class="btn ghost icon sm" id="zone-drawer-close">✕</button>
+        </div>
+        <p style="font-size:12px; color:var(--ink-soft); margin-bottom:14px; line-height:1.4;">
+          Pick a zone, then click and drag on the floor to draw it at whatever size you need.
+        </p>
+        <div class="zone-pick-grid">
+          <div class="zone-pick-card" data-zone="receiving">
+            <span class="zpc-icon">📥</span>
+            <span class="zpc-text"><span class="zpc-label">Inward Zone</span><span class="zpc-sub">Where goods arrive &amp; get scanned</span></span>
+          </div>
+          <div class="zone-pick-card" data-zone="sorting">
+            <span class="zpc-icon">🔀</span>
+            <span class="zpc-text"><span class="zpc-label">Sorting Zone</span><span class="zpc-sub">Segregation by destination</span></span>
+          </div>
+          <div class="zone-pick-card" data-zone="dispatchQueue">
+            <span class="zpc-icon">🚚</span>
+            <span class="zpc-text"><span class="zpc-label">Dispatch Zone</span><span class="zpc-sub">Staged &amp; waiting to load</span></span>
+          </div>
+        </div>
       </div>
 
       <!-- Flyout Drawer: Smart AutoCAD Tools Suite -->
@@ -5955,10 +6038,10 @@
       // — receiving right behind the gate, then sortation, then bagging,
       // then a dispatch queue back near the gate — rather than the old
       // separate-dock model's two independent bands.
-      receiving: { name: "Receiving", color: "#64748B", group: "room" },
+      receiving: { name: "Inward Zone", color: "#64748B", group: "room" },
       bagging: { name: "Bagging", color: "#16A34A", group: "room" },
-      dispatchQueue: { name: "Dispatch Queue", color: "#9333EA", group: "room" },
-      sorting: { name: "Mini Sorting Center", color: "#0891B2", group: "room" },
+      dispatchQueue: { name: "Dispatch Zone", color: "#9333EA", group: "room" },
+      sorting: { name: "Sorting Zone", color: "#0891B2", group: "room" },
       security: { name: "Security Room", color: "#1E293B", group: "room" },
       medical: { name: "Medical / First-Aid", color: "#E11D48", group: "room" },
       conference: { name: "Conference Room", color: "#7C3AED", group: "room" },
@@ -6008,6 +6091,8 @@
       rack: { id: 1, key: "1", name: "Rack (3×1.5 ft)", short: "Rack", glyph: "🗄️", color: "#64748B", category: "storage", w: 3, d: 1.5, h: 8, levels: 5 },
       sortbox: { id: 11, key: "", name: "Sorting Box (2×2 ft)", short: "Sort Box", glyph: "📦", color: "#0EA5E9", category: "storage", w: 2, d: 2, h: 2, levels: 1 },
       palletrack: { id: 14, key: "", name: "Pallet Rack (4×4 ft)", short: "Pallet Rack", glyph: "🧱", color: "#334155", category: "storage", w: 4, d: 4, h: 12, levels: 3 },
+      trolleycage: { id: 32, key: "", name: "Trolley Cage", short: "Trolley Cage", glyph: "🗃️", color: "#6366F1", category: "storage", w: 3, d: 2, h: 5.5 },
+      carton: { id: 33, key: "", name: "Carton", short: "Carton", glyph: "📦", color: "#D97706", category: "storage", w: 1.5, d: 1.5, h: 1.5 },
 
       // Operations
       packing: { id: 3, key: "3", name: "Packing Area", short: "Packing", glyph: "📦", color: "#10B981", category: "ops", w: 4, d: 2, h: 3 },
@@ -6016,12 +6101,15 @@
       table: { id: 2, key: "2", name: "Work Table", short: "Table", glyph: "🪑", color: "#F59E0B", category: "ops", w: 3, d: 2, h: 3 },
       conveyor: { id: 5, key: "5", name: "Conveyor Belt", short: "Conveyor", glyph: "»", color: "#94A3B8", category: "ops", w: 2, d: 2, h: 2.5 },
       staging: { id: 17, key: "", name: "Inward Area", short: "Inward", glyph: "▦", color: "#A8A29E", category: "ops", w: 4, d: 4, h: 0 },
+      locker: { id: 37, key: "", name: "Locker", short: "Locker", glyph: "🔒", color: "#78716C", category: "ops", w: 2, d: 1.5, h: 6 },
+      chair: { id: 38, key: "", name: "Chair", short: "Chair", glyph: "💺", color: "#FBBF24", category: "ops", w: 1.5, d: 1.5, h: 3 },
 
       // Equipment
       scale: { id: 21, key: "", name: "Weighing Scale", short: "Scale", glyph: "⚖️", color: "#06B6D4", category: "equip", w: 2, d: 2, h: 1 },
       computer: { id: 22, key: "", name: "Computer Station", short: "Computer", glyph: "💻", color: "#3B82F6", category: "equip", w: 2, d: 2, h: 3 },
       ac: { id: 23, key: "", name: "AC Unit / HVAC", short: "AC", glyph: "❄️", color: "#38BDF8", category: "equip", w: 2, d: 1, h: 2 },
       waterdisp: { id: 10, key: "0", name: "Water Dispenser", short: "Water", glyph: "💧", color: "#22D3EE", category: "equip", w: 1.5, d: 1.5, h: 4 },
+      trolley: { id: 34, key: "", name: "Normal Trolley", short: "Trolley", glyph: "🛒", color: "#0EA5E9", category: "equip", w: 2, d: 1.5, h: 3 },
 
       // Infrastructure & Safety
       wall: { id: 8, key: "8", name: "Wall / Blocked", short: "Wall", glyph: "", color: "#44403C", category: "infra", w: 2, d: 2, h: 8 },
@@ -6030,10 +6118,20 @@
       exit: { id: 7, key: "7", name: "Exit Shutter", short: "Exit", glyph: "◀", color: "#DC2626", category: "infra", w: 6, d: 1, h: 8 },
       fireexit: { id: 25, key: "", name: "Fire Exit", short: "Fire Exit", glyph: "🚨", color: "#EF4444", category: "infra", w: 3, d: 0.5, h: 7 },
       stairs: { id: 26, key: "", name: "Staircase", short: "Stairs", glyph: "🪜", color: "#71717A", category: "infra", w: 4, d: 6, h: 10 },
+      pillar: { id: 28, key: "", name: "Pillar", short: "Pillar", glyph: "🏛️", color: "#57534E", category: "infra", w: 1.5, d: 1.5, h: 10 },
+      door: { id: 29, key: "", name: "Door", short: "Door", glyph: "🚪", color: "#A16207", category: "infra", w: 3, d: 0.5, h: 7 },
+      rollshutter: { id: 30, key: "", name: "Rolling Shutter", short: "Roll Shutter", glyph: "🚧", color: "#EA580C", category: "infra", w: 8, d: 1, h: 9 },
+      drainage: { id: 31, key: "", name: "Drainage Point", short: "Drainage", glyph: "🕳️", color: "#0891B2", category: "infra", w: 1, d: 1, h: 0.3 },
+      fireext: { id: 35, key: "", name: "Fire Extinguisher", short: "Fire Ext.", glyph: "🧯", color: "#DC2626", category: "infra", w: 0.7, d: 0.7, h: 2 },
+      // Drawn as a small red dot on the canvas (see drawPaintCell) rather
+      // than a filled block like every other object — a CCTV marker reads
+      // as a fixture point, not a footprint.
+      cctv: { id: 36, key: "", name: "CCTV", short: "CCTV", glyph: "🔴", color: "#DC2626", category: "infra", w: 0.5, d: 0.5, h: 8 },
     };
     const PAINT_BY_ID = Object.fromEntries(Object.values(PAINT_DEFS).map(e => [e.id, e]));
-    const ROTATABLE_PAINT = new Set([1, 2, 3, 5, 6, 7, 14, 15, 16, 17, 21, 22, 23, 25, 26]);
-    const PAINT_ORDER = ["rack", "sortbox", "palletrack", "packing", "receiving", "dispatch", "table", "conveyor", "staging", "scale", "computer", "ac", "waterdisp", "entry", "exit", "fireexit", "column", "stairs", "wall"];
+    const CCTV_ID = PAINT_DEFS.cctv.id;
+    const ROTATABLE_PAINT = new Set([1, 2, 3, 5, 6, 7, 14, 15, 16, 17, 21, 22, 23, 25, 26, 29, 30]);
+    const PAINT_ORDER = ["rack", "sortbox", "palletrack", "trolleycage", "carton", "packing", "receiving", "dispatch", "table", "conveyor", "staging", "locker", "chair", "scale", "computer", "ac", "waterdisp", "trolley", "entry", "exit", "fireexit", "column", "stairs", "wall", "pillar", "door", "rollshutter", "drainage", "fireext", "cctv"];
 
     /* =====================================================================
        UTIL
@@ -8052,7 +8150,7 @@
       <h5>The design</h5>
       A ${fmtNum(site.L * site.W)} sq ft ${escapeHtml(shapeLabel)} sort hub, one shared gate for both directions.
       Boxes arrive at the gate, move by ${escapeHtml(eqLabel)} through receiving and ${escapeHtml(sortLabel)} — the path runs ${escapeHtml(shapeDesc)} —
-      stage in ${lanes > 0 ? `${lanes} outbound lane${lanes === 1 ? "" : "s"}` : "the dispatch queue"}, and load back out the same gate.
+      stage in ${lanes > 0 ? `${lanes} outbound lane${lanes === 1 ? "" : "s"}` : "the dispatch zone"}, and load back out the same gate.
       ${p.growthHeadroomPct > 0 ? `${p.growthHeadroomPct}% of the floor is held back for growth.` : ""}
       The centre of the floor is left open on purpose — that's your sortation working area and it needs to stay clear.
     </div>
@@ -8463,7 +8561,7 @@
       zones.push(mkZone("security", secX, secY, secW, secDepth, secLabel));
 
       const receivingX = gateX, receivingY = snap2(gateY - receivingDepth);
-      zones.push(mkZone("receiving", receivingX, receivingY, gateW, receivingDepth, "Receiving"));
+      zones.push(mkZone("receiving", receivingX, receivingY, gateW, receivingDepth, "Inward Zone"));
 
       // Dispatch sits on the side of the gate away from security, sized to
       // whatever room is ACTUALLY left on that side — not just clamped
@@ -8508,7 +8606,7 @@
         }
         laneNote = fitLanes < laneCount ? `${laneCount} destinations requested; ${fitLanes} lanes fit near the gate — the last lane is shared.` : "";
       } else {
-        zones.push(mkZone("dispatchQueue", dispX, dispY, dispatchW, dispatchDepth, "Dispatch Queue"));
+        zones.push(mkZone("dispatchQueue", dispX, dispY, dispatchW, dispatchDepth, "Dispatch Zone"));
       }
 
       const marginTop = baggingY, marginBottom = gridBottomY;
@@ -8550,7 +8648,7 @@
 
       const receivingW = snap2(clamp(colW * 0.85, gateW, colW));
       const receivingX = snap2((colW - receivingW) / 2), receivingY = snap2(gateY - receivingDepth);
-      zones.push(mkZone("receiving", receivingX, receivingY, receivingW, receivingDepth, "Receiving"));
+      zones.push(mkZone("receiving", receivingX, receivingY, receivingW, receivingDepth, "Inward Zone"));
 
       const dispatchW = snap2(clamp(colW * 0.85, 14, colW));
       const dispX = snap2((colW - dispatchW) / 2);
@@ -8597,7 +8695,7 @@
         }
         laneNote = fitLanes < laneCount ? `${laneCount} destinations requested; ${fitLanes} lanes fit near the gate — the last lane is shared.` : "";
       } else {
-        zones.push(mkZone("dispatchQueue", dispX, dispY, dispatchW, dispatchDepth, "Dispatch Queue"));
+        zones.push(mkZone("dispatchQueue", dispX, dispY, dispatchW, dispatchDepth, "Dispatch Zone"));
       }
 
       // Leftover lower-right rectangle (below the sort/bagging arm, right of
@@ -8655,7 +8753,7 @@
 
       const receivingW = rowW.receiving;
       const receivingX = rowStartX, receivingY = snap2(gateY - receivingDepth);
-      zones.push(mkZone("receiving", receivingX, receivingY, receivingW, receivingDepth, "Receiving"));
+      zones.push(mkZone("receiving", receivingX, receivingY, receivingW, receivingDepth, "Inward Zone"));
 
       const baggingW = rowW.bagging;
       const bagX = snap2(receivingX + receivingW + CELL_FT);
@@ -9448,6 +9546,19 @@
       if (roomClose) roomClose.onclick = () => closeDrawers();
       const cadClose = $("#cadtools-drawer-close");
       if (cadClose) cadClose.onclick = () => closeDrawers();
+      const zoneClose = $("#zone-drawer-close");
+      if (zoneClose) zoneClose.onclick = () => closeDrawers();
+
+      // Zone-type picker cards — pick a zone, then drag on the floor.
+      document.querySelectorAll(".zone-pick-card").forEach(card => {
+        card.onclick = () => {
+          const zoneType = card.dataset.zone;
+          if (!ZONE_DEFS[zoneType]) return;
+          closeDrawers();
+          setTool("zone:" + zoneType);
+          toast(`${ZONE_DEFS[zoneType].name}: click and drag on the floor to draw it.`);
+        };
+      });
 
       refreshPaletteActive();
     }
@@ -9658,9 +9769,15 @@
         closeDrawers();
         if (d && !isOpen) d.classList.add("on");
       } else if (smartTool === "zone") {
+        // Used to jump straight into drawing a hardcoded "sorting" zone —
+        // no way to draw an Inward or Dispatch zone from this button at
+        // all. Now opens a one-click picker for the three zones a mother
+        // hub actually needs; picking one starts the same drag-to-draw
+        // interaction as before.
+        const d = $("#zone-drawer");
+        const isOpen = d && d.classList.contains("on");
         closeDrawers();
-        setTool("zone:sorting");
-        toast("Zone Tool: Click and drag to designate operational zone");
+        if (d && !isOpen) d.classList.add("on");
       } else if (smartTool === "erase") {
         closeDrawers();
         setTool("erase");
@@ -9668,12 +9785,13 @@
     }
 
     function closeDrawers() {
-      const od = $("#obj-drawer"), rd = $("#room-drawer"), id = $("#issues-drawer"), cd = $("#cadtools-drawer"), pd = $("#parallel-drawer");
+      const od = $("#obj-drawer"), rd = $("#room-drawer"), id = $("#issues-drawer"), cd = $("#cadtools-drawer"), pd = $("#parallel-drawer"), zd = $("#zone-drawer");
       if (od) od.classList.remove("on");
       if (rd) rd.classList.remove("on");
       if (id) id.classList.remove("on");
       if (cd) cd.classList.remove("on");
       if (pd) pd.classList.remove("on");
+      if (zd) zd.classList.remove("on");
     }
 
     function setTool(id) {
@@ -10114,6 +10232,20 @@
       g.translate(cx, cy);
       if (rot) {
         g.rotate((rot * 90 * Math.PI) / 180);
+      }
+
+      if (def.id === CCTV_ID) {
+        // A camera is a fixture point, not a footprint — a small filled
+        // dot reads correctly at any zoom, where a full colored block
+        // (matching every other object) would misleadingly imply CCTV
+        // occupies real floor area.
+        const dotR = Math.max(2, Math.min(w, h) * 0.22);
+        g.fillStyle = def.color;
+        g.beginPath();
+        g.arc(0, 0, dotR, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+        return;
       }
 
       g.fillStyle = def.color;
@@ -11704,7 +11836,7 @@
         ["Handling", eqLabel, m.aisleWidthFt + " ft working aisle"],
         ["Sortation", sortLabel, "sized to rate above"],
         ["Gate doors", fmtNum(p.dockBays || 0), "shared in/out leveler"],
-        ["Outbound lanes", lanes > 0 ? lanes + (dests ? " / " + dests : "") : "dispatch queue", dests ? "lanes / destinations" : "no destinations set"],
+        ["Outbound lanes", lanes > 0 ? lanes + (dests ? " / " + dests : "") : "dispatch zone", dests ? "lanes / destinations" : "no destinations set"],
       ];
 
       // Bar scale — a printed plan needs a graphic scale, not a screen ratio.
@@ -11772,7 +11904,7 @@
       <div class="sheet-notes">
         <div>
           <h4>Design intent</h4>
-          <p>A ${fmtNum(totalArea)} sq ft ${escapeHtml(shapeLabel)} sortation hub, one shared gate for both directions. Packed boxes arrive at the gate, move by ${escapeHtml(eqLabel.toLowerCase())} through receiving and ${escapeHtml(sortLabel.toLowerCase())} — the path runs ${escapeHtml(shapeDesc)} — stage in ${lanes > 0 ? `${lanes} outbound lane${lanes === 1 ? "" : "s"}` : "the dispatch queue"}, and load back out the same gate. The centre of the floor is left clear by design — it is the sortation working area and must not be built on.${p.growthHeadroomPct > 0 ? ` ${p.growthHeadroomPct}% of the floor is held back for growth.` : ""}</p>
+          <p>A ${fmtNum(totalArea)} sq ft ${escapeHtml(shapeLabel)} sortation hub, one shared gate for both directions. Packed boxes arrive at the gate, move by ${escapeHtml(eqLabel.toLowerCase())} through receiving and ${escapeHtml(sortLabel.toLowerCase())} — the path runs ${escapeHtml(shapeDesc)} — stage in ${lanes > 0 ? `${lanes} outbound lane${lanes === 1 ? "" : "s"}` : "the dispatch zone"}, and load back out the same gate. The centre of the floor is left clear by design — it is the sortation working area and must not be built on.${p.growthHeadroomPct > 0 ? ` ${p.growthHeadroomPct}% of the floor is held back for growth.` : ""}</p>
         </div>
         <div>
           <h4>Check before setting out</h4>
