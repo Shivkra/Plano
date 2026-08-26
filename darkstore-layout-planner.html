@@ -11307,8 +11307,25 @@
       if (e.target === $("#ai-studio-modal-overlay")) closeAiStudioModal();
     });
 
+    /* This used to be a completely independent hand-painted cell generator —
+       its own dockIn/dockOut walls, its own storage-racking floor array, its
+       own hardcoded room suite ("Operations Manager Suite", "MHE Battery
+       Charging Bay") — built before this app became a cross-dock-only tool
+       and never updated when generateDefaultLayout was rewritten around the
+       shared-gate/three-shape model. That meant the two most visible ways to
+       generate a layout — this quick-template row and the guided-questions
+       flow — produced two visibly different, inconsistent designs, and a fix
+       to one silently didn't apply to the other. Now it just builds the same
+       genParams the guided flow would and calls the same generator. */
     function applyAiLayoutArchetype(arch) {
-      generateOptimalAiLayout({ archetype: arch, targetVolume: 15000, aisleWidthFt: 6, flowPattern: "i-flow" });
+      // The two buttons should produce visibly different example layouts,
+      // not the same one under two labels — Mother Warehouse is the larger,
+      // automated end of the scale; Cross-Dock a smaller semiauto hub in a
+      // different shape, so the row actually demonstrates the range.
+      const preset = arch === "cross_dock"
+        ? { targetVolume: 10000, aisleWidthFt: 8, flowShape: "loop" }
+        : { targetVolume: 40000, aisleWidthFt: 6, flowShape: "spine" };
+      generateOptimalAiLayout(Object.assign({ archetype: arch }, preset));
     }
     window.applyAiLayoutArchetype = applyAiLayoutArchetype;
 
@@ -11316,116 +11333,39 @@
       if (!site) return;
       snapshot();
 
-      const L = site.L;
-      const W = site.W;
-      const cols = site.cols;
-      const rows = site.rows;
-
-      // Clear existing cells & zones
-      site.cells = new Array(cols * rows).fill(0);
-      site.rots = new Array(cols * rows).fill(0);
-      site.zones = [];
-
       const arch = params.archetype || "motherhub";
       const aisleFt = params.aisleWidthFt || 6;
-      const aisleCells = Math.max(2, Math.round(aisleFt / CELL_FT));
+      const targetVolume = Math.max(1, params.targetVolume || 15000);
+      const flowShape = params.flowShape || "spine";
 
-      // 1. Boundary Perimeter Walls & Inbound / Outbound Docks
-      // Inbound on left wall, Outbound on right wall (I-Flow) or both on bottom (U-Flow)
-      const isUFlow = params.flowPattern === "u-flow";
+      const equipment = aisleFt >= 12 ? "forklift" : aisleFt >= 8 ? "cage" : aisleFt >= 6 ? "trolley" : "manual";
+      const aisleRows = { manual: 2, trolley: 3, cage: 4, forklift: 6 }[equipment];
+      // No real destination count to go on here (this is a one-click
+      // template, not the guided flow that actually asks) — scale a
+      // plausible one off targetVolume so sortCount (one box per
+      // destination) still lands somewhere sane instead of the toggle
+      // default of 1-3.
+      const destinationHubs = clamp(Math.round(targetVolume / 1500), 4, 60);
+      const tier = throughputTier(targetVolume);
+      const bayW = 12;
+      const maxDoors = Math.max(1, Math.floor((site.L * 0.8) / bayW));
+      const dockBays = clamp(Math.round((site.L * site.W) / 2750), 1, maxDoors);
 
-      // Wall perimeter
-      for (let c = 0; c < cols; c++) {
-        setPaintCell(c, 0, PAINT_DEFS.wall.id);
-        setPaintCell(c, rows - 1, PAINT_DEFS.wall.id);
-      }
-      for (let r = 0; r < rows; r++) {
-        setPaintCell(0, r, PAINT_DEFS.wall.id);
-        setPaintCell(cols - 1, r, PAINT_DEFS.wall.id);
-      }
-
-      // Docking Openings & Zones (Mother Hub Multi-Bay Standard)
-      if (!isUFlow) {
-        // I-Flow: Multi-Bay Inbound on Left Wall, Outbound Dispatch on Right Wall
-        const inR0 = Math.round(rows * 0.20), inR1 = Math.round(rows * 0.80);
-        for (let r = inR0; r <= inR1; r++) setPaintCell(0, r, PAINT_DEFS.entry.id);
-        site.zones.push(mkZone("dockIn", 0, inR0 * CELL_FT, 16, (inR1 - inR0 + 1) * CELL_FT, "Inbound Multi-Dock (Receiving)"));
-
-        const outR0 = Math.round(rows * 0.20), outR1 = Math.round(rows * 0.80);
-        for (let r = outR0; r <= outR1; r++) setPaintCell(cols - 1, r, PAINT_DEFS.exit.id);
-        site.zones.push(mkZone("dockOut", (cols - 9) * CELL_FT, outR0 * CELL_FT, 16, (outR1 - outR0 + 1) * CELL_FT, "Outbound Dispatch Docks"));
-      } else {
-        // U-Flow: Both on bottom wall
-        const inC0 = 2, inC1 = Math.round(cols * 0.40);
-        for (let c = inC0; c <= inC1; c++) setPaintCell(c, rows - 1, PAINT_DEFS.entry.id);
-        site.zones.push(mkZone("dockIn", inC0 * CELL_FT, (rows - 8) * CELL_FT, (inC1 - inC0) * CELL_FT, 14, "Inbound Receiving Docks"));
-
-        const outC0 = Math.round(cols * 0.60), outC1 = cols - 3;
-        for (let c = outC0; c <= outC1; c++) setPaintCell(c, rows - 1, PAINT_DEFS.exit.id);
-        site.zones.push(mkZone("dockOut", outC0 * CELL_FT, (rows - 8) * CELL_FT, (outC1 - outC0) * CELL_FT, 14, "Outbound Dispatch Docks"));
-      }
-
-      // 2. Support Infrastructure Zones (Mother Hub Standard Suite)
-      const topZoneDepth = snap2(Math.min(22, W * 0.18));
-      site.zones.push(mkZone("security", 2, 2, 18, topZoneDepth, "Security & QA Wing"));
-      site.zones.push(mkZone("office", 22, 2, 24, topZoneDepth, "Operations Manager Suite"));
-      site.zones.push(mkZone("conference", 48, 2, 20, topZoneDepth, "Briefing Room"));
-      site.zones.push(mkZone("bathroom", 70, 2, 16, topZoneDepth, "Restroom"));
-      site.zones.push(mkZone("charging", L - 26, 2, 24, topZoneDepth, "MHE Battery Charging Bay"));
-      site.zones.push(mkZone("returns", L - 52, 2, 24, topZoneDepth, "RTO & Returns Processing"));
-
-      // 3. Operations & Packing / Dispatch Sorter Line
-      const packCol = cols - 10;
-      const packRow0 = Math.round(rows * 0.20);
-      const packRow1 = Math.round(rows * 0.80);
-      const packStep = Math.max(3, Math.round((packRow1 - packRow0) / 6));
-      const isCrossDock = arch === "cross_dock";
-
-      for (let r = packRow0; r <= packRow1; r += packStep) {
-        if (packCol > 2 && r > 2 && r < rows - 2) {
-          setPaintCell(packCol, r, PAINT_DEFS.packing.id);
-          // Cross-dock hubs sort already-packed boxes, they don't pick — a
-          // dispatch table replaces the picking station used by the other
-          // archetypes' put-away/pick flow.
-          setPaintCell(packCol + 1, r, isCrossDock ? PAINT_DEFS.dispatch.id : PAINT_DEFS.pickup.id);
-          setPaintCell(packCol, r + 1, PAINT_DEFS.table.id);
-        }
-      }
-
-      // Conveyor Automated Sortation Line (Mother Hub Standard)
-      const convRow = Math.round(rows * 0.5);
-      const convStart = 10;
-      const convEnd = packCol - 3;
-      for (let c = convStart; c <= convEnd; c++) {
-        setPaintCell(c, convRow, PAINT_DEFS.conveyor.id);
-      }
-
-      // 4. Main Floor Array — bulk storage racking for the storage-led
-      // archetypes, or sortation boxes for cross-dock (a cross-dock hub
-      // sorts and stages packed boxes, it doesn't hold bulk pallet stock).
-      const rackColStart = 10;
-      const rackColEnd = packCol - 4;
-      const rackRowStart = Math.ceil((topZoneDepth + 6) / CELL_FT);
-      const rackRowEnd = rows - 6;
-
-      const rackType = isCrossDock ? PAINT_DEFS.sortbox.id
-        : (arch === "motherhub") ? PAINT_DEFS.palletrack.id : PAINT_DEFS.rack.id;
-
-      for (let r = rackRowStart; r <= rackRowEnd; r += (aisleCells + 1)) {
-        // Skip over the central conveyor row
-        if (Math.abs(r - Math.round(rows * 0.5)) <= 1) continue;
-
-        for (let c = rackColStart; c <= rackColEnd; c++) {
-          // Arterial cross-aisles for forklift and picking traffic every ~40ft
-          if (c % 18 === 0 || c % 18 === 1) continue;
-
-          setPaintCell(c, r, rackType);
-        }
-      }
-
-      // 5. Inbound Receiving Stage & Outbound Lanes
-      site.zones.push(mkZone("inboundStage", 2 * CELL_FT, (rows - 10) * CELL_FT, 14 * CELL_FT, 16, "Inbound Bulk Receiving Stage"));
-      site.zones.push(mkZone(isCrossDock ? "outboundLane" : "staging", rackColStart * CELL_FT, (rows - 10) * CELL_FT, (rackColEnd - rackColStart) * CELL_FT, 16, isCrossDock ? "Outbound Destination Lanes" : "Outbound Wave Staging Lanes"));
+      const genParams = Object.assign(defaultGenParams(), site._genParams || {}, {
+        ordersPerDay: targetVolume,
+        handlingEquipment: equipment,
+        aisleRows,
+        flowShape,
+        destinationHubs,
+        outboundLanes: true,
+        sortationMethod: { low: "manual", med: "semiauto", high: "automated" }[tier],
+        dockBays, dockInBays: Math.max(1, Math.round(dockBays * 0.4)), dockOutBays: Math.max(1, dockBays - Math.round(dockBays * 0.4)),
+        doorSpacingFt: dockBays > 30 ? 14 : 12,
+        visionRooms: undefined, sortCount: undefined,
+      });
+      site._genParams = genParams;
+      site._businessContext = { ordersPerDay: targetVolume, destinationHubs };
+      regenerateSiteFromParams(site, genParams);
 
       sizeCanvas();
       redraw();
@@ -11435,10 +11375,11 @@
       const archLabel = {
         motherhub: "🏢 Mother Warehouse (Mega Hub)",
         cross_dock: "📦 Cross-Dock Sortation Hub",
-        micro_hub: "🏬 High-Density Storage Hub"
+        micro_hub: "🏬 Compact Sortation Hub"
       }[arch] || "Mother Warehouse";
+      const shapeLabel = { spine: "Straight Spine", corner: "Corner Turn", loop: "Loop-Back" }[flowShape] || "Straight Spine";
 
-      toast(`✓ AI Layout Generated: ${archLabel} with ${aisleFt}ft high-capacity aisles!`);
+      toast(`✓ Layout generated: ${archLabel} — ${shapeLabel} shape, ${fmtNum(destinationHubs)} destinations, ${aisleFt}ft aisles.`);
     }
 
     // Natural Language Prompt Handler
@@ -11486,21 +11427,23 @@
       if (lower.includes("4ft") || lower.includes("4 ft") || lower.includes("4'")) aisleFt = 4;
       else if (lower.includes("5ft") || lower.includes("5 ft") || lower.includes("5'")) aisleFt = 5;
 
-      // Parse flow pattern
-      const flow = (lower.includes("u-flow") || lower.includes("u flow") || lower.includes("single wall")) ? "u-flow" : "i-flow";
+      // Parse building shape
+      const flowShape = (lower.includes("corner") || lower.includes("l-shape") || lower.includes("l shape")) ? "corner"
+        : (lower.includes("loop") || lower.includes("u-flow") || lower.includes("u flow") || lower.includes("single wall")) ? "loop"
+          : "spine";
 
       // Parse archetype
       if (lower.includes("sort") || lower.includes("cross") || lower.includes("matrix")) {
-        generateOptimalAiLayout({ archetype: "cross_dock", targetVolume: targetVol, aisleWidthFt: aisleFt, flowPattern: flow });
+        generateOptimalAiLayout({ archetype: "cross_dock", targetVolume: targetVol, aisleWidthFt: aisleFt, flowShape });
         toast("✨ Gemini synthesized Cross-Dock Sortation Matrix!");
-      } else if (lower.includes("dense") || lower.includes("pallet storage") || lower.includes("heavy rack") || lower.includes("storage")) {
-        generateOptimalAiLayout({ archetype: "micro_hub", targetVolume: targetVol, aisleWidthFt: aisleFt, flowPattern: flow });
-        toast("✨ Gemini synthesized High-Density Pallet Storage Layout!");
+      } else if (lower.includes("dense") || lower.includes("compact") || lower.includes("micro")) {
+        generateOptimalAiLayout({ archetype: "micro_hub", targetVolume: targetVol, aisleWidthFt: aisleFt, flowShape });
+        toast("✨ Gemini synthesized Compact Sortation Hub Layout!");
       } else if (lower.includes("fix") || lower.includes("aisle") || lower.includes("clear") || lower.includes("align")) {
         autoFixLayoutBottlenecks();
       } else {
         // Default Mother Warehouse synthesis
-        generateOptimalAiLayout({ archetype: "motherhub", targetVolume: targetVol, aisleWidthFt: aisleFt, flowPattern: flow });
+        generateOptimalAiLayout({ archetype: "motherhub", targetVolume: targetVol, aisleWidthFt: aisleFt, flowShape });
         toast("✨ Gemini synthesized optimal Mother Warehouse Layout!");
       }
     }
