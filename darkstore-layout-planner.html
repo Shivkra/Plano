@@ -566,6 +566,22 @@
       box-shadow: 0 0 0 4px rgba(37, 99, 235, .12);
     }
 
+    /* No global `select` rule existed anywhere in the sheet — every select
+       (Room Type, the CAD Tools element picker, etc.) fell back to the
+       browser default text color, which is opaque black regardless of
+       theme. Fine on the light surfaces they were built against, unreadable
+       on a dark one. `option` gets its own rule too since some browsers
+       (Safari in particular) render dropdown option text with system
+       colors rather than inheriting from the select. */
+    select {
+      color: var(--ink);
+    }
+
+    select option {
+      color: var(--ink);
+      background: var(--surface);
+    }
+
     label.field-label {
       display: block;
       font-size: var(--fs-xs);
@@ -4988,9 +5004,7 @@
         <div class="flyout-category">
           <div class="flyout-cat-title">Storage &amp; Racks</div>
           <div class="obj-grid">
-            <div class="obj-card" data-obj="rack">🗄️ Single Rack (2×2')</div>
-            <div class="obj-card" data-obj="doublerack">🗄️ Double Rack (4×2')</div>
-            <div class="obj-card" data-obj="shelf">🪜 Shelf Unit</div>
+            <div class="obj-card" data-obj="rack">🗄️ Rack (3×1.5')</div>
             <div class="obj-card" data-obj="sortbox">📦 Sorting Box (2×2')</div>
             <div class="obj-card" data-obj="palletrack">🧱 Pallet Rack (4×4')</div>
           </div>
@@ -4999,13 +5013,12 @@
         <div class="flyout-category">
           <div class="flyout-cat-title">Operations &amp; Tables</div>
           <div class="obj-grid">
-            <div class="obj-card" data-obj="packing">📦 Packing Station</div>
-            <div class="obj-card" data-obj="pickup">🛍️ Picking Station</div>
+            <div class="obj-card" data-obj="packing">📦 Packing Area</div>
             <div class="obj-card" data-obj="receiving">📥 Receiving Table</div>
             <div class="obj-card" data-obj="dispatch">📤 Dispatch Table</div>
             <div class="obj-card" data-obj="table">🪑 Work Table</div>
             <div class="obj-card" data-obj="conveyor">» Conveyor Belt</div>
-            <div class="obj-card" data-obj="staging">▦ Staging Area</div>
+            <div class="obj-card" data-obj="staging">▦ Inward Area</div>
           </div>
         </div>
 
@@ -5016,20 +5029,18 @@
             <div class="obj-card" data-obj="computer">💻 Workstation</div>
             <div class="obj-card" data-obj="ac">❄️ AC Unit</div>
             <div class="obj-card" data-obj="waterdisp">💧 Water Dispenser</div>
-            <div class="obj-card" data-obj="washbasin">🚰 Wash Basin</div>
           </div>
         </div>
 
         <div class="flyout-category">
           <div class="flyout-cat-title">Infrastructure &amp; Safety</div>
           <div class="obj-grid">
-            <div class="obj-card" data-obj="wall">🧱 Wall (3×3')</div>
+            <div class="obj-card" data-obj="wall">🧱 Wall (2×2')</div>
             <div class="obj-card" data-obj="entry">▶ Entry Door</div>
             <div class="obj-card" data-obj="exit">◀ Shutter / Dock</div>
             <div class="obj-card" data-obj="fireexit">🚨 Fire Exit</div>
             <div class="obj-card" data-obj="column">🏛️ Structural Col</div>
             <div class="obj-card" data-obj="stairs">🪜 Staircase</div>
-            <div class="obj-card" data-obj="washroom">🚻 Washroom</div>
           </div>
         </div>
       </div>
@@ -5092,8 +5103,8 @@
             <label class="field-label" style="font-size:11px;">Element</label>
             <select id="parallel-elem-type"
               style="width:100%; padding:6px 8px; border-radius:6px; background:var(--surface); border:1px solid var(--border); font-size:12px; font-weight:700;">
-              <option value="wall" selected>🧱 Wall (6" Structural Partition)</option>
-              <option value="doublerack">🗄️ Double Rack (4×2 ft)</option>
+              <option value="wall" selected>🧱 Wall (2×2 ft)</option>
+              <option value="rack">🗄️ Rack (3×1.5 ft)</option>
               <option value="palletrack">🧱 Pallet Rack (4×4 ft)</option>
               <option value="conveyor">» Conveyor Belt Run</option>
             </select>
@@ -5989,40 +6000,40 @@
        panel, bin-pop, AI-facts — nothing but the palette row is affected. */
     const PAINT_DEFS = {
       // Storage
-      rack: { id: 1, key: "1", name: "Single Rack", short: "Rack", glyph: "🗄️", color: "#64748B", category: "storage", w: 2, d: 2, h: 8, levels: 5 },
-      doublerack: { id: 12, key: "", name: "Double Rack", short: "Dbl Rack", glyph: "🗄️🗄️", color: "#475569", category: "storage", w: 4, d: 2, h: 8, levels: 5 },
-      shelf: { id: 13, key: "", name: "Shelf Unit", short: "Shelf", glyph: "🪜", color: "#78716C", category: "storage", w: 3, d: 1.5, h: 6, levels: 4 },
+      // Single Rack and Double Rack are consolidated into one generic Rack —
+      // kept under the "rack" key/id (not "doublerack") since PAINT_DEFS.rack.id
+      // is the id checked throughout rack-density/utilization scoring; giving
+      // it Double Rack's old dimensions and renaming it avoids updating every
+      // call site for what is, to the manager, just one rack type now.
+      rack: { id: 1, key: "1", name: "Rack (3×1.5 ft)", short: "Rack", glyph: "🗄️", color: "#64748B", category: "storage", w: 3, d: 1.5, h: 8, levels: 5 },
       sortbox: { id: 11, key: "", name: "Sorting Box (2×2 ft)", short: "Sort Box", glyph: "📦", color: "#0EA5E9", category: "storage", w: 2, d: 2, h: 2, levels: 1 },
       palletrack: { id: 14, key: "", name: "Pallet Rack (4×4 ft)", short: "Pallet Rack", glyph: "🧱", color: "#334155", category: "storage", w: 4, d: 4, h: 12, levels: 3 },
 
       // Operations
-      packing: { id: 3, key: "3", name: "Packing Station", short: "Packing", glyph: "📦", color: "#10B981", category: "ops", w: 4, d: 2, h: 3 },
-      pickup: { id: 4, key: "4", name: "Picking Station", short: "Picking", glyph: "🛍️", color: "#EC4899", category: "ops", w: 2, d: 2, h: 3 },
+      packing: { id: 3, key: "3", name: "Packing Area", short: "Packing", glyph: "📦", color: "#10B981", category: "ops", w: 4, d: 2, h: 3 },
       receiving: { id: 15, key: "", name: "Receiving Table", short: "Receiving", glyph: "📥", color: "#14B8A6", category: "ops", w: 4, d: 2, h: 3 },
       dispatch: { id: 16, key: "", name: "Dispatch Table", short: "Dispatch", glyph: "📤", color: "#F97316", category: "ops", w: 4, d: 2, h: 3 },
       table: { id: 2, key: "2", name: "Work Table", short: "Table", glyph: "🪑", color: "#F59E0B", category: "ops", w: 3, d: 2, h: 3 },
       conveyor: { id: 5, key: "5", name: "Conveyor Belt", short: "Conveyor", glyph: "»", color: "#94A3B8", category: "ops", w: 2, d: 2, h: 2.5 },
-      staging: { id: 17, key: "", name: "Staging Area", short: "Staging", glyph: "▦", color: "#A8A29E", category: "ops", w: 4, d: 4, h: 0 },
+      staging: { id: 17, key: "", name: "Inward Area", short: "Inward", glyph: "▦", color: "#A8A29E", category: "ops", w: 4, d: 4, h: 0 },
 
       // Equipment
       scale: { id: 21, key: "", name: "Weighing Scale", short: "Scale", glyph: "⚖️", color: "#06B6D4", category: "equip", w: 2, d: 2, h: 1 },
       computer: { id: 22, key: "", name: "Computer Station", short: "Computer", glyph: "💻", color: "#3B82F6", category: "equip", w: 2, d: 2, h: 3 },
       ac: { id: 23, key: "", name: "AC Unit / HVAC", short: "AC", glyph: "❄️", color: "#38BDF8", category: "equip", w: 2, d: 1, h: 2 },
       waterdisp: { id: 10, key: "0", name: "Water Dispenser", short: "Water", glyph: "💧", color: "#22D3EE", category: "equip", w: 1.5, d: 1.5, h: 4 },
-      washbasin: { id: 9, key: "9", name: "Wash Basin", short: "Washbasin", glyph: "🚰", color: "#38BDF8", category: "equip", w: 2, d: 1.5, h: 3 },
 
       // Infrastructure & Safety
-      wall: { id: 8, key: "8", name: "Wall / Blocked", short: "Wall", glyph: "", color: "#44403C", category: "infra", w: 3, d: 3, h: 8 },
+      wall: { id: 8, key: "8", name: "Wall / Blocked", short: "Wall", glyph: "", color: "#44403C", category: "infra", w: 2, d: 2, h: 8 },
       column: { id: 24, key: "", name: "Structural Column", short: "Column", glyph: "🏛️", color: "#292524", category: "infra", w: 2, d: 2, h: 12 },
       entry: { id: 6, key: "6", name: "Entry Door", short: "Entry", glyph: "▶", color: "#16A34A", category: "infra", w: 3, d: 0.5, h: 7 },
       exit: { id: 7, key: "7", name: "Exit Shutter", short: "Exit", glyph: "◀", color: "#DC2626", category: "infra", w: 6, d: 1, h: 8 },
       fireexit: { id: 25, key: "", name: "Fire Exit", short: "Fire Exit", glyph: "🚨", color: "#EF4444", category: "infra", w: 3, d: 0.5, h: 7 },
       stairs: { id: 26, key: "", name: "Staircase", short: "Stairs", glyph: "🪜", color: "#71717A", category: "infra", w: 4, d: 6, h: 10 },
-      washroom: { id: 27, key: "", name: "Washroom", short: "Washroom", glyph: "🚻", color: "#0D9488", category: "infra", w: 6, d: 6, h: 8 },
     };
     const PAINT_BY_ID = Object.fromEntries(Object.values(PAINT_DEFS).map(e => [e.id, e]));
-    const ROTATABLE_PAINT = new Set([1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27]);
-    const PAINT_ORDER = ["rack", "doublerack", "shelf", "sortbox", "palletrack", "packing", "pickup", "receiving", "dispatch", "table", "conveyor", "staging", "printer", "scanner", "hhd", "scale", "computer", "ac", "waterdisp", "washbasin", "entry", "exit", "fireexit", "column", "stairs", "washroom", "wall"];
+    const ROTATABLE_PAINT = new Set([1, 2, 3, 5, 6, 7, 14, 15, 16, 17, 21, 22, 23, 25, 26]);
+    const PAINT_ORDER = ["rack", "sortbox", "palletrack", "packing", "receiving", "dispatch", "table", "conveyor", "staging", "scale", "computer", "ac", "waterdisp", "entry", "exit", "fireexit", "column", "stairs", "wall"];
 
     /* =====================================================================
        UTIL
@@ -8756,7 +8767,7 @@
       // 4. Storage Racking Aisles
       (data.racks || []).forEach(rk => {
         const a = toCell(rk.x0, rk.y0), b = toCell(rk.x1, rk.y1);
-        const elemKey = rk.type && PAINT_DEFS[rk.type] ? rk.type : "doublerack";
+        const elemKey = rk.type && PAINT_DEFS[rk.type] ? rk.type : "rack";
         const val = PAINT_DEFS[elemKey].id;
         const isHoriz = Math.abs(b.c - a.c) >= Math.abs(b.r - a.r);
         const minC = Math.min(a.c, b.c), maxC = Math.max(a.c, b.c);
@@ -8921,7 +8932,7 @@
     function computeLayoutMetrics(s, aisleRowsOverride) {
       const totalSqft = s.L * s.W;
       const zoneSqft = s.zones.reduce((sum, z) => sum + z.w * z.h, 0);
-      const productiveIds = new Set([PAINT_DEFS.sortbox.id, PAINT_DEFS.rack.id, PAINT_DEFS.table.id, PAINT_DEFS.packing.id, PAINT_DEFS.pickup.id, PAINT_DEFS.conveyor.id, PAINT_DEFS.washbasin.id, PAINT_DEFS.waterdisp.id]);
+      const productiveIds = new Set([PAINT_DEFS.sortbox.id, PAINT_DEFS.rack.id, PAINT_DEFS.table.id, PAINT_DEFS.packing.id, PAINT_DEFS.conveyor.id, PAINT_DEFS.waterdisp.id]);
       let sortBoxCount = 0, productiveCells = 0, markCount = 0;
       for (let i = 0; i < s.cells.length; i++) {
         const v = s.cells[i]; if (!v) continue;
@@ -9500,8 +9511,8 @@
     // Smart CAD Array Generator
     function generateCadRackArray() {
       if (!site) return;
-      const elemType = $("#parallel-elem-type")?.value || "doublerack";
-      const val = PAINT_DEFS[elemType] ? PAINT_DEFS[elemType].id : PAINT_DEFS.doublerack.id;
+      const elemType = $("#parallel-elem-type")?.value || "rack";
+      const val = PAINT_DEFS[elemType] ? PAINT_DEFS[elemType].id : PAINT_DEFS.rack.id;
       const rowsCount = Math.max(1, Math.min(12, +$("#cad-array-rows")?.value || 4));
       const baysPerRow = Math.max(2, Math.min(25, +$("#cad-array-bays")?.value || 8));
       const aisleGapFt = Math.max(2, Math.min(16, +$("#cad-array-gap")?.value || 4));
@@ -9534,7 +9545,7 @@
     // Smart CAD Perimeter Walkway Inset
     function generateCadPerimeterInset() {
       if (!site) return;
-      const insetCells = 2; // 4 ft inset
+      const insetCells = Math.max(1, Math.round(4 / CELL_FT)); // 4 ft inset — was a hardcoded 2 cells, correct only when CELL_FT was 2
       snapshot();
       const rTop = insetCells, rBottom = site.rows - 1 - insetCells;
       const cLeft = insetCells, cRight = site.cols - 1 - insetCells;

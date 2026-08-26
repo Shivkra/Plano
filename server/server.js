@@ -168,7 +168,7 @@ async function callGeminiVision(base64Image, mimeType) {
                     '  "walls": [ { "x0": number, "y0": number, "x1": number, "y1": number } ],\n' +
                     '  "rooms": [ { "name": string, "type": "office"|"security"|"conference"|"medical"|"store"|"ups"|"bathroom"|"inboundStage"|"outboundLane"|"charging", "x": number, "y": number, "w": number, "h": number } ],\n' +
                     '  "sortStations": [ { "label": string, "x0": number, "y0": number, "x1": number, "y1": number } ],\n' +
-                    '  "racks": [ { "type": "doublerack"|"rack"|"palletrack", "x0": number, "y0": number, "x1": number, "y1": number } ],\n' +
+                    '  "racks": [ { "type": "rack"|"palletrack", "x0": number, "y0": number, "x1": number, "y1": number } ],\n' +
                     '  "equipment": [ { "type": "conveyor"|"packing"|"staging"|"dispatch"|"table", "x0": number, "y0": number, "x1": number, "y1": number } ],\n' +
                     '  "entries": [ { "x": number, "y": number } ],\n' +
                     '  "exits": [ { "x": number, "y": number } ]\n' +
@@ -250,7 +250,7 @@ function parseVisionResult(text) {
     : [];
   const racks = Array.isArray(parsed.racks)
     ? parsed.racks.slice(0, 150).map((rk) => ({
-        type: String(rk.type || "doublerack"),
+        type: String(rk.type || "rack"),
         x0: clamp01(rk.x0),
         y0: clamp01(rk.y0),
         x1: clamp01(rk.x1 !== undefined ? rk.x1 : rk.x0),
@@ -568,10 +568,10 @@ async function handleVisionImport(req, res) {
       { name: "Outbound Staging", type: "outboundLane", x: 0.62, y: 0.04, w: 0.34, h: 0.22 },
     ],
     racks: [
-      { type: "doublerack", x0: 0.26, y0: 0.36, x1: 0.92, y1: 0.36 },
-      { type: "doublerack", x0: 0.26, y0: 0.48, x1: 0.92, y1: 0.48 },
-      { type: "doublerack", x0: 0.26, y0: 0.60, x1: 0.92, y1: 0.60 },
-      { type: "doublerack", x0: 0.26, y0: 0.72, x1: 0.92, y1: 0.72 },
+      { type: "rack", x0: 0.26, y0: 0.36, x1: 0.92, y1: 0.36 },
+      { type: "rack", x0: 0.26, y0: 0.48, x1: 0.92, y1: 0.48 },
+      { type: "rack", x0: 0.26, y0: 0.60, x1: 0.92, y1: 0.60 },
+      { type: "rack", x0: 0.26, y0: 0.72, x1: 0.92, y1: 0.72 },
     ],
     equipment: [
       { type: "packing", x0: 0.26, y0: 0.86, x1: 0.54, y1: 0.86 },
