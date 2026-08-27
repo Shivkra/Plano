@@ -675,26 +675,73 @@
     }
 
     .shortcuts-modal-card {
-      max-width: 640px;
-      width: 640px;
+      width: 700px;
+      max-width: 94vw;
+      max-height: 84vh;
+      overflow-y: auto;
+      padding: 28px 32px 22px;
+    }
+
+    .shortcuts-modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      padding-bottom: 18px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .shortcuts-modal-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .shortcuts-modal-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+      border-radius: var(--r-lg);
+      background: var(--surface-2);
+      font-size: 20px;
+    }
+
+    .shortcuts-modal-title-wrap h3 {
+      font-size: var(--fs-lg);
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      margin: 0;
+    }
+
+    .shortcuts-modal-title-wrap p {
+      font-size: var(--fs-xs);
+      color: var(--ink-soft);
+      margin-top: 3px;
     }
 
     .shortcuts-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 0 22px;
+      gap: 0 28px;
     }
 
     .sc-group-title {
       font-size: 11px;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: .04em;
-      color: var(--ink-faint);
-      margin: 14px 0 6px;
+      letter-spacing: .06em;
+      color: var(--accent);
+      padding-bottom: 8px;
+      margin: 22px 0 10px;
+      border-bottom: 2px solid var(--border);
     }
 
-    .sc-group-title:first-child {
+    .sc-col > .sc-group-title:first-child {
       margin-top: 0;
     }
 
@@ -702,30 +749,102 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      padding: 4px 0;
+      gap: 10px;
+      padding: 6px 0;
       font-size: 13px;
-      color: var(--ink-soft);
+      color: var(--ink);
+    }
+
+    .sc-row .keys {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
     }
 
     .sc-row kbd {
-      display: inline-block;
-      min-width: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 22px;
+      padding: 0 7px;
+      border-radius: 6px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-strong);
+      border-bottom-width: 2px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--ink);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .shortcuts-modal-footer {
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
       text-align: center;
-      padding: 2px 6px;
-      margin-left: 3px;
+      font-size: var(--fs-xs);
+      color: var(--ink-faint);
+    }
+
+    .shortcuts-modal-footer kbd {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 20px;
+      padding: 0 6px;
       border-radius: 5px;
       background: var(--surface-2);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-strong);
+      border-bottom-width: 2px;
       font-size: 11px;
       font-weight: 700;
       color: var(--ink);
       font-family: inherit;
+      margin: 0 2px;
+    }
+
+    .shortcuts-fab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      height: 32px;
+      padding: 0 14px;
+      margin-left: 12px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-strong);
+      color: var(--ink);
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background var(--dur-f) var(--ease), border-color var(--dur-f) var(--ease), box-shadow var(--dur-f) var(--ease);
+    }
+
+    .shortcuts-fab-btn span {
+      font-size: 15px;
+    }
+
+    .shortcuts-fab-btn:hover {
+      background: var(--surface);
+      border-color: var(--ink-faint);
+      box-shadow: var(--shadow-sm);
     }
 
     @media (max-width: 640px) {
       .shortcuts-grid {
         grid-template-columns: 1fr;
+      }
+
+      .sc-col > .sc-group-title:first-child {
+        margin-top: 22px;
+      }
+
+      .sc-col:first-child > .sc-group-title:first-child {
+        margin-top: 0;
       }
     }
 
@@ -5912,12 +6031,18 @@
     <!-- Keyboard Shortcuts Help -->
     <div class="modal-overlay" id="shortcuts-modal-overlay">
       <div class="settings-modal-card shortcuts-modal-card">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-          <h3 style="font-size:16px; font-weight:800; margin:0;">⌨️ Keyboard Shortcuts</h3>
+        <div class="shortcuts-modal-header">
+          <div class="shortcuts-modal-title-wrap">
+            <span class="shortcuts-modal-icon">⌨️</span>
+            <div>
+              <h3>Keyboard Shortcuts</h3>
+              <p>Work faster — just like Figma &amp; Canva</p>
+            </div>
+          </div>
           <button class="btn ghost icon sm" id="shortcuts-close">✕</button>
         </div>
         <div class="shortcuts-grid">
-          <div>
+          <div class="sc-col">
             <div class="sc-group-title">Tools</div>
             <div class="sc-row"><span>Select</span><kbd>V</kbd></div>
             <div class="sc-row"><span>Wall</span><kbd>W</kbd></div>
@@ -5928,28 +6053,29 @@
             <div class="sc-row"><span>Measure</span><kbd>M</kbd></div>
             <div class="sc-row"><span>Eraser</span><kbd>E</kbd></div>
           </div>
-          <div>
+          <div class="sc-col">
             <div class="sc-group-title">Edit</div>
-            <div class="sc-row"><span>Undo</span><span><kbd>⌘/Ctrl</kbd><kbd>Z</kbd></span></div>
-            <div class="sc-row"><span>Redo</span><span><kbd>⌘/Ctrl</kbd><kbd>⇧</kbd><kbd>Z</kbd></span></div>
-            <div class="sc-row"><span>Duplicate</span><span><kbd>⌘/Ctrl</kbd><kbd>D</kbd></span></div>
-            <div class="sc-row"><span>Copy</span><span><kbd>⌘/Ctrl</kbd><kbd>C</kbd></span></div>
-            <div class="sc-row"><span>Paste</span><span><kbd>⌘/Ctrl</kbd><kbd>V</kbd></span></div>
-            <div class="sc-row"><span>Select All</span><span><kbd>⌘/Ctrl</kbd><kbd>A</kbd></span></div>
+            <div class="sc-row"><span>Undo</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>Z</kbd></span></div>
+            <div class="sc-row"><span>Redo</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>⇧</kbd><kbd>Z</kbd></span></div>
+            <div class="sc-row"><span>Duplicate</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>D</kbd></span></div>
+            <div class="sc-row"><span>Copy</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>C</kbd></span></div>
+            <div class="sc-row"><span>Paste</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>V</kbd></span></div>
+            <div class="sc-row"><span>Select All</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>A</kbd></span></div>
             <div class="sc-row"><span>Delete</span><kbd>Del</kbd></div>
           </div>
-          <div>
+          <div class="sc-col">
             <div class="sc-group-title">Move &amp; Rotate</div>
             <div class="sc-row"><span>Nudge selection</span><kbd>↑↓←→</kbd></div>
-            <div class="sc-row"><span>Nudge faster</span><span><kbd>⇧</kbd><kbd>↑↓←→</kbd></span></div>
-            <div class="sc-row"><span>Rotate</span><span><kbd>[</kbd><kbd>]</kbd></span></div>
+            <div class="sc-row"><span>Nudge faster</span><span class="keys"><kbd>⇧</kbd><kbd>↑↓←→</kbd></span></div>
+            <div class="sc-row"><span>Rotate</span><span class="keys"><kbd>[</kbd><kbd>]</kbd></span></div>
             <div class="sc-group-title">View</div>
-            <div class="sc-row"><span>Zoom in / out</span><span><kbd>⌘/Ctrl</kbd><kbd>+/−</kbd></span></div>
-            <div class="sc-row"><span>Reset zoom</span><span><kbd>⌘/Ctrl</kbd><kbd>0</kbd></span></div>
+            <div class="sc-row"><span>Zoom in / out</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>+/−</kbd></span></div>
+            <div class="sc-row"><span>Reset zoom</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>0</kbd></span></div>
             <div class="sc-row"><span>Deselect / close</span><kbd>Esc</kbd></div>
             <div class="sc-row"><span>Show this help</span><kbd>?</kbd></div>
           </div>
         </div>
+        <div class="shortcuts-modal-footer">Press <kbd>Esc</kbd> or click outside to close</div>
       </div>
     </div>
 
@@ -6012,8 +6138,9 @@
         <span id="zoom-val-txt"
           style="min-width:34px; font-size:11px; font-weight:700; color:var(--ink-soft);">130%</span>
       </div>
-      <button class="btn ghost icon sm" id="shortcuts-help-btn" title="Keyboard Shortcuts (?)"
-        style="margin-left:10px;">⌨️</button>
+      <button class="shortcuts-fab-btn" id="shortcuts-help-btn" title="Keyboard Shortcuts (?)">
+        <span>⌨️</span> Shortcuts
+      </button>
     </footer>
 
     <!-- Standalone Floating Action Button (Bottom-Right FAB, like Chat Support) -->
@@ -6800,6 +6927,7 @@
     let pendingCell = null, strokeStarted = false, binCell = null, hoverCell = null;
     let drawingZone = null;
     let selectedZoneId = null;
+    let selectedZoneIds = [];
     let dragZone = null;
     let saveTimer = null;
 
@@ -10537,20 +10665,22 @@
 
       // Grid lines: Clean 2×2 ft boxes at zoom >= 160% (cellPx >= 32), 4×4 ft boxes below 160%
       if (gridLinesVisible) {
+        const totalL = site.L || (site.cols * CELL_FT);
+        const totalW = site.W || (site.rows * CELL_FT);
         const isHighZoom = cellPx >= 32; // >= 160% zoom
         const gridBoxFt = isHighZoom ? 2 : 4; // 2×2 ft if >= 160%, 4×4 ft if < 160%
         const pxPerFt = cellPx / CELL_FT;
 
         g.beginPath();
-        g.strokeStyle = isDark ? "rgba(255,255,255,0.11)" : "rgba(30,27,20,0.08)";
+        g.strokeStyle = isDark ? "rgba(255,255,255,0.18)" : "rgba(30,27,20,0.14)";
         g.lineWidth = 1;
 
-        for (let ft = 0; ft <= site.L; ft += gridBoxFt) {
+        for (let ft = 0; ft <= totalL; ft += gridBoxFt) {
           const x = ft * pxPerFt;
           g.moveTo(Math.round(x) + 0.5, 0);
           g.lineTo(Math.round(x) + 0.5, H);
         }
-        for (let ft = 0; ft <= site.W; ft += gridBoxFt) {
+        for (let ft = 0; ft <= totalW; ft += gridBoxFt) {
           const y = ft * pxPerFt;
           g.moveTo(0, Math.round(y) + 0.5);
           g.lineTo(W, Math.round(y) + 0.5);
@@ -10574,7 +10704,7 @@
 
       // Rooms / Zones
       if (layerVisibility.building) {
-        site.zones.forEach(z => drawZone(g, z, z.id === selectedZoneId));
+        site.zones.forEach(z => drawZone(g, z, z.id === selectedZoneId || (selectedZoneIds && selectedZoneIds.includes(z.id))));
       }
 
       // Selected Object Highlight (Figma/Canva style synced to exact item dimensions and wall docking)
@@ -11080,11 +11210,14 @@
     }
     function ftFromClient(clientX, clientY) {
       const rect = canvas().getBoundingClientRect();
+      const totalL = site ? (site.L || (site.cols * CELL_FT)) : 150;
+      const totalW = site ? (site.W || (site.rows * CELL_FT)) : 100;
       const x = snap2((clientX - rect.left - MARGIN) / cellPx * CELL_FT);
       const y = snap2((clientY - rect.top - MARGIN) / cellPx * CELL_FT);
-      return { x: clamp(x, 0, site.L), y: clamp(y, 0, site.W) };
+      return { x: clamp(x, 0, totalL), y: clamp(y, 0, totalW) };
     }
     function zoneAt(xFt, yFt) {
+      if (!site || !site.zones) return null;
       for (let i = site.zones.length - 1; i >= 0; i--) {
         const z = site.zones[i];
         if (xFt >= z.x && xFt <= z.x + z.w && yFt >= z.y && yFt <= z.y + z.h) return z;
@@ -11134,7 +11267,7 @@
       c.addEventListener("pointermove", onPointerMove);
       c.addEventListener("pointerup", onPointerUp);
       c.addEventListener("pointercancel", onPointerUp);
-      c.addEventListener("pointerleave", () => { if (!painting && !drawingZone && !dragZone && !measuring) { hoverCell = null; $("#cell-pos").textContent = "–"; redraw(); } });
+      c.addEventListener("pointerleave", () => { if (!painting && !drawingZone && !dragZone && !measuring && !marqueeSelect) { hoverCell = null; $("#cell-pos").textContent = "–"; redraw(); } });
       $("#boardwrap").addEventListener("scroll", () => { hideBin(); hideZoneToolbar(); });
     }
 
@@ -11157,24 +11290,9 @@
       }
       if (tool === "select") {
         const { x, y } = ftFromClient(ev.clientX, ev.clientY);
-        const z = zoneAt(x, y);
-        if (z) {
-          const handleSize = 14;
-          const hx = ftToLocalPx(z.x + z.w), hy = ftToLocalPx(z.y + z.h);
-          const rect = canvas().getBoundingClientRect();
-          const localX = ev.clientX - rect.left - MARGIN, localY = ev.clientY - rect.top - MARGIN;
-          const nearHandle = Math.abs(localX - hx) < handleSize && Math.abs(localY - hy) < handleSize;
-          safeSetPointerCapture(canvas(), ev.pointerId);
-          selectedCell = null;
-          selectedCells = [];
-          selectZone(z.id);
-          snapshot();
-          dragZone = { mode: nearHandle ? "resize" : "move", zone: z, startX: x, startY: y, origX: z.x, origY: z.y, origW: z.w, origH: z.h };
-          updateRightPanel();
-          return;
-        }
-
         const cell = cellFromClient(ev.clientX, ev.clientY);
+
+        // 1. If clicking on an object cell, select or drag group
         if (cell && site.cells[cell.r * site.cols + cell.c]) {
           deselectZone();
           const isAlreadySelected = selectedCells.some(c => c.c === cell.c && c.r === cell.r);
@@ -11211,13 +11329,44 @@
           return;
         }
 
-        // Empty canvas in select mode -> Start Marquee selection box
-        deselectZone();
-        selectedCell = null;
-        selectedCells = [];
-        dragGroup = null;
+        // 2. If clicking on an active zone resize handle
+        const z = zoneAt(x, y);
+        if (z && selectedZoneId === z.id) {
+          const handleSize = 14;
+          const hx = ftToLocalPx(z.x + z.w), hy = ftToLocalPx(z.y + z.h);
+          const rect = canvas().getBoundingClientRect();
+          const localX = ev.clientX - rect.left - MARGIN, localY = ev.clientY - rect.top - MARGIN;
+          const nearHandle = Math.abs(localX - hx) < handleSize && Math.abs(localY - hy) < handleSize;
+          if (nearHandle) {
+            safeSetPointerCapture(canvas(), ev.pointerId);
+            selectedCell = null;
+            selectedCells = [];
+            selectZone(z.id);
+            snapshot();
+            dragZone = { mode: "resize", zone: z, startX: x, startY: y, origX: z.x, origY: z.y, origW: z.w, origH: z.h };
+            updateRightPanel();
+            return;
+          }
+        }
+
+        // 3. Marquee Drag Multi-Selection (across entire floor / rooms)
         safeSetPointerCapture(canvas(), ev.pointerId);
-        marqueeSelect = { startX: x, startY: y, currentX: x, currentY: y };
+        marqueeSelect = {
+          startX: x,
+          startY: y,
+          currentX: x,
+          currentY: y,
+          startClientX: ev.clientX,
+          startClientY: ev.clientY,
+          potentialZone: z,
+          baseSelected: ev.shiftKey ? selectedCells.slice() : []
+        };
+        if (!ev.shiftKey) {
+          selectedCell = null;
+          selectedCells = [];
+          deselectZone();
+        }
+        dragGroup = null;
         updateRightPanel();
         redraw();
         return;
@@ -11285,18 +11434,43 @@
         const x0 = Math.min(marqueeSelect.startX, x), x1 = Math.max(marqueeSelect.startX, x);
         const y0 = Math.min(marqueeSelect.startY, y), y1 = Math.max(marqueeSelect.startY, y);
 
-        const c0 = Math.floor(x0 / CELL_FT), c1 = Math.floor(x1 / CELL_FT);
-        const r0 = Math.floor(y0 / CELL_FT), r1 = Math.floor(y1 / CELL_FT);
+        // 1. Select intersecting grid cells (objects)
+        const c0 = Math.floor(x0 / CELL_FT), c1 = Math.ceil(x1 / CELL_FT);
+        const r0 = Math.floor(y0 / CELL_FT), r1 = Math.ceil(y1 / CELL_FT);
 
-        selectedCells = [];
-        for (let r = Math.max(0, r0); r <= Math.min(site.rows - 1, r1); r++) {
-          for (let c = Math.max(0, c0); c <= Math.min(site.cols - 1, c1); c++) {
+        const newlySelected = [];
+        for (let r = Math.max(0, r0); r < Math.min(site.rows, r1); r++) {
+          for (let c = Math.max(0, c0); c < Math.min(site.cols, c1); c++) {
             if (site.cells[r * site.cols + c]) {
-              selectedCells.push({ c, r });
+              newlySelected.push({ c, r });
             }
           }
         }
+
+        const base = marqueeSelect.baseSelected || [];
+        const map = new Set(base.map(c => `${c.c},${c.r}`));
+        newlySelected.forEach(c => map.add(`${c.c},${c.r}`));
+
+        selectedCells = Array.from(map).map(str => {
+          const [sc, sr] = str.split(",").map(Number);
+          return { c: sc, r: sr };
+        });
         selectedCell = selectedCells.length ? selectedCells[0] : null;
+
+        // 2. Select intersecting rooms/zones (Exceptions, Medical, Modules, Lanes, etc.)
+        const newlySelectedZones = [];
+        if (site.zones) {
+          site.zones.forEach(z => {
+            const zx1 = z.x + z.w, zy1 = z.y + z.h;
+            // Check bounding box intersection
+            if (x0 < zx1 && x1 > z.x && y0 < zy1 && y1 > z.y) {
+              newlySelectedZones.push(z.id);
+            }
+          });
+        }
+        selectedZoneIds = newlySelectedZones;
+        selectedZoneId = selectedZoneIds.length === 1 ? selectedZoneIds[0] : null;
+
         redraw();
         updateRightPanel();
         return;
@@ -11336,7 +11510,7 @@
       redraw(); updateStats();
     }
 
-    function onPointerUp() {
+    function onPointerUp(ev) {
       if (tool === "parallel" && parallelActive && parallelStartCell && parallelCurrentCell) {
         parallelActive = false;
         snapshot();
@@ -11387,10 +11561,21 @@
         return;
       }
       if (marqueeSelect) {
-        marqueeSelect = null;
-        if (selectedCells.length > 0) {
-          toast(`Selected ${selectedCells.length} object${selectedCells.length === 1 ? '' : 's'}`);
+        const startCX = marqueeSelect.startClientX != null ? marqueeSelect.startClientX : (ev ? ev.clientX : 0);
+        const startCY = marqueeSelect.startClientY != null ? marqueeSelect.startClientY : (ev ? ev.clientY : 0);
+        const dist = ev ? Math.hypot(ev.clientX - startCX, ev.clientY - startCY) : 10;
+        if (dist < 6 && marqueeSelect.potentialZone && selectedCells.length === 0 && selectedZoneIds.length <= 1) {
+          selectZone(marqueeSelect.potentialZone.id);
+        } else {
+          const totalCount = selectedCells.length + selectedZoneIds.length;
+          if (totalCount > 0) {
+            const parts = [];
+            if (selectedZoneIds.length) parts.push(`${selectedZoneIds.length} room${selectedZoneIds.length === 1 ? '' : 's'}`);
+            if (selectedCells.length) parts.push(`${selectedCells.length} object${selectedCells.length === 1 ? '' : 's'}`);
+            toast(`Selected ${parts.join(' & ')}`);
+          }
         }
+        marqueeSelect = null;
         updateRightPanel();
         redraw();
         return;
@@ -11550,12 +11735,13 @@
       const genView = $("#prop-view-general");
       if (!objView || !roomView || !genView) return;
 
-      if (selectedCells && selectedCells.length > 1) {
+      const totalSelectedCount = (selectedCells ? selectedCells.length : 0) + (selectedZoneIds ? selectedZoneIds.length : 0);
+      if (totalSelectedCount > 1) {
         objView.style.display = "none";
         roomView.style.display = "none";
         multiView.style.display = "block";
         genView.style.display = "none";
-        $("#multi-count").textContent = selectedCells.length;
+        $("#multi-count").textContent = totalSelectedCount;
         return;
       }
 
@@ -11854,11 +12040,22 @@
     $("#multi-del")?.addEventListener("click", () => deleteSelectedCells());
 
     function deleteSelectedCells() {
-      if (!selectedCells || !selectedCells.length) return;
+      const hasCells = selectedCells && selectedCells.length > 0;
+      const hasZones = selectedZoneIds && selectedZoneIds.length > 0;
+      if (!hasCells && !hasZones) return;
       snapshot();
-      selectedCells.forEach(c => setPaintCell(c.c, c.r, 0));
-      selectedCells = []; selectedCell = null;
+      let count = 0;
+      if (hasCells) {
+        selectedCells.forEach(c => { setPaintCell(c.c, c.r, 0); count++; });
+        selectedCells = []; selectedCell = null;
+      }
+      if (hasZones) {
+        site.zones = site.zones.filter(z => !selectedZoneIds.includes(z.id));
+        count += selectedZoneIds.length;
+        selectedZoneIds = []; selectedZoneId = null;
+      }
       redraw(); updateStats(); updateRightPanel(); queueSave();
+      toast(`Deleted ${count} item${count === 1 ? '' : 's'}`);
     }
 
     function alignMultiSelected(dir) {
