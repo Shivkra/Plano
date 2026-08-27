@@ -674,6 +674,61 @@
       justify-content: flex-end;
     }
 
+    .shortcuts-modal-card {
+      max-width: 640px;
+      width: 640px;
+    }
+
+    .shortcuts-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0 22px;
+    }
+
+    .sc-group-title {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--ink-faint);
+      margin: 14px 0 6px;
+    }
+
+    .sc-group-title:first-child {
+      margin-top: 0;
+    }
+
+    .sc-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 4px 0;
+      font-size: 13px;
+      color: var(--ink-soft);
+    }
+
+    .sc-row kbd {
+      display: inline-block;
+      min-width: 18px;
+      text-align: center;
+      padding: 2px 6px;
+      margin-left: 3px;
+      border-radius: 5px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--ink);
+      font-family: inherit;
+    }
+
+    @media (max-width: 640px) {
+      .shortcuts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
     .ai-refine-modal {
       width: 460px;
     }
@@ -5854,6 +5909,50 @@
       </div>
     </div>
 
+    <!-- Keyboard Shortcuts Help -->
+    <div class="modal-overlay" id="shortcuts-modal-overlay">
+      <div class="settings-modal-card shortcuts-modal-card">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+          <h3 style="font-size:16px; font-weight:800; margin:0;">⌨️ Keyboard Shortcuts</h3>
+          <button class="btn ghost icon sm" id="shortcuts-close">✕</button>
+        </div>
+        <div class="shortcuts-grid">
+          <div>
+            <div class="sc-group-title">Tools</div>
+            <div class="sc-row"><span>Select</span><kbd>V</kbd></div>
+            <div class="sc-row"><span>Wall</span><kbd>W</kbd></div>
+            <div class="sc-row"><span>Room</span><kbd>R</kbd></div>
+            <div class="sc-row"><span>Objects</span><kbd>O</kbd></div>
+            <div class="sc-row"><span>Zone</span><kbd>Z</kbd></div>
+            <div class="sc-row"><span>CAD Tools</span><kbd>C</kbd></div>
+            <div class="sc-row"><span>Measure</span><kbd>M</kbd></div>
+            <div class="sc-row"><span>Eraser</span><kbd>E</kbd></div>
+          </div>
+          <div>
+            <div class="sc-group-title">Edit</div>
+            <div class="sc-row"><span>Undo</span><span><kbd>⌘/Ctrl</kbd><kbd>Z</kbd></span></div>
+            <div class="sc-row"><span>Redo</span><span><kbd>⌘/Ctrl</kbd><kbd>⇧</kbd><kbd>Z</kbd></span></div>
+            <div class="sc-row"><span>Duplicate</span><span><kbd>⌘/Ctrl</kbd><kbd>D</kbd></span></div>
+            <div class="sc-row"><span>Copy</span><span><kbd>⌘/Ctrl</kbd><kbd>C</kbd></span></div>
+            <div class="sc-row"><span>Paste</span><span><kbd>⌘/Ctrl</kbd><kbd>V</kbd></span></div>
+            <div class="sc-row"><span>Select All</span><span><kbd>⌘/Ctrl</kbd><kbd>A</kbd></span></div>
+            <div class="sc-row"><span>Delete</span><kbd>Del</kbd></div>
+          </div>
+          <div>
+            <div class="sc-group-title">Move &amp; Rotate</div>
+            <div class="sc-row"><span>Nudge selection</span><kbd>↑↓←→</kbd></div>
+            <div class="sc-row"><span>Nudge faster</span><span><kbd>⇧</kbd><kbd>↑↓←→</kbd></span></div>
+            <div class="sc-row"><span>Rotate</span><span><kbd>[</kbd><kbd>]</kbd></span></div>
+            <div class="sc-group-title">View</div>
+            <div class="sc-row"><span>Zoom in / out</span><span><kbd>⌘/Ctrl</kbd><kbd>+/−</kbd></span></div>
+            <div class="sc-row"><span>Reset zoom</span><span><kbd>⌘/Ctrl</kbd><kbd>0</kbd></span></div>
+            <div class="sc-row"><span>Deselect / close</span><kbd>Esc</kbd></div>
+            <div class="sc-row"><span>Show this help</span><kbd>?</kbd></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- AI Check My Layout Modal -->
     <div class="ai-review-modal" id="ai-review-modal">
       <div class="ai-review-card">
@@ -10448,11 +10547,44 @@
         }
       }
 
-      // Grid lines (Each box is exactly 6x6 ft)
+      // Grid lines: 2×2 ft boxes at zoom >= 160% (cellPx >= 32), 4×4 ft boxes below 160%
       if (gridLinesVisible) {
-        g.strokeStyle = "rgba(30,27,20,.08)"; g.lineWidth = 1; g.beginPath();
-        for (let c = 0; c <= site.cols; c++) { g.moveTo(c * cellPx + .5, 0); g.lineTo(c * cellPx + .5, H); }
-        for (let r = 0; r <= site.rows; r++) { g.moveTo(0, r * cellPx + .5); g.lineTo(W, r * cellPx + .5); }
+        const isHighZoom = cellPx >= 32; // >= 160% zoom
+        const gridBoxFt = isHighZoom ? 2 : 4; // 2×2 ft if >= 160%, 4×4 ft if < 160%
+        const pxPerFt = cellPx / CELL_FT;
+
+        // Base grid lines (2×2 ft or 4×4 ft boxes)
+        g.beginPath();
+        g.strokeStyle = isDark ? "rgba(255,255,255,0.09)" : "rgba(30,27,20,0.07)";
+        g.lineWidth = 0.75;
+
+        for (let ft = 0; ft <= site.L; ft += gridBoxFt) {
+          const x = ft * pxPerFt;
+          g.moveTo(Math.round(x) + 0.5, 0);
+          g.lineTo(Math.round(x) + 0.5, H);
+        }
+        for (let ft = 0; ft <= site.W; ft += gridBoxFt) {
+          const y = ft * pxPerFt;
+          g.moveTo(0, Math.round(y) + 0.5);
+          g.lineTo(W, Math.round(y) + 0.5);
+        }
+        g.stroke();
+
+        // Major boundary grid lines (every 6 ft at high zoom, every 12 ft at standard zoom)
+        g.beginPath();
+        g.strokeStyle = isDark ? "rgba(255,255,255,0.18)" : "rgba(30,27,20,0.14)";
+        g.lineWidth = 1.15;
+        const majorFt = isHighZoom ? 6 : 12;
+        for (let ft = 0; ft <= site.L; ft += majorFt) {
+          const x = ft * pxPerFt;
+          g.moveTo(Math.round(x) + 0.5, 0);
+          g.lineTo(Math.round(x) + 0.5, H);
+        }
+        for (let ft = 0; ft <= site.W; ft += majorFt) {
+          const y = ft * pxPerFt;
+          g.moveTo(0, Math.round(y) + 0.5);
+          g.lineTo(W, Math.round(y) + 0.5);
+        }
         g.stroke();
       }
 
@@ -10461,29 +10593,24 @@
         site.zones.forEach(z => drawZone(g, z, z.id === selectedZoneId));
       }
 
-      // Selected Object Highlight (Figma/Canva style synced to exact item dimensions)
+      // Selected Object Highlight (Figma/Canva style synced to exact item dimensions and wall docking)
       if (selectedCell) {
-        const sx = selectedCell.c * cellPx, sy = selectedCell.r * cellPx;
         const v = site.cells[selectedCell.r * site.cols + selectedCell.c];
         const def = v ? PAINT_BY_ID[v] : null;
         if (def) {
           const customDim = site.cellDims && site.cellDims[selectedCell.r * site.cols + selectedCell.c];
-          const itemW = (customDim && customDim.w != null) ? customDim.w : (def.w || 2);
-          const itemD = (customDim && customDim.d != null) ? customDim.d : (def.d || 2);
-          const w = Math.max(4, (itemW / CELL_FT) * cellPx);
-          const h = Math.max(4, (itemD / CELL_FT) * cellPx);
-          const ox = sx + cellPx / 2 - w / 2;
-          const oy = sy + cellPx / 2 - h / 2;
+          const pl = getCellObjectPlacement(selectedCell.c, selectedCell.r, def, site.rots[selectedCell.r * site.cols + selectedCell.c] || 0, customDim);
           g.strokeStyle = "#3B82F6"; g.lineWidth = 2;
-          g.strokeRect(ox - 1, oy - 1, w + 2, h + 2);
+          g.strokeRect(pl.ox - 1, pl.oy - 1, pl.w + 2, pl.h + 2);
           // Corner resize handles
           const hs = 5;
           g.fillStyle = "#3B82F6";
-          g.fillRect(ox - hs / 2, oy - hs / 2, hs, hs);
-          g.fillRect(ox + w - hs / 2, oy - hs / 2, hs, hs);
-          g.fillRect(ox - hs / 2, oy + h - hs / 2, hs, hs);
-          g.fillRect(ox + w - hs / 2, oy + h - hs / 2, hs, hs);
+          g.fillRect(pl.ox - hs / 2, pl.oy - hs / 2, hs, hs);
+          g.fillRect(pl.ox + pl.w - hs / 2, pl.oy - hs / 2, hs, hs);
+          g.fillRect(pl.ox - hs / 2, pl.oy + pl.h - hs / 2, hs, hs);
+          g.fillRect(pl.ox + pl.w - hs / 2, pl.oy + pl.h - hs / 2, hs, hs);
         } else {
+          const sx = selectedCell.c * cellPx, sy = selectedCell.r * cellPx;
           g.strokeStyle = "#3B82F6"; g.lineWidth = 2;
           g.strokeRect(sx + 1, sy + 1, cellPx - 2, cellPx - 2);
         }
@@ -10497,13 +10624,8 @@
           const def = v ? PAINT_BY_ID[v] : null;
           if (def) {
             const customDim = site.cellDims && site.cellDims[sc.r * site.cols + sc.c];
-            const itemW = (customDim && customDim.w != null) ? customDim.w : (def.w || 2);
-            const itemD = (customDim && customDim.d != null) ? customDim.d : (def.d || 2);
-            const w = Math.max(4, (itemW / CELL_FT) * cellPx);
-            const h = Math.max(4, (itemD / CELL_FT) * cellPx);
-            const ox = sc.c * cellPx + cellPx / 2 - w / 2;
-            const oy = sc.r * cellPx + cellPx / 2 - h / 2;
-            g.strokeRect(ox - 1, oy - 1, w + 2, h + 2);
+            const pl = getCellObjectPlacement(sc.c, sc.r, def, site.rots[sc.r * site.cols + sc.c] || 0, customDim);
+            g.strokeRect(pl.ox - 1, pl.oy - 1, pl.w + 2, pl.h + 2);
           } else {
             g.strokeRect(sc.c * cellPx + 1, sc.r * cellPx + 1, cellPx - 2, cellPx - 2);
           }
@@ -10790,16 +10912,87 @@
       g.restore();
     }
 
-    function drawPaintCell(g, c, r, def, rot, customDim) {
-      const cx = c * cellPx + cellPx / 2;
-      const cy = r * cellPx + cellPx / 2;
+    // Smart Wall-Snapping & Auto-Adjustment Engine:
+    // Calculates exact pixel placement so items hug closest walls/boundaries instead of floating in the middle
+    function getCellObjectPlacement(c, r, def, rot, customDim) {
+      if (!site || !def) return { cx: c * cellPx + cellPx / 2, cy: r * cellPx + cellPx / 2, w: cellPx, h: cellPx, ox: c * cellPx, oy: r * cellPx };
 
       const itemW = (customDim && customDim.w != null) ? customDim.w : (def.w || 2);
       const itemD = (customDim && customDim.d != null) ? customDim.d : (def.d || 2);
 
-      // Calculate exact pixel size scaled to the 6x6 ft grid cell
-      const w = Math.max(4, (itemW / CELL_FT) * cellPx);
-      const h = Math.max(4, (itemD / CELL_FT) * cellPx);
+      // Scale to current zoom pixel size
+      let w = Math.max(4, (itemW / CELL_FT) * cellPx);
+      let h = Math.max(4, (itemD / CELL_FT) * cellPx);
+
+      // Walls, entry, exit, or full fixtures occupy the full cell
+      if (def.id === 8 || def.id === 6 || def.id === 7 || (itemW >= CELL_FT && itemD >= CELL_FT)) {
+        return {
+          cx: c * cellPx + cellPx / 2,
+          cy: r * cellPx + cellPx / 2,
+          w, h,
+          ox: c * cellPx + cellPx / 2 - w / 2,
+          oy: r * cellPx + cellPx / 2 - h / 2
+        };
+      }
+
+      // Check proximity to perimeter walls or interior walls / zones to adjust towards closest wall
+      const isWallAbove = (r === 1) || (r > 0 && site.cells[(r - 1) * site.cols + c] === PAINT_DEFS.wall?.id);
+      const isWallBelow = (r === site.rows - 2) || (r < site.rows - 1 && site.cells[(r + 1) * site.cols + c] === PAINT_DEFS.wall?.id);
+      const isWallLeft = (c === 1) || (c > 0 && site.cells[r * site.cols + (c - 1)] === PAINT_DEFS.wall?.id);
+      const isWallRight = (c === site.cols - 2) || (c < site.cols - 1 && site.cells[r * site.cols + (c + 1)] === PAINT_DEFS.wall?.id);
+
+      const distTop = r;
+      const distBottom = site.rows - 1 - r;
+      const distLeft = c;
+      const distRight = site.cols - 1 - c;
+
+      let offX = 0; // -1: left, 0: center, 1: right
+      let offY = 0; // -1: top, 0: center, 1: bottom
+
+      if (isWallAbove) offY = -1;
+      else if (isWallBelow) offY = 1;
+      else if (distTop <= distBottom && distTop <= 4) offY = -1;
+      else if (distBottom < distTop && distBottom <= 4) offY = 1;
+
+      if (isWallLeft) offX = -1;
+      else if (isWallRight) offX = 1;
+      else if (distLeft <= distRight && distLeft <= 4) offX = -1;
+      else if (distRight < distLeft && distRight <= 4) offX = 1;
+
+      let cx = c * cellPx + cellPx / 2;
+      let cy = r * cellPx + cellPx / 2;
+
+      // Adjust towards closest wall to eliminate dead gaps & maximize space efficiency
+      if (offX === -1 && w < cellPx) {
+        cx = c * cellPx + w / 2 + 1; // flush to left wall
+      } else if (offX === 1 && w < cellPx) {
+        cx = c * cellPx + cellPx - w / 2 - 1; // flush to right wall
+      }
+
+      if (offY === -1 && h < cellPx) {
+        cy = r * cellPx + h / 2 + 1; // flush to top wall
+      } else if (offY === 1 && h < cellPx) {
+        cy = r * cellPx + cellPx - h / 2 - 1; // flush to bottom wall
+      }
+
+      return {
+        cx,
+        cy,
+        w,
+        h,
+        ox: cx - w / 2,
+        oy: cy - h / 2,
+        offX,
+        offY
+      };
+    }
+
+    function drawPaintCell(g, c, r, def, rot, customDim) {
+      const pl = getCellObjectPlacement(c, r, def, rot, customDim);
+      const cx = pl.cx;
+      const cy = pl.cy;
+      const w = pl.w;
+      const h = pl.h;
 
       g.save();
       g.translate(cx, cy);
@@ -11338,7 +11531,7 @@
       $("#zone-toolbar").classList.add("on");
     }
     function hideZoneToolbar() { const el = $("#zone-toolbar"); if (el) el.classList.remove("on"); }
-    function hideBin() { const el = $("#bin-popover"); if (el) el.classList.remove("on"); }
+    function hideBin() { const el = $("#bin-pop"); if (el) el.classList.remove("on"); }
     function positionOverlays() {
       if (selectedZoneId) {
         const z = site.zones.find(z => z.id === selectedZoneId);
@@ -11674,6 +11867,15 @@
     $("#align-top").onclick = () => alignMultiSelected("top");
     $("#align-bottom").onclick = () => alignMultiSelected("bottom");
     $("#distribute-spacing").onclick = () => distributeMultiSelected();
+    $("#multi-del")?.addEventListener("click", () => deleteSelectedCells());
+
+    function deleteSelectedCells() {
+      if (!selectedCells || !selectedCells.length) return;
+      snapshot();
+      selectedCells.forEach(c => setPaintCell(c.c, c.r, 0));
+      selectedCells = []; selectedCell = null;
+      redraw(); updateStats(); updateRightPanel(); queueSave();
+    }
 
     function alignMultiSelected(dir) {
       if (!selectedCells || selectedCells.length < 2) return;
@@ -12581,19 +12783,182 @@
       redraw(); updateStats(); updateRightPanel();
     });
 
+    /* =====================================================================
+       KEYBOARD POWER-USER FEATURES (Figma/Canva-style)
+    ===================================================================== */
+    let clipboard = null; // { type:"zone", zone } or { type:"cells", items, originC, originR, pasteOffset }
+
+    function nudgeZone(dxCells, dyCells) {
+      if (!selectedZoneId || !site) return;
+      const z = site.zones.find(zz => zz.id === selectedZoneId);
+      if (!z) return;
+      snapshot();
+      z.x = clamp(snap2(z.x + dxCells * CELL_FT), 0, Math.max(0, site.L - z.w));
+      z.y = clamp(snap2(z.y + dyCells * CELL_FT), 0, Math.max(0, site.W - z.h));
+      positionOverlays();
+      redraw(); updateRightPanel(); queueSave();
+    }
+
+    function nudgeObjects(dxCells, dyCells) {
+      if (!site) return;
+      const targets = (selectedCells && selectedCells.length) ? selectedCells : (selectedCell ? [selectedCell] : []);
+      if (!targets.length) return;
+      for (const cell of targets) {
+        const nc = cell.c + dxCells, nr = cell.r + dyCells;
+        if (nc < 0 || nr < 0 || nc >= site.cols || nr >= site.rows) return; // all-or-nothing: silently ignore at the boundary
+      }
+      snapshot();
+      const captured = targets.map(cell => {
+        const i = cell.r * site.cols + cell.c;
+        return { c: cell.c, r: cell.r, v: site.cells[i], rot: site.rots[i], dim: (site.cellDims && site.cellDims[i]) ? Object.assign({}, site.cellDims[i]) : null };
+      });
+      captured.forEach(item => setPaintCell(item.c, item.r, 0));
+      const newCells = captured.map(item => {
+        const nc = item.c + dxCells, nr = item.r + dyCells;
+        setPaintCell(nc, nr, item.v);
+        const ni = nr * site.cols + nc;
+        site.rots[ni] = item.rot;
+        if (item.dim) { site.cellDims = site.cellDims || {}; site.cellDims[ni] = item.dim; }
+        return { c: nc, r: nr };
+      });
+      selectedCells = newCells;
+      selectedCell = newCells.length ? newCells[0] : null;
+      redraw(); updateStats(); updateRightPanel(); queueSave();
+    }
+
+    function rotateSelectedObjects(delta) {
+      if (!site) return;
+      const targets = (selectedCells && selectedCells.length) ? selectedCells : (selectedCell ? [selectedCell] : []);
+      if (!targets.length) return;
+      if (!site.rots) site.rots = new Array(site.cols * site.rows).fill(0);
+      snapshot();
+      targets.forEach(cell => {
+        const i = cell.r * site.cols + cell.c;
+        if (!site.cells[i]) return;
+        site.rots[i] = ((site.rots[i] || 0) + delta + 4) % 4;
+      });
+      redraw(); updateRightPanel(); queueSave();
+    }
+
+    function copySelection() {
+      if (!site) return;
+      if (selectedZoneId) {
+        const z = site.zones.find(zz => zz.id === selectedZoneId);
+        if (!z) return;
+        clipboard = { type: "zone", zone: Object.assign({}, z), pasteOffset: 0 };
+        toast("Copied room — press Ctrl/⌘+V to paste");
+        return;
+      }
+      const targets = (selectedCells && selectedCells.length) ? selectedCells : (selectedCell ? [selectedCell] : []);
+      if (!targets.length) return;
+      const minC = Math.min(...targets.map(c => c.c)), minR = Math.min(...targets.map(c => c.r));
+      const items = targets.map(cell => {
+        const i = cell.r * site.cols + cell.c;
+        return { dc: cell.c - minC, dr: cell.r - minR, v: site.cells[i], rot: site.rots[i], dim: (site.cellDims && site.cellDims[i]) ? Object.assign({}, site.cellDims[i]) : null };
+      });
+      clipboard = { type: "cells", items, originC: minC, originR: minR, pasteOffset: 0 };
+      toast(`Copied ${items.length} object${items.length === 1 ? "" : "s"} — press Ctrl/⌘+V to paste`);
+    }
+
+    function pasteSelection() {
+      if (!clipboard || !site) return;
+      clipboard.pasteOffset = (clipboard.pasteOffset || 0) + 2;
+      const off = clipboard.pasteOffset;
+      if (clipboard.type === "zone") {
+        const src = clipboard.zone;
+        snapshot();
+        const nx = clamp(snap2(src.x + off * CELL_FT), 0, Math.max(0, site.L - src.w));
+        const ny = clamp(snap2(src.y + off * CELL_FT), 0, Math.max(0, site.W - src.h));
+        const nz = mkZone(src.type, nx, ny, src.w, src.h, src.label);
+        site.zones = site.zones || [];
+        site.zones.push(nz);
+        selectZone(nz.id);
+        updateStats(); queueSave();
+        toast("Pasted room");
+        return;
+      }
+      if (clipboard.type === "cells") {
+        for (const item of clipboard.items) {
+          const nc = clipboard.originC + item.dc + off, nr = clipboard.originR + item.dr + off;
+          if (nc < 0 || nr < 0 || nc >= site.cols || nr >= site.rows) { toast("Not enough room to paste here"); return; }
+        }
+        snapshot();
+        const newCells = clipboard.items.map(item => {
+          const nc = clipboard.originC + item.dc + off, nr = clipboard.originR + item.dr + off;
+          setPaintCell(nc, nr, item.v);
+          const ni = nr * site.cols + nc;
+          site.rots[ni] = item.rot;
+          if (item.dim) { site.cellDims = site.cellDims || {}; site.cellDims[ni] = item.dim; }
+          return { c: nc, r: nr };
+        });
+        deselectZone();
+        selectedCells = newCells;
+        selectedCell = newCells.length ? newCells[0] : null;
+        redraw(); updateStats(); updateRightPanel(); queueSave();
+        toast(`Pasted ${newCells.length} object${newCells.length === 1 ? "" : "s"}`);
+      }
+    }
+
+    function selectAllObjects() {
+      if (!site) return;
+      const cells = [];
+      for (let r = 0; r < site.rows; r++) {
+        for (let c = 0; c < site.cols; c++) {
+          if (site.cells[r * site.cols + c]) cells.push({ c, r });
+        }
+      }
+      if (!cells.length) return toast("No objects to select");
+      deselectZone();
+      selectedCells = cells;
+      selectedCell = cells[0];
+      updateRightPanel(); redraw();
+      toast(`Selected ${cells.length} object${cells.length === 1 ? "" : "s"}`);
+    }
+
+    function showShortcutsHelp() { $("#shortcuts-modal-overlay")?.classList.add("on"); }
+    function hideShortcutsHelp() { $("#shortcuts-modal-overlay")?.classList.remove("on"); }
+    $("#shortcuts-close")?.addEventListener("click", hideShortcutsHelp);
+    $("#shortcuts-modal-overlay")?.addEventListener("click", ev => { if (ev.target.id === "shortcuts-modal-overlay") hideShortcutsHelp(); });
+
     /* Global key shortcuts */
     document.addEventListener("keydown", ev => {
       if (!$("#editor").classList.contains("on")) return;
       if (ev.target.tagName === "INPUT" || ev.target.tagName === "TEXTAREA" || ev.target.tagName === "SELECT") return;
       const k = ev.key.toLowerCase();
-      if ((ev.metaKey || ev.ctrlKey) && k === "z") { ev.preventDefault(); ev.shiftKey ? redo() : undo(); return; }
-      if ((ev.metaKey || ev.ctrlKey) && k === "d") { ev.preventDefault(); duplicateSelectedObject(); return; }
-      if (ev.key === "Escape") { hideBin(); deselectZone(); closeDrawers(); return; }
+      const mod = ev.metaKey || ev.ctrlKey;
+      if (mod && k === "z") { ev.preventDefault(); ev.shiftKey ? redo() : undo(); return; }
+      if (mod && k === "d") { ev.preventDefault(); duplicateSelectedObject(); return; }
+      if (mod && k === "c") { ev.preventDefault(); copySelection(); return; }
+      if (mod && k === "v") { ev.preventDefault(); pasteSelection(); return; }
+      if (mod && k === "a") { ev.preventDefault(); selectAllObjects(); return; }
+      if (mod && (k === "=" || k === "+")) { ev.preventDefault(); $("#zoom-in-btn")?.click(); return; }
+      if (mod && k === "-") { ev.preventDefault(); $("#zoom-out-btn")?.click(); return; }
+      if (mod && k === "0") {
+        ev.preventDefault();
+        cellPx = 20;
+        hideBin(); hideZoneToolbar(); sizeCanvas(); redraw(); positionOverlays();
+        if (selectedZoneId) showZoneToolbar();
+        updateZoomTxt();
+        return;
+      }
+      if (ev.key === "Escape") { hideBin(); hideShortcutsHelp(); deselectZone(); closeDrawers(); return; }
+      if (ev.key === "?" || (ev.shiftKey && ev.key === "/")) { ev.preventDefault(); showShortcutsHelp(); return; }
       if (ev.key === "Delete" || ev.key === "Backspace") {
         if (selectedZoneId) { $("#zt-del").click(); }
+        else if (selectedCells && selectedCells.length > 1) { deleteSelectedCells(); }
         else if (selectedCell) { $("#prop-obj-del").click(); }
         return;
       }
+      if (ev.key === "ArrowUp" || ev.key === "ArrowDown" || ev.key === "ArrowLeft" || ev.key === "ArrowRight") {
+        const step = ev.shiftKey ? 5 : 1;
+        const dx = ev.key === "ArrowLeft" ? -step : ev.key === "ArrowRight" ? step : 0;
+        const dy = ev.key === "ArrowUp" ? -step : ev.key === "ArrowDown" ? step : 0;
+        if (selectedZoneId) { ev.preventDefault(); nudgeZone(dx, dy); }
+        else if (selectedCell || (selectedCells && selectedCells.length)) { ev.preventDefault(); nudgeObjects(dx, dy); }
+        return;
+      }
+      if (ev.key === "[") { rotateSelectedObjects(-1); return; }
+      if (ev.key === "]") { rotateSelectedObjects(1); return; }
       if (k === "v") { setTool("select"); return; }
       if (k === "w") { setTool("paint:wall"); return; }
       if (k === "r") { handleSmartToolSelect("room"); return; }
