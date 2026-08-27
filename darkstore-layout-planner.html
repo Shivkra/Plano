@@ -6012,6 +6012,8 @@
         <span id="zoom-val-txt"
           style="min-width:34px; font-size:11px; font-weight:700; color:var(--ink-soft);">130%</span>
       </div>
+      <button class="btn ghost icon sm" id="shortcuts-help-btn" title="Keyboard Shortcuts (?)"
+        style="margin-left:10px;">⌨️</button>
     </footer>
 
     <!-- Standalone Floating Action Button (Bottom-Right FAB, like Chat Support) -->
@@ -10533,30 +10535,15 @@
       g.fillStyle = "#ffffff";
       g.fillRect(0, 0, W, H);
 
-      // Layer filtering and object rendering
-      for (let r = 0; r < site.rows; r++) {
-        for (let c = 0; c < site.cols; c++) {
-          const v = site.cells[r * site.cols + c]; if (!v) continue;
-          const def = PAINT_BY_ID[v]; if (!def) continue;
-          if (def.category === "infra" && !layerVisibility.building) continue;
-          if (def.category === "storage" && !layerVisibility.storage) continue;
-          if (def.category === "equip" && !layerVisibility.equipment) continue;
-          if (def.category === "ops" && !layerVisibility.operations) continue;
-          const customDim = site.cellDims && site.cellDims[r * site.cols + c];
-          drawPaintCell(g, c, r, def, site.rots[r * site.cols + c] || 0, customDim);
-        }
-      }
-
-      // Grid lines: 2×2 ft boxes at zoom >= 160% (cellPx >= 32), 4×4 ft boxes below 160%
+      // Grid lines: Clean 2×2 ft boxes at zoom >= 160% (cellPx >= 32), 4×4 ft boxes below 160%
       if (gridLinesVisible) {
         const isHighZoom = cellPx >= 32; // >= 160% zoom
         const gridBoxFt = isHighZoom ? 2 : 4; // 2×2 ft if >= 160%, 4×4 ft if < 160%
         const pxPerFt = cellPx / CELL_FT;
 
-        // Base grid lines (2×2 ft or 4×4 ft boxes)
         g.beginPath();
-        g.strokeStyle = isDark ? "rgba(255,255,255,0.09)" : "rgba(30,27,20,0.07)";
-        g.lineWidth = 0.75;
+        g.strokeStyle = isDark ? "rgba(255,255,255,0.11)" : "rgba(30,27,20,0.08)";
+        g.lineWidth = 1;
 
         for (let ft = 0; ft <= site.L; ft += gridBoxFt) {
           const x = ft * pxPerFt;
@@ -10569,23 +10556,20 @@
           g.lineTo(W, Math.round(y) + 0.5);
         }
         g.stroke();
+      }
 
-        // Major boundary grid lines (every 6 ft at high zoom, every 12 ft at standard zoom)
-        g.beginPath();
-        g.strokeStyle = isDark ? "rgba(255,255,255,0.18)" : "rgba(30,27,20,0.14)";
-        g.lineWidth = 1.15;
-        const majorFt = isHighZoom ? 6 : 12;
-        for (let ft = 0; ft <= site.L; ft += majorFt) {
-          const x = ft * pxPerFt;
-          g.moveTo(Math.round(x) + 0.5, 0);
-          g.lineTo(Math.round(x) + 0.5, H);
+      // Layer filtering and object rendering
+      for (let r = 0; r < site.rows; r++) {
+        for (let c = 0; c < site.cols; c++) {
+          const v = site.cells[r * site.cols + c]; if (!v) continue;
+          const def = PAINT_BY_ID[v]; if (!def) continue;
+          if (def.category === "infra" && !layerVisibility.building) continue;
+          if (def.category === "storage" && !layerVisibility.storage) continue;
+          if (def.category === "equip" && !layerVisibility.equipment) continue;
+          if (def.category === "ops" && !layerVisibility.operations) continue;
+          const customDim = site.cellDims && site.cellDims[r * site.cols + c];
+          drawPaintCell(g, c, r, def, site.rots[r * site.cols + c] || 0, customDim);
         }
-        for (let ft = 0; ft <= site.W; ft += majorFt) {
-          const y = ft * pxPerFt;
-          g.moveTo(0, Math.round(y) + 0.5);
-          g.lineTo(W, Math.round(y) + 0.5);
-        }
-        g.stroke();
       }
 
       // Rooms / Zones
@@ -12918,6 +12902,7 @@
     function showShortcutsHelp() { $("#shortcuts-modal-overlay")?.classList.add("on"); }
     function hideShortcutsHelp() { $("#shortcuts-modal-overlay")?.classList.remove("on"); }
     $("#shortcuts-close")?.addEventListener("click", hideShortcutsHelp);
+    $("#shortcuts-help-btn")?.addEventListener("click", showShortcutsHelp);
     $("#shortcuts-modal-overlay")?.addEventListener("click", ev => { if (ev.target.id === "shortcuts-modal-overlay") hideShortcutsHelp(); });
 
     /* Global key shortcuts */
@@ -12971,7 +12956,9 @@
 
     function updateZoomTxt() {
       const el = $("#zoom-val-txt");
-      if (el) el.textContent = Math.round((cellPx / 20) * 100) + "%";
+      const pct = Math.round((cellPx / 20) * 100);
+      const isHighZoom = cellPx >= 32; // >= 160%
+      if (el) el.textContent = `${pct}% · ${isHighZoom ? '2×2ft' : '4×4ft'}`;
     }
     $("#zoom")?.addEventListener("input", e => {
       cellPx = +e.target.value;
