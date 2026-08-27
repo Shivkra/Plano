@@ -4114,6 +4114,18 @@
       opacity: .85;
     }
 
+    #zone-toolbar .zt-dim {
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      padding: 2px 7px;
+      margin-right: 2px;
+      background: rgba(255, 255, 255, .18);
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
     #zone-toolbar .del:hover {
       background: #7f1d1d;
     }
@@ -5508,7 +5520,7 @@
           <div class="flyout-cat-title">Storage &amp; Racks</div>
           <div class="obj-grid">
             <div class="obj-card" data-obj="rack">🗄️ Rack (3×1.5')</div>
-            <div class="obj-card" data-obj="sortbox">📦 Sorting Box (2×2')</div>
+            <div class="obj-card" data-obj="sortbox">📦 Sorting Box (4×6')</div>
             <div class="obj-card" data-obj="palletrack">🧮 Pallet (4×4')</div>
             <div class="obj-card" data-obj="trolleycage">🛒 Trolley Cage</div>
           </div>
@@ -5742,6 +5754,7 @@
           <canvas id="grid"></canvas>
           <div id="zone-toolbar">
             <span class="zt-label" id="zt-name">Room</span>
+            <span class="zt-dim" id="zt-dim">40 × 30 ft</span>
             <button id="zt-rename" title="Rename">✎</button>
             <button id="zt-del" class="del" title="Delete">🗑</button>
             <button id="zt-close" title="Close">✕</button>
@@ -5838,26 +5851,87 @@
                 <label class="field-label">Zone Name</label>
                 <input type="text" id="prop-room-name">
               </div>
+
+              <!-- Shape Morphology Selector -->
+              <div style="margin-bottom:12px;">
+                <label class="field-label" style="display:block; margin-bottom:5px;">Room Morphology</label>
+                <div class="rot-pill-group" style="display:grid; grid-template-columns:repeat(4, 1fr); gap:3px;">
+                  <button class="rot-btn active" id="prop-shape-rect" title="Standard Box">🔲 Box</button>
+                  <button class="rot-btn" id="prop-shape-l" title="L-Shape Layout">📐 L-Shape</button>
+                  <button class="rot-btn" id="prop-shape-t" title="T-Shape Layout">┱ T-Shape</button>
+                  <button class="rot-btn" id="prop-shape-u" title="U-Shape Bay">⎵ U-Shape</button>
+                </div>
+              </div>
+
+              <!-- L-Shape Specific Cutout Controls -->
+              <div id="prop-l-controls" style="display:none; background:var(--surface-2); padding:8px 10px; border-radius:6px; margin-bottom:10px; border:1px solid var(--border);">
+                <div style="font-size:11px; font-weight:800; color:var(--ink-soft); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">L-Cutout Options</div>
+                <div class="prop-row" style="margin-bottom:6px;">
+                  <label style="font-size:11px;">Corner</label>
+                  <select id="prop-l-corner" class="setting-select" style="font-size:11px; padding:2px 6px;">
+                    <option value="tr" selected>Top-Right ↗</option>
+                    <option value="tl">Top-Left ↖</option>
+                    <option value="br">Bottom-Right ↘</option>
+                    <option value="bl">Bottom-Left ↙</option>
+                  </select>
+                </div>
+                <div class="prop-row" style="margin-bottom:6px;">
+                  <label style="font-size:11px;">Cutout Width</label>
+                  <div class="prop-input-wrap">
+                    <input type="number" id="prop-l-cutw" min="2" max="200" style="font-size:11px;">
+                    <span class="unit-tag">ft</span>
+                  </div>
+                </div>
+                <div class="prop-row">
+                  <label style="font-size:11px;">Cutout Depth</label>
+                  <div class="prop-input-wrap">
+                    <input type="number" id="prop-l-cuth" min="2" max="200" style="font-size:11px;">
+                    <span class="unit-tag">ft</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- U-Shape / T-Shape Specific Controls -->
+              <div id="prop-custom-shape-controls" style="display:none; background:var(--surface-2); padding:8px 10px; border-radius:6px; margin-bottom:10px; border:1px solid var(--border);">
+                <div style="font-size:11px; font-weight:800; color:var(--ink-soft); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">Corridor / Stem Size</div>
+                <div class="prop-row" style="margin-bottom:6px;">
+                  <label style="font-size:11px;">Inner Width</label>
+                  <div class="prop-input-wrap">
+                    <input type="number" id="prop-shape-innerw" min="2" max="200" style="font-size:11px;">
+                    <span class="unit-tag">ft</span>
+                  </div>
+                </div>
+                <div class="prop-row">
+                  <label style="font-size:11px;">Inner Depth</label>
+                  <div class="prop-input-wrap">
+                    <input type="number" id="prop-shape-innerh" min="2" max="200" style="font-size:11px;">
+                    <span class="unit-tag">ft</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- General Dimensions -->
               <div class="prop-row">
-                <label>Width</label>
+                <label>Overall Width</label>
                 <div class="prop-input-wrap">
                   <input type="number" id="prop-room-w" min="4" max="500">
                   <span class="unit-tag">ft</span>
                 </div>
               </div>
               <div class="prop-row">
-                <label>Depth</label>
+                <label>Overall Depth</label>
                 <div class="prop-input-wrap">
                   <input type="number" id="prop-room-h" min="4" max="500">
                   <span class="unit-tag">ft</span>
                 </div>
               </div>
               <div class="prop-row">
-                <label>Total Area</label>
+                <label>Total Floor Area</label>
                 <div style="font-size:13px; font-weight:800; color:var(--ink);" id="prop-room-area">0 sq ft</div>
               </div>
               <div
                 style="display:flex; flex-direction:column; gap:6px; margin-top:14px; border-top:1px solid var(--border); padding-top:12px;">
+                <button class="btn sm secondary full" id="prop-room-dup" style="font-weight:700;" title="Duplicate Room">📄 Duplicate Zone</button>
                 <button class="btn sm ghost full" id="prop-room-del"
                   style="color:#DC2626; border:1px solid rgba(220,38,38,0.2); font-weight:700;" title="Delete Room">🗑
                   Delete Room</button>
@@ -6236,9 +6310,9 @@
                   <p>Cell dimension on canvas for parcel destination sorting boxes.</p>
                 </div>
                 <select id="set-cell-size" class="setting-select">
-                  <option value="3" selected>3 ft × 3 ft (1.5 × 1.5 ft sorting box + 1.5 ft handling)</option>
-                  <option value="4">4 ft × 4 ft (Standard Heavy Pallet Rack)</option>
-                  <option value="2">2 ft × 2 ft (Compact Tote)</option>
+                  <option value="4x6" selected>4 ft × 6 ft (Standard Destination Sort Station)</option>
+                  <option value="4x4">4 ft × 4 ft (Heavy Pallet Rack)</option>
+                  <option value="3x3">3 ft × 3 ft (Compact Sort Unit)</option>
                 </select>
               </div>
 
@@ -6252,6 +6326,20 @@
                   <option value="5.0">5.0 ft (Dual Picker Passing)</option>
                   <option value="6.0">6.0 ft (Wide Aisle / AGV Tugger)</option>
                   <option value="8.0">8.0 ft (Forklift Certified Egress)</option>
+                </select>
+              </div>
+
+              <div class="setting-card">
+                <div class="info">
+                  <h5>Canvas Grid Line Color</h5>
+                  <p>Floor canvas grid box stroke color (4×4 ft &amp; 2×2 ft).</p>
+                </div>
+                <select id="set-grid-color" class="setting-select">
+                  <option value="default" selected>Ultra-Soft Light Grey (Default · #f1f5f9)</option>
+                  <option value="#e2e8f0">Subtle Slate (#e2e8f0)</option>
+                  <option value="#cbd5e1">Classic CAD Slate (#cbd5e1)</option>
+                  <option value="#94a3b8">Contrast Charcoal (#94a3b8)</option>
+                  <option value="#e0f2fe">Soft Blueprint (#e0f2fe)</option>
                 </select>
               </div>
 
@@ -6714,7 +6802,7 @@
       // it Double Rack's old dimensions and renaming it avoids updating every
       // call site for what is, to the manager, just one rack type now.
       rack: { id: 1, key: "1", name: "Rack (3×1.5 ft)", short: "Rack", glyph: "🗄️", color: "#64748B", category: "storage", w: 3, d: 1.5, h: 8, levels: 5 },
-      sortbox: { id: 11, key: "", name: "Sorting Box (2×2 ft)", short: "Sort Box", glyph: "📦", color: "#0EA5E9", category: "storage", w: 2, d: 2, h: 2, levels: 1 },
+      sortbox: { id: 11, key: "", name: "Sorting Box (4×6 ft)", short: "Sort Box", glyph: "📦", color: "#0EA5E9", category: "storage", w: 4, d: 6, h: 4, levels: 1 },
       palletrack: { id: 14, key: "", name: "Rack (4×4 ft)", short: "Pallet", glyph: "🧱", color: "#334155", category: "storage", w: 4, d: 4, h: 12, levels: 3 },
       trolleycage: { id: 32, key: "", name: "Trolley Cage", short: "Trolley Cage", glyph: "🗃️", color: "#6366F1", category: "storage", w: 3, d: 2, h: 5.5 },
 
@@ -6765,6 +6853,7 @@
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
     function safeSetPointerCapture(el, pointerId) { try { el.setPointerCapture(pointerId); } catch (e) { } }
     const snap2 = v => Math.round(v / CELL_FT) * CELL_FT;
+    const snapFine = v => Math.round(v); // 1ft precision — used for zone move/resize so small adjustments stay small
     const fmtNum = n => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
     function toast(msg, dur) {
@@ -6936,6 +7025,7 @@
     let selectedCells = [];       // [{c, r}] for multi-select
     let smartSnapEnabled = true;  // snap to grid, walls & object centers
     let gridLinesVisible = true;  // visual grid toggle
+    let customGridColor = null;   // custom grid line color (e.g. '#e2e8f0', '#cbd5e1', '#94a3b8')
     let currentUnit = "ft";       // "ft" | "m"
     let measuring = false, measureStart = null, measureCurrent = null;
     let detectedIssues = [];      // array of live issues [{type, level, title, desc, c, r, zoneId}]
@@ -8857,7 +8947,7 @@
        single generated output. CANDIDATE_DEFS/buildLayoutCandidate stayed
        because the single-output path still reuses the "balanced" definition
        as its default.
-    const SORTBOX_COST_EACH = 25;     // $/sorting box (2×2 ft unit) — rough estimate, not a quote
+    const SORTBOX_COST_EACH = 45;     // $/sorting box (4×6 ft unit) — rough estimate, not a quote
     const DOCK_COST_EACH = 12000;     // $/dock door incl. leveler & bumper
     const ROOM_COST_PER_SQFT = 55;    // $/sqft office/amenity finish-out
     const COLD_ROOM_COST_PER_SQFT = 180; // $/sqft insulated panel + refrigeration. Retained only so
@@ -10069,7 +10159,7 @@
       if (s.constraintNote) lines.push(`Manager note: ${s.constraintNote}`);
       lines.push("Zones:");
       s.zones.forEach(z => lines.push(`- ${z.label || z.type}: ${z.w}x${z.h} ft at (x=${z.x}, y=${z.y})`));
-      lines.push(`Metrics: ${metrics.utilizationPct}% floor utilization; ${metrics.sortBoxCount} sorting boxes (2×2 ft each); pick-aisle width ${metrics.aisleWidthFt} ft (${metrics.aisleOk ? "meets" : "BELOW"} the ${MIN_AISLE_FT} ft minimum); worst-case dock-to-sortbox walking distance ${metrics.travelFt === null ? "n/a" : metrics.travelFt + " ft"}.`);
+      lines.push(`Metrics: ${metrics.utilizationPct}% floor utilization; ${metrics.sortBoxCount} sorting boxes (4×6 ft each); pick-aisle width ${metrics.aisleWidthFt} ft (${metrics.aisleOk ? "meets" : "BELOW"} the ${MIN_AISLE_FT} ft minimum); worst-case dock-to-sortbox walking distance ${metrics.travelFt === null ? "n/a" : metrics.travelFt + " ft"}.`);
       if (metrics.markCount) lines.push(`The manager marked ${metrics.markCount} fixed points (walls/columns/entry/exit) on the floor plan; ${metrics.hiddenMarks} of them ended up hidden underneath a generated zone.`);
       return lines.join("\n");
     }
@@ -10651,10 +10741,13 @@
     function redraw() {
       if (!site) return;
       const g = ctx();
+      const dpr = window.devicePixelRatio || 1;
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+
       const W = site.cols * cellPx, H = site.rows * cellPx;
       const isDark = document.documentElement.getAttribute("data-theme") === "dark" || (document.body && document.body.classList.contains("dark-mode"));
 
-      g.clearRect(0, 0, canvas().width, canvas().height);
+      g.clearRect(0, 0, MARGIN * 2 + W, MARGIN * 2 + H);
       g.fillStyle = "#ffffff";
       g.fillRect(0, 0, MARGIN * 2 + W, MARGIN * 2 + H);
       g.save(); g.translate(MARGIN, MARGIN);
@@ -10665,27 +10758,30 @@
 
       // Grid lines: Clean 2×2 ft boxes at zoom >= 160% (cellPx >= 32), 4×4 ft boxes below 160%
       if (gridLinesVisible) {
-        const totalL = site.L || (site.cols * CELL_FT);
-        const totalW = site.W || (site.rows * CELL_FT);
         const isHighZoom = cellPx >= 32; // >= 160% zoom
         const gridBoxFt = isHighZoom ? 2 : 4; // 2×2 ft if >= 160%, 4×4 ft if < 160%
-        const pxPerFt = cellPx / CELL_FT;
+        const boxPx = (gridBoxFt / CELL_FT) * cellPx;
 
+        g.save();
         g.beginPath();
-        g.strokeStyle = isDark ? "rgba(255,255,255,0.18)" : "rgba(30,27,20,0.14)";
+        // Clean, elegant light grey grid lines
+        g.strokeStyle = customGridColor || "#e2e8f0";
         g.lineWidth = 1;
 
-        for (let ft = 0; ft <= totalL; ft += gridBoxFt) {
-          const x = ft * pxPerFt;
-          g.moveTo(Math.round(x) + 0.5, 0);
-          g.lineTo(Math.round(x) + 0.5, H);
+        // Vertical grid lines
+        for (let x = 0; x <= W + 0.5; x += boxPx) {
+          const rx = Math.round(x);
+          g.moveTo(rx + 0.5, 0);
+          g.lineTo(rx + 0.5, H);
         }
-        for (let ft = 0; ft <= totalW; ft += gridBoxFt) {
-          const y = ft * pxPerFt;
-          g.moveTo(0, Math.round(y) + 0.5);
-          g.lineTo(W, Math.round(y) + 0.5);
+        // Horizontal grid lines
+        for (let y = 0; y <= H + 0.5; y += boxPx) {
+          const ry = Math.round(y);
+          g.moveTo(0, ry + 0.5);
+          g.lineTo(W, ry + 0.5);
         }
         g.stroke();
+        g.restore();
       }
 
       // Layer filtering and object rendering
@@ -10968,21 +11064,232 @@
       rackLabels.sort((a, b) => a.r - b.r || a.c - b.c).forEach((l, i) => l.label = "R" + (i + 1));
     }
 
+    function getZoneArea(z) {
+      if (!z) return 0;
+      const shape = z.shape || "rect";
+      if (shape === "l-shape") {
+        const cutW = z.cutW != null ? z.cutW : z.w / 2;
+        const cutH = z.cutH != null ? z.cutH : z.h / 2;
+        return Math.max(0, Math.round(z.w * z.h - cutW * cutH));
+      }
+      if (shape === "t-shape") {
+        const stemW = z.stemW != null ? z.stemW : z.w / 2;
+        const stemH = z.stemH != null ? z.stemH : z.h / 2;
+        return Math.max(0, Math.round(z.w * stemH + stemW * (z.h - stemH)));
+      }
+      if (shape === "u-shape") {
+        const inW = z.innerW != null ? z.innerW : z.w / 3;
+        const inH = z.innerH != null ? z.innerH : z.h * 0.6;
+        return Math.max(0, Math.round(z.w * z.h - inW * inH));
+      }
+      return Math.round(z.w * z.h);
+    }
+
+    function isPointInsideZone(z, xFt, yFt) {
+      if (xFt < z.x || xFt > z.x + z.w || yFt < z.y || yFt > z.y + z.h) return false;
+      const shape = z.shape || "rect";
+      if (shape === "l-shape") {
+        const cutW = z.cutW != null ? z.cutW : z.w / 2;
+        const cutH = z.cutH != null ? z.cutH : z.h / 2;
+        const corner = z.corner || "tr";
+        if (corner === "tr" && xFt > z.x + z.w - cutW && yFt < z.y + cutH) return false;
+        if (corner === "tl" && xFt < z.x + cutW && yFt < z.y + cutH) return false;
+        if (corner === "br" && xFt > z.x + z.w - cutW && yFt > z.y + z.h - cutH) return false;
+        if (corner === "bl" && xFt < z.x + cutW && yFt > z.y + z.h - cutH) return false;
+      } else if (shape === "t-shape") {
+        const stemW = z.stemW != null ? z.stemW : z.w / 2;
+        const stemH = z.stemH != null ? z.stemH : z.h / 2;
+        const sx1 = z.x + (z.w - stemW) / 2, sx2 = z.x + (z.w + stemW) / 2;
+        if (yFt > z.y + stemH && (xFt < sx1 || xFt > sx2)) return false;
+      } else if (shape === "u-shape") {
+        const inW = z.innerW != null ? z.innerW : z.w / 3;
+        const inH = z.innerH != null ? z.innerH : z.h * 0.6;
+        const ux1 = z.x + (z.w - inW) / 2, ux2 = z.x + (z.w + inW) / 2;
+        if (yFt > z.y + z.h - inH && xFt > ux1 && xFt < ux2) return false;
+      }
+      return true;
+    }
+
+    function getZonePath(g, z, x, y, w, h, r = 6) {
+      g.beginPath();
+      const shape = z.shape || "rect";
+      if (shape === "l-shape") {
+        const cutW = ftToLocalPx(z.cutW != null ? z.cutW : z.w / 2);
+        const cutH = ftToLocalPx(z.cutH != null ? z.cutH : z.h / 2);
+        const corner = z.corner || "tr";
+        if (corner === "tr") {
+          g.moveTo(x, y);
+          g.lineTo(x + w - cutW, y);
+          g.lineTo(x + w - cutW, y + cutH);
+          g.lineTo(x + w, y + cutH);
+          g.lineTo(x + w, y + h);
+          g.lineTo(x, y + h);
+        } else if (corner === "tl") {
+          g.moveTo(x + cutW, y);
+          g.lineTo(x + w, y);
+          g.lineTo(x + w, y + h);
+          g.lineTo(x, y + h);
+          g.lineTo(x, y + cutH);
+          g.lineTo(x + cutW, y + cutH);
+        } else if (corner === "br") {
+          g.moveTo(x, y);
+          g.lineTo(x + w, y);
+          g.lineTo(x + w, y + h - cutH);
+          g.lineTo(x + w - cutW, y + h - cutH);
+          g.lineTo(x + w - cutW, y + h);
+          g.lineTo(x, y + h);
+        } else { // "bl"
+          g.moveTo(x, y);
+          g.lineTo(x + w, y);
+          g.lineTo(x + w, y + h);
+          g.lineTo(x + cutW, y + h);
+          g.lineTo(x + cutW, y + h - cutH);
+          g.lineTo(x, y + h - cutH);
+        }
+        g.closePath();
+      } else if (shape === "t-shape") {
+        const stemW = ftToLocalPx(z.stemW != null ? z.stemW : z.w / 2);
+        const stemH = ftToLocalPx(z.stemH != null ? z.stemH : z.h / 2);
+        const sx1 = x + (w - stemW) / 2;
+        const sx2 = x + (w + stemW) / 2;
+        g.moveTo(x, y);
+        g.lineTo(x + w, y);
+        g.lineTo(x + w, y + stemH);
+        g.lineTo(sx2, y + stemH);
+        g.lineTo(sx2, y + h);
+        g.lineTo(sx1, y + h);
+        g.lineTo(sx1, y + stemH);
+        g.lineTo(x, y + stemH);
+        g.closePath();
+      } else if (shape === "u-shape") {
+        const inW = ftToLocalPx(z.innerW != null ? z.innerW : z.w / 3);
+        const inH = ftToLocalPx(z.innerH != null ? z.innerH : z.h * 0.6);
+        const ux1 = x + (w - inW) / 2;
+        const ux2 = x + (w + inW) / 2;
+        g.moveTo(x, y);
+        g.lineTo(x + w, y);
+        g.lineTo(x + w, y + h);
+        g.lineTo(ux2, y + h);
+        g.lineTo(ux2, y + h - inH);
+        g.lineTo(ux1, y + h - inH);
+        g.lineTo(ux1, y + h);
+        g.lineTo(x, y + h);
+        g.closePath();
+      } else {
+        roundRectPath(g, x, y, w, h, r);
+      }
+    }
+
     function drawZone(g, z, selected) {
       const def = ZONE_DEFS[z.type] || { name: "Room", color: "#64748B", group: "room" };
       const x = ftToLocalPx(z.x), y = ftToLocalPx(z.y), w = ftToLocalPx(z.w), h = ftToLocalPx(z.h);
       g.fillStyle = hexAlpha(def.color, .82);
-      roundRectPath(g, x, y, w, h, 6); g.fill();
+      getZonePath(g, z, x, y, w, h, 6);
+      g.fill();
+
+      // 1. Dock Doors
       if (def.group === "dock") {
-        g.save(); g.beginPath(); roundRectPath(g, x, y, w, h, 6); g.clip();
+        g.save(); g.beginPath(); getZonePath(g, z, x, y, w, h, 6); g.clip();
         g.strokeStyle = "rgba(255,255,255,.55)"; g.lineWidth = Math.max(1, cellPx * 0.1);
         const doorW = 12 / CELL_FT * cellPx;
         for (let dx = doorW / 2; dx < w; dx += doorW) { g.beginPath(); g.moveTo(x + dx, y); g.lineTo(x + dx, y + Math.min(h, 10)); g.stroke(); }
         g.restore();
       }
+
+      // 2. Render internal 4×6 ft Sorting Boxes inside Sortation Modules & Sorting Zones
+      const isSortZone = (z.type === "sort" || (z.label && /module|sort|matrix|pos/i.test(z.label)));
+      if (isSortZone && w >= 28 && h >= 36) {
+        g.save();
+        getZonePath(g, z, x, y, w, h, 6);
+        g.clip();
+
+        const headerH = Math.min(30, Math.max(18, h * 0.18));
+        const startY = y + headerH + 3;
+        const availW = w - 10;
+        const availH = h - headerH - 6;
+
+        // 4×6 ft Sorting Box dimensions
+        const sortBoxW_ft = 4;
+        const sortBoxH_ft = 6;
+        const numCols = Math.max(1, Math.round(z.w / sortBoxW_ft));
+        const numRows = Math.max(1, Math.round((z.h - (headerH / cellPx * CELL_FT)) / sortBoxH_ft));
+
+        const gapPx = Math.max(2, Math.round(cellPx * 0.08));
+        const cellW_px = (availW - (numCols - 1) * gapPx) / numCols;
+        const cellH_px = (availH - (numRows - 1) * gapPx) / numRows;
+
+        let posNum = 1;
+        for (let r = 0; r < numRows; r++) {
+          for (let c = 0; c < numCols; c++) {
+            const bx = x + 5 + c * (cellW_px + gapPx);
+            const by = startY + r * (cellH_px + gapPx);
+
+            if (cellW_px >= 10 && cellH_px >= 10) {
+              // Sorting Box Body (4×6 ft footprint)
+              g.fillStyle = "rgba(14, 165, 233, 0.32)";
+              g.strokeStyle = "rgba(255, 255, 255, 0.65)";
+              g.lineWidth = 1;
+              roundRectPath(g, bx, by, cellW_px, cellH_px, 3);
+              g.fill();
+              g.stroke();
+
+              // Top tote bar
+              g.fillStyle = "rgba(255, 255, 255, 0.22)";
+              g.fillRect(bx + 1, by + 1, cellW_px - 2, Math.min(5, cellH_px * 0.22));
+
+              // Position Number & Tote Tag
+              if (cellW_px >= 20 && cellH_px >= 14) {
+                g.fillStyle = "#ffffff";
+                g.textAlign = "center";
+                g.textBaseline = "middle";
+                const posFont = Math.max(7, Math.min(10, Math.floor(cellH_px * 0.32)));
+                g.font = `800 ${posFont}px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif`;
+                g.fillText(`P${posNum < 10 ? '0' + posNum : posNum}`, bx + cellW_px / 2, by + cellH_px / 2 + 1);
+              }
+            }
+            posNum++;
+          }
+        }
+        g.restore();
+      }
+
+      // 3. Render Dispatch Staging Slots in Lane Zones
+      const isLaneZone = (z.type === "dispatch" || (z.label && /lane/i.test(z.label)));
+      if (isLaneZone && w >= 20 && h >= 28) {
+        g.save();
+        getZonePath(g, z, x, y, w, h, 6);
+        g.clip();
+
+        const headerH = Math.min(26, Math.max(16, h * 0.18));
+        const startY = y + headerH + 2;
+        const availH = h - headerH - 4;
+        const numSlots = Math.max(2, Math.round(z.h / 6));
+        const slotH = availH / numSlots;
+
+        for (let i = 0; i < numSlots; i++) {
+          const sy = startY + i * slotH;
+          g.strokeStyle = "rgba(255, 255, 255, 0.35)";
+          g.lineWidth = 1;
+          g.setLineDash([3, 2]);
+          g.beginPath(); g.moveTo(x + 4, sy); g.lineTo(x + w - 4, sy); g.stroke();
+          g.setLineDash([]);
+
+          if (slotH >= 12) {
+            g.fillStyle = "rgba(255, 255, 255, 0.6)";
+            g.font = `700 ${Math.max(8, Math.min(11, slotH * 0.38))}px -apple-system,sans-serif`;
+            g.textAlign = "center";
+            g.textBaseline = "middle";
+            g.fillText("⬇", x + w / 2, sy + slotH / 2);
+          }
+        }
+        g.restore();
+      }
+
       g.strokeStyle = selected ? "#17171A" : "rgba(255,255,255,.5)";
       g.lineWidth = selected ? 2.5 : 1.5;
-      roundRectPath(g, x, y, w, h, 6); g.stroke();
+      getZonePath(g, z, x, y, w, h, 6);
+      g.stroke();
+
       if (w > 28 && h > 16) {
         g.fillStyle = "#fff"; g.textAlign = "left"; g.textBaseline = "top";
         const titleFontSize = Math.max(8, Math.min(12, Math.floor(h * 0.35)));
@@ -10991,16 +11298,50 @@
         if (h > 24) {
           const subFontSize = Math.max(7, Math.min(10, Math.floor(h * 0.26)));
           g.font = `600 ${subFontSize}px -apple-system,Segoe UI,Roboto,sans-serif`; g.globalAlpha = .85;
-          const areaStr = currentUnit === "m" ? `${Math.round(z.w * z.h * 0.0929)} m²` : `${Math.round(z.w * z.h)} sq ft`;
+          const areaSqft = getZoneArea(z);
+          const areaStr = currentUnit === "m" ? `${Math.round(areaSqft * 0.0929)} m²` : `${Math.round(areaSqft)} sq ft`;
           g.fillText(areaStr, x + 5, y + 4 + titleFontSize + 2, w - 10);
           g.globalAlpha = 1;
         }
       }
       if (selected) {
-        const hs = 9;
-        g.fillStyle = "#17171A";
-        g.fillRect(x + w - hs / 2, y + h - hs / 2, hs, hs);
+        const hs = 8;
+        Object.values(zoneHandlePoints(x, y, w, h)).forEach(([hx, hy]) => {
+          g.fillStyle = "#fff";
+          g.fillRect(hx - hs / 2 - 1, hy - hs / 2 - 1, hs + 2, hs + 2);
+          g.fillStyle = "#17171A";
+          g.fillRect(hx - hs / 2, hy - hs / 2, hs, hs);
+        });
       }
+    }
+
+    // The 8 resize-handle positions (content-px, no MARGIN) for a zone's
+    // on-screen box — shared by drawZone (rendering) and the pointer-down
+    // hit test (getZoneHandleAt) so the two always agree.
+    function zoneHandlePoints(x, y, w, h) {
+      const midX = x + w / 2, midY = y + h / 2;
+      return {
+        nw: [x, y], n: [midX, y], ne: [x + w, y],
+        e: [x + w, midY], se: [x + w, y + h], s: [midX, y + h],
+        sw: [x, y + h], w: [x, midY]
+      };
+    }
+
+    function getZoneHandleAt(z, localX, localY) {
+      const x = ftToLocalPx(z.x), y = ftToLocalPx(z.y), w = ftToLocalPx(z.w), h = ftToLocalPx(z.h);
+      const pts = zoneHandlePoints(x, y, w, h);
+      const hitR = 10;
+      for (const key in pts) {
+        const [hx, hy] = pts[key];
+        if (Math.abs(localX - hx) < hitR && Math.abs(localY - hy) < hitR) return key;
+      }
+      return null;
+    }
+
+    function zoneDimText(z) {
+      const wFt = Math.round(z.w), hFt = Math.round(z.h);
+      if (currentUnit === "m") return `${(wFt * 0.3048).toFixed(1)} × ${(hFt * 0.3048).toFixed(1)} m`;
+      return `${wFt} × ${hFt} ft`;
     }
 
     function roundRectPath(g, x, y, w, h, r) {
@@ -11216,11 +11557,23 @@
       const y = snap2((clientY - rect.top - MARGIN) / cellPx * CELL_FT);
       return { x: clamp(x, 0, totalL), y: clamp(y, 0, totalW) };
     }
+    // Unsnapped version — zone move/resize drags need finer-than-CELL_FT
+    // resolution (ftFromClient's snap2 rounds to whole grid cells, which made
+    // small mouse movements produce zero net change); this is rounded to
+    // 1ft precision by snapFine() at the point of use instead.
+    function ftFromClientRaw(clientX, clientY) {
+      const rect = canvas().getBoundingClientRect();
+      const totalL = site ? (site.L || (site.cols * CELL_FT)) : 150;
+      const totalW = site ? (site.W || (site.rows * CELL_FT)) : 100;
+      const x = (clientX - rect.left - MARGIN) / cellPx * CELL_FT;
+      const y = (clientY - rect.top - MARGIN) / cellPx * CELL_FT;
+      return { x: clamp(x, 0, totalL), y: clamp(y, 0, totalW) };
+    }
     function zoneAt(xFt, yFt) {
       if (!site || !site.zones) return null;
       for (let i = site.zones.length - 1; i >= 0; i--) {
         const z = site.zones[i];
-        if (xFt >= z.x && xFt <= z.x + z.w && yFt >= z.y && yFt <= z.y + z.h) return z;
+        if (isPointInsideZone(z, xFt, yFt)) return z;
       }
       return null;
     }
@@ -11329,27 +11682,44 @@
           return;
         }
 
-        // 2. If clicking on an active zone resize handle
-        const z = zoneAt(x, y);
-        if (z && selectedZoneId === z.id) {
-          const handleSize = 14;
-          const hx = ftToLocalPx(z.x + z.w), hy = ftToLocalPx(z.y + z.h);
-          const rect = canvas().getBoundingClientRect();
-          const localX = ev.clientX - rect.left - MARGIN, localY = ev.clientY - rect.top - MARGIN;
-          const nearHandle = Math.abs(localX - hx) < handleSize && Math.abs(localY - hy) < handleSize;
-          if (nearHandle) {
-            safeSetPointerCapture(canvas(), ev.pointerId);
-            selectedCell = null;
-            selectedCells = [];
-            selectZone(z.id);
-            snapshot();
-            dragZone = { mode: "resize", zone: z, startX: x, startY: y, origX: z.x, origY: z.y, origW: z.w, origH: z.h };
-            updateRightPanel();
-            return;
+        // 2. If clicking on one of the currently-selected zone's 8 resize
+        // handles (corners + edge midpoints), start a resize drag.
+        if (selectedZoneId) {
+          const selZone = site.zones.find(zz => zz.id === selectedZoneId);
+          if (selZone) {
+            const rect = canvas().getBoundingClientRect();
+            const localX = ev.clientX - rect.left - MARGIN, localY = ev.clientY - rect.top - MARGIN;
+            const edge = getZoneHandleAt(selZone, localX, localY);
+            if (edge) {
+              safeSetPointerCapture(canvas(), ev.pointerId);
+              selectedCell = null;
+              selectedCells = [];
+              snapshot();
+              const raw = ftFromClientRaw(ev.clientX, ev.clientY);
+              dragZone = { mode: "resize", edge, zone: selZone, startX: raw.x, startY: raw.y, origX: selZone.x, origY: selZone.y, origW: selZone.w, origH: selZone.h };
+              updateRightPanel();
+              return;
+            }
           }
         }
 
-        // 3. Marquee Drag Multi-Selection (across entire floor / rooms)
+        // 3. Clicking anywhere inside a zone's body selects it and starts a
+        // move drag in the same gesture (Figma-style) — a click with no
+        // movement just selects it, since the resulting dx/dy is 0.
+        const z = zoneAt(x, y);
+        if (z) {
+          safeSetPointerCapture(canvas(), ev.pointerId);
+          selectedCell = null;
+          selectedCells = [];
+          selectZone(z.id);
+          snapshot();
+          const raw = ftFromClientRaw(ev.clientX, ev.clientY);
+          dragZone = { mode: "move", edge: null, zone: z, startX: raw.x, startY: raw.y, origX: z.x, origY: z.y, origW: z.w, origH: z.h };
+          updateRightPanel();
+          return;
+        }
+
+        // 4. Marquee Drag Multi-Selection (across entire floor / rooms)
         safeSetPointerCapture(canvas(), ev.pointerId);
         marqueeSelect = {
           startX: x,
@@ -11412,18 +11782,36 @@
         return;
       }
       if (dragZone) {
-        const { x, y } = ftFromClient(ev.clientX, ev.clientY);
+        const { x, y } = ftFromClientRaw(ev.clientX, ev.clientY);
         const z = dragZone.zone;
         if (dragZone.mode === "move") {
           const dx = x - dragZone.startX, dy = y - dragZone.startY;
-          z.x = clamp(snap2(dragZone.origX + dx), 0, site.L - z.w);
-          z.y = clamp(snap2(dragZone.origY + dy), 0, site.W - z.h);
+          z.x = clamp(snapFine(dragZone.origX + dx), 0, site.L - z.w);
+          z.y = clamp(snapFine(dragZone.origY + dy), 0, site.W - z.h);
         } else {
-          z.w = clamp(snap2(x - z.x), CELL_FT, site.L - z.x);
-          z.h = clamp(snap2(y - z.y), CELL_FT, site.W - z.y);
+          // Resize from whichever of the 8 handles was grabbed — each of N/S/E/W
+          // can move independently, so a zone can be resized from any side or
+          // corner, not just the bottom-right.
+          const MIN = CELL_FT;
+          const fixedRight = dragZone.origX + dragZone.origW;
+          const fixedBottom = dragZone.origY + dragZone.origH;
+          const edge = dragZone.edge;
+          let nx = z.x, ny = z.y, nw = z.w, nh = z.h;
+          if (edge.includes("e")) nw = clamp(snapFine(x - dragZone.origX), MIN, site.L - dragZone.origX);
+          if (edge.includes("w")) {
+            const newX = clamp(snapFine(x), 0, fixedRight - MIN);
+            nx = newX; nw = fixedRight - newX;
+          }
+          if (edge.includes("s")) nh = clamp(snapFine(y - dragZone.origY), MIN, site.W - dragZone.origY);
+          if (edge.includes("n")) {
+            const newY = clamp(snapFine(y), 0, fixedBottom - MIN);
+            ny = newY; nh = fixedBottom - newY;
+          }
+          z.x = nx; z.y = ny; z.w = nw; z.h = nh;
         }
         redraw();
         updateRightPanel();
+        showZoneToolbar();
         return;
       }
       if (marqueeSelect) {
@@ -11696,6 +12084,7 @@
     function showZoneToolbar() {
       const z = site.zones.find(z => z.id === selectedZoneId); if (!z) return;
       $("#zt-name").textContent = z.label || (ZONE_DEFS[z.type] ? ZONE_DEFS[z.type].name : "Room");
+      const dimEl = $("#zt-dim"); if (dimEl) dimEl.textContent = zoneDimText(z);
       positionOverlays();
       $("#zone-toolbar").classList.add("on");
     }
@@ -11784,10 +12173,42 @@
           roomView.style.display = "block";
           multiView.style.display = "none";
           genView.style.display = "none";
-          $("#prop-room-name").value = z.label || ZONE_DEFS[z.type].name;
+          $("#prop-room-name").value = z.label || (ZONE_DEFS[z.type] ? ZONE_DEFS[z.type].name : "Room");
           $("#prop-room-w").value = z.w;
           $("#prop-room-h").value = z.h;
-          $("#prop-room-area").textContent = currentUnit === "m" ? `${Math.round(z.w * z.h * 0.0929)} m²` : `${Math.round(z.w * z.h)} sq ft`;
+
+          // Sync shape morphology buttons
+          const curShape = z.shape || "rect";
+          ["rect", "l", "t", "u"].forEach(s => {
+            const b = $(`#prop-shape-${s}`);
+            if (b) b.classList.toggle("active", (curShape === "rect" && s === "rect") || (curShape === "l-shape" && s === "l") || (curShape === "t-shape" && s === "t") || (curShape === "u-shape" && s === "u"));
+          });
+
+          // Show / Hide shape controls
+          const lControls = $("#prop-l-controls");
+          if (lControls) {
+            lControls.style.display = curShape === "l-shape" ? "block" : "none";
+            if (curShape === "l-shape") {
+              const cornerEl = $("#prop-l-corner"); if (cornerEl) cornerEl.value = z.corner || "tr";
+              const cutwEl = $("#prop-l-cutw"); if (cutwEl) cutwEl.value = z.cutW != null ? z.cutW : Math.round(z.w / 2);
+              const cuthEl = $("#prop-l-cuth"); if (cuthEl) cuthEl.value = z.cutH != null ? z.cutH : Math.round(z.h / 2);
+            }
+          }
+
+          const customShapeControls = $("#prop-custom-shape-controls");
+          if (customShapeControls) {
+            customShapeControls.style.display = (curShape === "t-shape" || curShape === "u-shape") ? "block" : "none";
+            if (curShape === "t-shape") {
+              const inwEl = $("#prop-shape-innerw"); if (inwEl) inwEl.value = z.stemW != null ? z.stemW : Math.round(z.w / 2);
+              const inhEl = $("#prop-shape-innerh"); if (inhEl) inhEl.value = z.stemH != null ? z.stemH : Math.round(z.h / 2);
+            } else if (curShape === "u-shape") {
+              const inwEl = $("#prop-shape-innerw"); if (inwEl) inwEl.value = z.innerW != null ? z.innerW : Math.round(z.w / 3);
+              const inhEl = $("#prop-shape-innerh"); if (inhEl) inhEl.value = z.innerH != null ? z.innerH : Math.round(z.h * 0.6);
+            }
+          }
+
+          const areaSqft = getZoneArea(z);
+          $("#prop-room-area").textContent = currentUnit === "m" ? `${Math.round(areaSqft * 0.0929)} m²` : `${Math.round(areaSqft)} sq ft`;
           return;
         }
       }
@@ -11911,6 +12332,88 @@
       const z = site.zones.find(z => z.id === selectedZoneId);
       if (z) { z.h = snap2(Math.max(4, +e.target.value)); redraw(); updateRightPanel(); queueSave(); }
     });
+
+    // Shape Morphology Switchers
+    $("#prop-shape-rect")?.addEventListener("click", () => setZoneShape("rect"));
+    $("#prop-shape-l")?.addEventListener("click", () => setZoneShape("l-shape"));
+    $("#prop-shape-t")?.addEventListener("click", () => setZoneShape("t-shape"));
+    $("#prop-shape-u")?.addEventListener("click", () => setZoneShape("u-shape"));
+
+    function setZoneShape(shape) {
+      if (!selectedZoneId) return;
+      const z = site.zones.find(z => z.id === selectedZoneId);
+      if (!z) return;
+      snapshot();
+      z.shape = shape;
+      if (shape === "l-shape") {
+        z.corner = z.corner || "tr";
+        z.cutW = z.cutW != null ? z.cutW : Math.round(z.w / 2);
+        z.cutH = z.cutH != null ? z.cutH : Math.round(z.h / 2);
+      } else if (shape === "t-shape") {
+        z.stemW = z.stemW != null ? z.stemW : Math.round(z.w / 2);
+        z.stemH = z.stemH != null ? z.stemH : Math.round(z.h / 2);
+      } else if (shape === "u-shape") {
+        z.innerW = z.innerW != null ? z.innerW : Math.round(z.w / 3);
+        z.innerH = z.innerH != null ? z.innerH : Math.round(z.h * 0.6);
+      }
+      redraw();
+      updateRightPanel();
+      queueSave();
+      toast(`Changed morphology to ${shape.toUpperCase()}`);
+    }
+
+    $("#prop-l-corner")?.addEventListener("change", e => {
+      if (!selectedZoneId) return;
+      const z = site.zones.find(z => z.id === selectedZoneId);
+      if (z) { z.corner = e.target.value; redraw(); updateRightPanel(); queueSave(); }
+    });
+    $("#prop-l-cutw")?.addEventListener("input", e => {
+      if (!selectedZoneId) return;
+      const z = site.zones.find(z => z.id === selectedZoneId);
+      if (z) { z.cutW = Math.max(2, Math.min(z.w - 2, +e.target.value)); redraw(); updateRightPanel(); queueSave(); }
+    });
+    $("#prop-l-cuth")?.addEventListener("input", e => {
+      if (!selectedZoneId) return;
+      const z = site.zones.find(z => z.id === selectedZoneId);
+      if (z) { z.cutH = Math.max(2, Math.min(z.h - 2, +e.target.value)); redraw(); updateRightPanel(); queueSave(); }
+    });
+
+    $("#prop-shape-innerw")?.addEventListener("input", e => {
+      if (!selectedZoneId) return;
+      const z = site.zones.find(z => z.id === selectedZoneId);
+      if (z) {
+        if (z.shape === "t-shape") z.stemW = Math.max(2, Math.min(z.w - 2, +e.target.value));
+        else if (z.shape === "u-shape") z.innerW = Math.max(2, Math.min(z.w - 2, +e.target.value));
+        redraw(); updateRightPanel(); queueSave();
+      }
+    });
+    $("#prop-shape-innerh")?.addEventListener("input", e => {
+      if (!selectedZoneId) return;
+      const z = site.zones.find(z => z.id === selectedZoneId);
+      if (z) {
+        if (z.shape === "t-shape") z.stemH = Math.max(2, Math.min(z.h - 2, +e.target.value));
+        else if (z.shape === "u-shape") z.innerH = Math.max(2, Math.min(z.h - 2, +e.target.value));
+        redraw(); updateRightPanel(); queueSave();
+      }
+    });
+
+    // Room Duplicate
+    $("#prop-room-dup")?.addEventListener("click", () => duplicateSelectedZone());
+    function duplicateSelectedZone() {
+      if (!selectedZoneId) return;
+      const z = site.zones.find(z => z.id === selectedZoneId);
+      if (!z) return;
+      snapshot();
+      const newId = "z_" + Math.random().toString(36).slice(2, 8);
+      const newX = Math.min(site.L - z.w, z.x + z.w + 4);
+      const newY = z.y;
+      const copy = Object.assign({}, z, { id: newId, x: newX, y: newY, label: z.label ? (z.label + " (Copy)") : "Room (Copy)" });
+      site.zones.push(copy);
+      selectZone(newId);
+      redraw(); updateStats(); queueSave();
+      toast("Duplicated Zone");
+    }
+
     $("#prop-room-del").addEventListener("click", () => {
       if (selectedZoneId) {
         snapshot();
@@ -12969,14 +13472,14 @@
     ===================================================================== */
     let clipboard = null; // { type:"zone", zone } or { type:"cells", items, originC, originR, pasteOffset }
 
-    function nudgeZone(dxCells, dyCells) {
+    function nudgeZone(dxFt, dyFt) {
       if (!selectedZoneId || !site) return;
       const z = site.zones.find(zz => zz.id === selectedZoneId);
       if (!z) return;
       snapshot();
-      z.x = clamp(snap2(z.x + dxCells * CELL_FT), 0, Math.max(0, site.L - z.w));
-      z.y = clamp(snap2(z.y + dyCells * CELL_FT), 0, Math.max(0, site.W - z.h));
-      positionOverlays();
+      z.x = clamp(snapFine(z.x + dxFt), 0, Math.max(0, site.L - z.w));
+      z.y = clamp(snapFine(z.y + dyFt), 0, Math.max(0, site.W - z.h));
+      showZoneToolbar();
       redraw(); updateRightPanel(); queueSave();
     }
 
@@ -13132,11 +13635,19 @@
         return;
       }
       if (ev.key === "ArrowUp" || ev.key === "ArrowDown" || ev.key === "ArrowLeft" || ev.key === "ArrowRight") {
-        const step = ev.shiftKey ? 5 : 1;
-        const dx = ev.key === "ArrowLeft" ? -step : ev.key === "ArrowRight" ? step : 0;
-        const dy = ev.key === "ArrowUp" ? -step : ev.key === "ArrowDown" ? step : 0;
-        if (selectedZoneId) { ev.preventDefault(); nudgeZone(dx, dy); }
-        else if (selectedCell || (selectedCells && selectedCells.length)) { ev.preventDefault(); nudgeObjects(dx, dy); }
+        if (selectedZoneId) {
+          // Zones move in real feet, not grid cells — keep the default step
+          // small (1ft) so nudges stay fine-grained; Shift jumps by one cell.
+          const zoneStep = ev.shiftKey ? CELL_FT : 1;
+          const zdx = ev.key === "ArrowLeft" ? -zoneStep : ev.key === "ArrowRight" ? zoneStep : 0;
+          const zdy = ev.key === "ArrowUp" ? -zoneStep : ev.key === "ArrowDown" ? zoneStep : 0;
+          ev.preventDefault(); nudgeZone(zdx, zdy);
+        } else if (selectedCell || (selectedCells && selectedCells.length)) {
+          const step = ev.shiftKey ? 5 : 1;
+          const dx = ev.key === "ArrowLeft" ? -step : ev.key === "ArrowRight" ? step : 0;
+          const dy = ev.key === "ArrowUp" ? -step : ev.key === "ArrowDown" ? step : 0;
+          ev.preventDefault(); nudgeObjects(dx, dy);
+        }
         return;
       }
       if (ev.key === "[") { rotateSelectedObjects(-1); return; }
@@ -13788,6 +14299,7 @@
       const inUnits = $("#set-units"); if (inUnits) inUnits.value = builderSettings.units;
       const inCell = $("#set-cell-size"); if (inCell) inCell.value = String(builderSettings.cellSize);
       const inAisle = $("#set-aisle-min"); if (inAisle) inAisle.value = String(builderSettings.aisleMin);
+      const inGridColor = $("#set-grid-color"); if (inGridColor) inGridColor.value = customGridColor || "default";
       const inPrefix = $("#set-prefix-tag"); if (inPrefix) inPrefix.value = builderSettings.prefixTag;
 
       // Handle AI Vision locked states: Only siva.k@blitznow.in has master access to check/uncheck
@@ -13851,6 +14363,9 @@
         builderSettings.cellSize = Number($("#set-cell-size")?.value || 3);
         builderSettings.aisleMin = Number($("#set-aisle-min")?.value || 4.0);
         builderSettings.prefixTag = ($("#set-prefix-tag")?.value || "H").trim();
+        const chosenColor = $("#set-grid-color")?.value;
+        customGridColor = (chosenColor && chosenColor !== "default") ? chosenColor : null;
+        redraw();
         builderSettings.aiVectorizer = $("#set-ai-vectorizer")?.checked ?? true;
         builderSettings.aiOptimizer = $("#set-ai-optimizer")?.checked ?? true;
         builderSettings.aiRooms = $("#set-ai-rooms")?.checked ?? true;
