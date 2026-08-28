@@ -6945,6 +6945,7 @@
       outboundLane: { name: "Outbound Lane", color: "#F97316", group: "room" },
       exception: { name: "Exceptions (RTS / DMG / HOLD)", color: "#DC2626", group: "room" },
       returns: { name: "Returns (RTO)", color: "#A16207", group: "room" },
+      battery: { name: "MHE Battery Charging Bay", color: "#0369A1", group: "room" },
       staging: { name: "Staging Area", color: "#78716C", group: "room" },
       charging: { name: "Empty Bag & Equipment Park", color: "#65A30D", group: "room" },
       growth: { name: "Reserved for Growth", color: "#D6D3D1", group: "room" },
@@ -13967,25 +13968,25 @@
       // If user has virtually no perimeter walls, synthesize clean boundary
       if (wallCount < (cols + rows)) {
         for (let c = 0; c < cols; c++) {
-          if (!site.cells[0 * cols + c]) setPaintCell(c, 0, PAINT_DEFS.wall.id);
-          if (!site.cells[(rows - 1) * cols + c]) setPaintCell(c, rows - 1, PAINT_DEFS.wall.id);
+          if (!site.cells[0 * cols + c] && !cellLocked({ c, r: 0 })) setPaintCell(c, 0, PAINT_DEFS.wall.id);
+          if (!site.cells[(rows - 1) * cols + c] && !cellLocked({ c, r: rows - 1 })) setPaintCell(c, rows - 1, PAINT_DEFS.wall.id);
         }
         for (let r = 0; r < rows; r++) {
-          if (!site.cells[r * cols + 0]) setPaintCell(0, r, PAINT_DEFS.wall.id);
-          if (!site.cells[r * cols + (cols - 1)]) setPaintCell(cols - 1, r, PAINT_DEFS.wall.id);
+          if (!site.cells[r * cols + 0] && !cellLocked({ c: 0, r })) setPaintCell(0, r, PAINT_DEFS.wall.id);
+          if (!site.cells[r * cols + (cols - 1)] && !cellLocked({ c: cols - 1, r })) setPaintCell(cols - 1, r, PAINT_DEFS.wall.id);
         }
         actionsCount++;
       }
 
       // If missing dock doors on perimeter, add standard Receiving & Dispatch gates
-      if (entryCount === 0) {
+      if (entryCount === 0 && !cellLocked({ c: 0, r: Math.max(2, Math.floor(rows / 4)) })) {
         const midR = Math.max(2, Math.floor(rows / 4));
         setPaintCell(0, midR, PAINT_DEFS.entry.id);
         setPaintCell(0, midR + 1, PAINT_DEFS.entry.id);
         entryCount = 2;
         actionsCount++;
       }
-      if (exitCount === 0) {
+      if (exitCount === 0 && !cellLocked({ c: Math.max(2, cols - 1), r: Math.max(2, Math.floor(rows * 0.75)) })) {
         const exitC = Math.max(2, cols - 1);
         const midR = Math.max(2, Math.floor(rows * 0.75));
         setPaintCell(exitC, midR, PAINT_DEFS.exit.id);
@@ -14035,10 +14036,12 @@
       const sortStartCol = inwardWidth + 1;
       const sortEndCol = cols - dispatchWidth - 1;
 
-      // Inward Staging Buffer pallets near Receiving Dock
+      // Inward Staging Buffer pallets near Receiving Dock — skip any cell
+      // already covered by a room/zone (Inward Zone, Security, etc.) so this
+      // never paints objects underneath a zone's own fill and content.
       for (let r = 2; r < rows - 2; r += 2) {
         for (let c = 2; c <= Math.min(inwardWidth, cols - 3); c += 2) {
-          if (!site.cells[r * cols + c]) {
+          if (!site.cells[r * cols + c] && !cellLocked({ c, r })) {
             setPaintCell(c, r, PAINT_DEFS.staging?.id || PAINT_DEFS.sortbox.id);
             cellsOptimized++;
           }
@@ -14051,6 +14054,7 @@
         const isRunRow = (r % 2 === 0);
         if (isRunRow) {
           for (let c = sortStartCol; c <= sortEndCol; c++) {
+            if (cellLocked({ c, r })) continue; // a real Sorting/Dispatch/etc. zone already owns this cell
             if (cols >= 22 && c === Math.floor(cols / 2)) {
               if (site.cells[r * cols + c]) setPaintCell(c, r, 0); // clear center corridor
               continue;
@@ -14076,43 +14080,49 @@
       // Outbound Dispatch Marshalling Lanes near Exit Docks
       for (let r = 2; r < rows - 2; r += 2) {
         for (let c = Math.max(sortEndCol + 1, cols - dispatchWidth); c < cols - 1; c += 2) {
-          if (!site.cells[r * cols + c]) {
+          if (!site.cells[r * cols + c] && !cellLocked({ c, r })) {
             setPaintCell(c, r, PAINT_DEFS.packing?.id || PAINT_DEFS.trolleycage?.id || PAINT_DEFS.sortbox.id);
             cellsOptimized++;
           }
         }
       }
 
-      // 5. Essential Support Rooms
+      // 5. Essential Support Rooms — only add one if its proposed rectangle
+      // doesn't land on top of a zone that's already there (a security room,
+      // an inward zone hugging that same corner, etc.). Skip rather than
+      // overlap; the user can place it manually if the auto position doesn't fit.
+      function rectOverlapsAnyZone(x, y, w, h) {
+        return site.zones.some(z => x < z.x + z.w && x + w > z.x && y < z.y + z.h && y + h > z.y);
+      }
       site.zones = site.zones || [];
       const hasOffice = site.zones.some(z => z.type === "office");
       const hasBattery = site.zones.some(z => z.type === "battery");
       const hasException = site.zones.some(z => z.type === "returns");
 
-      if (!hasOffice && site.L >= 60 && site.W >= 40) {
+      if (!hasOffice && site.L >= 60 && site.W >= 40 && !rectOverlapsAnyZone(4, 4, 24, 18)) {
         site.zones.push({
           id: "z_office_" + Date.now(),
-          name: "Operations Control Office",
+          label: "Operations Control Office",
           type: "office",
           x: 4, y: 4, w: 24, h: 18
         });
         newRoomsCreated++;
       }
 
-      if (!hasBattery && site.L >= 80 && site.W >= 50) {
+      if (!hasBattery && site.L >= 80 && site.W >= 50 && !rectOverlapsAnyZone(4, Math.max(20, site.W - 22), 20, 18)) {
         site.zones.push({
           id: "z_battery_" + Date.now(),
-          name: "MHE Battery Charging Bay",
+          label: "MHE Battery Charging Bay",
           type: "battery",
           x: 4, y: Math.max(20, site.W - 22), w: 20, h: 18
         });
         newRoomsCreated++;
       }
 
-      if (!hasException && site.L >= 90) {
+      if (!hasException && site.L >= 90 && !rectOverlapsAnyZone(Math.max(20, site.L - 28), 4, 24, 18)) {
         site.zones.push({
           id: "z_returns_" + Date.now(),
-          name: "Missort & Exception Area",
+          label: "Missort & Exception Area",
           type: "returns",
           x: Math.max(20, site.L - 28), y: 4, w: 24, h: 18
         });
