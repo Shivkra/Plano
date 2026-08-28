@@ -682,6 +682,114 @@
       padding: 28px 32px 22px;
     }
 
+    .cmdk-modal-card {
+      width: 560px;
+      max-width: 92vw;
+      max-height: 70vh;
+      padding: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-self: flex-start;
+      margin-top: 12vh;
+    }
+
+    #cmdk-input {
+      border: none;
+      border-bottom: 1px solid var(--border);
+      padding: 16px 20px;
+      font-size: 15px;
+      outline: none;
+      background: var(--surface);
+      color: var(--ink);
+      flex-shrink: 0;
+    }
+
+    .cmdk-list {
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .cmdk-group-title {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--ink-faint);
+      padding: 10px 10px 4px;
+    }
+
+    .cmdk-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .cmdk-item:hover,
+    .cmdk-item.active {
+      background: var(--surface-2);
+    }
+
+    .cmdk-item .cmdk-kbd {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--ink-faint);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      flex-shrink: 0;
+    }
+
+    .cmdk-item .cmdk-icon {
+      width: 18px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .cmdk-item .cmdk-label-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .cmdk-empty {
+      padding: 28px 20px;
+      text-align: center;
+      color: var(--ink-faint);
+      font-size: 13px;
+    }
+
+    .color-swatch-row {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .color-swatch {
+      width: 20px;
+      height: 20px;
+      border-radius: 5px;
+      border: 1px solid var(--border-strong);
+      cursor: pointer;
+      padding: 0;
+      flex-shrink: 0;
+      transition: transform var(--dur-f) var(--ease);
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.15);
+    }
+
     .shortcuts-modal-header {
       display: flex;
       align-items: flex-start;
@@ -4178,6 +4286,68 @@
       background: #7f1d1d !important;
     }
 
+    .ctx-menu {
+      position: fixed;
+      display: none;
+      z-index: 900;
+      min-width: 190px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      box-shadow: var(--shadow-lg);
+      padding: 6px;
+    }
+
+    .ctx-menu.on {
+      display: block;
+    }
+
+    .ctx-menu button {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 8px 10px;
+      border: none;
+      background: transparent;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      text-align: left;
+    }
+
+    .ctx-menu button:hover:not(:disabled) {
+      background: var(--surface-2);
+    }
+
+    .ctx-menu button:disabled {
+      opacity: .4;
+      cursor: default;
+    }
+
+    .ctx-menu button.ctx-danger {
+      color: #DC2626;
+    }
+
+    .ctx-menu button.ctx-danger:hover:not(:disabled) {
+      background: rgba(220, 38, 38, .1);
+    }
+
+    .ctx-menu .ctx-icon {
+      width: 18px;
+      text-align: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .ctx-menu .ctx-sep {
+      height: 1px;
+      background: var(--border);
+      margin: 5px 2px;
+    }
+
     .locked-note {
       position: absolute;
       z-index: 19;
@@ -5920,6 +6090,7 @@
             <button id="bin-keep" title="Keep">✕</button>
           </div>
           <div class="locked-note" id="locked-note">Inside a room — resize or remove it first</div>
+          <div class="ctx-menu" id="ctx-menu"></div>
         </div>
       </div>
 
@@ -6277,6 +6448,14 @@
       </div>
     </div>
 
+    <!-- Command Palette -->
+    <div class="modal-overlay" id="cmdk-modal-overlay">
+      <div class="settings-modal-card cmdk-modal-card">
+        <input type="text" id="cmdk-input" placeholder="Search commands…" autocomplete="off" spellcheck="false">
+        <div class="cmdk-list" id="cmdk-list"></div>
+      </div>
+    </div>
+
     <!-- Keyboard Shortcuts Help -->
     <div class="modal-overlay" id="shortcuts-modal-overlay">
       <div class="settings-modal-card shortcuts-modal-card">
@@ -6324,6 +6503,7 @@
             <div class="sc-row"><span>Reset zoom</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>0</kbd></span></div>
             <div class="sc-row"><span>Deselect / close</span><kbd>Esc</kbd></div>
             <div class="sc-row"><span>Show this help</span><kbd>?</kbd></div>
+            <div class="sc-row"><span>Command Palette</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>K</kbd></span></div>
           </div>
         </div>
         <div class="shortcuts-modal-footer">Press <kbd>Esc</kbd> or click outside to close</div>
@@ -6389,6 +6569,9 @@
         <span id="zoom-val-txt"
           style="min-width:34px; font-size:11px; font-weight:700; color:var(--ink-soft);">130%</span>
       </div>
+      <button class="shortcuts-fab-btn" id="cmdk-open-btn" title="Command Palette (⌘/Ctrl+K)">
+        <span>⚡</span> Commands
+      </button>
       <button class="shortcuts-fab-btn" id="shortcuts-help-btn" title="Keyboard Shortcuts (?)">
         <span>⌨️</span> Shortcuts
       </button>
@@ -7245,6 +7428,7 @@
         annotations: [], // {id, type:'pen'|'shape'|'text'|'image', ...} — freehand drawing layer
         customAssets: [], // {id, dataUrl, naturalW, naturalH} — uploaded images, referenced by image annotations
         cellColors: {},  // sparse map: cell index -> custom hex color override
+        cellLocks: {},   // sparse map: cell index -> true if that object is locked in place
         cols: Math.round(L / CELL_FT), rows: Math.round(W / CELL_FT),
         cells: [], rots: [],   // sparse-ish flat arrays length cols*rows
         constraintNote: "",
@@ -7264,6 +7448,7 @@
       if (!Array.isArray(s.annotations)) s.annotations = [];
       if (!Array.isArray(s.customAssets)) s.customAssets = [];
       if (!s.cellColors || typeof s.cellColors !== "object") s.cellColors = {};
+      if (!s.cellLocks || typeof s.cellLocks !== "object") s.cellLocks = {};
     }
 
     /* =====================================================================
@@ -10984,6 +11169,7 @@
         deselectZone();
       }
       hideBin();
+      hideContextMenu();
       refreshPaletteActive();
       updateRightPanel();
     }
@@ -11609,6 +11795,16 @@
           g.globalAlpha = 1;
         }
       }
+      if (z.locked && w > 20 && h > 14) {
+        g.save();
+        g.fillStyle = "rgba(15,23,42,0.72)";
+        g.beginPath(); g.arc(x + w - 12, y + 12, 9, 0, Math.PI * 2); g.fill();
+        g.font = "10px -apple-system,Segoe UI,Roboto,sans-serif";
+        g.textAlign = "center"; g.textBaseline = "middle";
+        g.fillStyle = "#fff";
+        g.fillText("🔒", x + w - 12, y + 12.5);
+        g.restore();
+      }
       if (selected) {
         const hs = 8;
         Object.values(zoneHandlePoints(x, y, w, h)).forEach(([hx, hy]) => {
@@ -12053,6 +12249,18 @@
       }
 
       g.restore();
+
+      // Lock badge — drawn unrotated, after restore, so it always reads upright
+      if (site.cellLocks && site.cellLocks[r * site.cols + c] && w > 12 && h > 12) {
+        g.save();
+        g.fillStyle = "rgba(15,23,42,0.72)";
+        g.beginPath(); g.arc(cx + w / 2 - 6, cy - h / 2 + 6, 6, 0, Math.PI * 2); g.fill();
+        g.font = "8px -apple-system,Segoe UI,Roboto,sans-serif";
+        g.textAlign = "center"; g.textBaseline = "middle";
+        g.fillStyle = "#fff";
+        g.fillText("🔒", cx + w / 2 - 6, cy - h / 2 + 6.5);
+        g.restore();
+      }
     }
 
     /* ---------- Pointer Helpers & Event Listeners ---------- */
@@ -12095,7 +12303,7 @@
     /* ---------- Snapshot / Undo ---------- */
     function snapshotState() {
       return JSON.stringify({
-        cells: site.cells, rots: site.rots, cellDims: site.cellDims || {}, cellColors: site.cellColors || {},
+        cells: site.cells, rots: site.rots, cellDims: site.cellDims || {}, cellColors: site.cellColors || {}, cellLocks: site.cellLocks || {},
         zones: site.zones, flows: site.flows || [], annotations: site.annotations || [], customAssets: site.customAssets || [],
         L: site.L, W: site.W, cols: site.cols, rows: site.rows
       });
@@ -12118,7 +12326,7 @@
     function editSessionEnded() { _editSessionOpen = false; }
     function applySnap(str) {
       const s = JSON.parse(str);
-      site.cells = s.cells; site.rots = s.rots; site.cellDims = s.cellDims || {}; site.cellColors = s.cellColors || {};
+      site.cells = s.cells; site.rots = s.rots; site.cellDims = s.cellDims || {}; site.cellColors = s.cellColors || {}; site.cellLocks = s.cellLocks || {};
       site.zones = s.zones; site.flows = s.flows || []; site.annotations = s.annotations || []; site.customAssets = s.customAssets || [];
       site.L = s.L; site.W = s.W; site.cols = s.cols; site.rows = s.rows;
       if ($("#ed-dims")) $("#ed-dims").textContent = `${site.L} × ${site.W} ft`;
@@ -12162,7 +12370,7 @@
           if (label !== null) { snapshot(); f.label = label.trim() || null; redraw(); queueSave(); }
         }
       });
-      $("#boardwrap").addEventListener("scroll", () => { hideBin(); hideZoneToolbar(); });
+      $("#boardwrap").addEventListener("scroll", () => { hideBin(); hideZoneToolbar(); hideContextMenu(); });
     }
 
     let dragObject = null;
@@ -12237,6 +12445,11 @@
         toast("Placed on the floor");
         return;
       }
+      if (ev.button === 2 && tool === "select") {
+        ev.preventDefault();
+        openContextMenuAt(ev);
+        return;
+      }
       if (tool === "select") {
         const { x, y } = ftFromClient(ev.clientX, ev.clientY);
         const cell = cellFromClient(ev.clientX, ev.clientY);
@@ -12277,6 +12490,12 @@
               selectedCell = cell;
             }
           }
+          updateRightPanel();
+          if (site.cellLocks && site.cellLocks[cell.r * site.cols + cell.c]) {
+            redraw();
+            toast("Locked — right-click it to unlock");
+            return;
+          }
           safeSetPointerCapture(canvas(), ev.pointerId);
           dragGroup = {
             origCell: cell,
@@ -12302,6 +12521,7 @@
             const rect = canvas().getBoundingClientRect();
             const localX = ev.clientX - rect.left - MARGIN, localY = ev.clientY - rect.top - MARGIN;
             const edge = getZoneHandleAt(selZone, localX, localY);
+            if (edge && selZone.locked) { toast("Locked — right-click it to unlock"); return; }
             if (edge) {
               safeSetPointerCapture(canvas(), ev.pointerId);
               selectedCell = null;
@@ -12320,11 +12540,12 @@
         // movement just selects it, since the resulting dx/dy is 0.
         const z = zoneAt(x, y);
         if (z) {
-          safeSetPointerCapture(canvas(), ev.pointerId);
           selectedCell = null;
           selectedCells = [];
           selectedFlowId = null;
           selectZone(z.id);
+          if (z.locked) { toast("Locked — right-click it to unlock"); return; }
+          safeSetPointerCapture(canvas(), ev.pointerId);
           snapshot();
           const raw = ftFromClientRaw(ev.clientX, ev.clientY);
           dragZone = { mode: "move", edge: null, zone: z, startX: raw.x, startY: raw.y, origX: z.x, origY: z.y, origW: z.w, origH: z.h };
@@ -12365,6 +12586,7 @@
       // Paint / Erase
       const cell = cellFromClient(ev.clientX, ev.clientY); if (!cell) return;
       if (cellLocked(cell)) { flashLockedNote(cell); return; }
+      if (site.cellLocks && site.cellLocks[cell.r * site.cols + cell.c]) { toast("Locked — right-click it to unlock"); return; }
       safeSetPointerCapture(canvas(), ev.pointerId);
       painting = true; strokeAnchor = cell; lastCell = cell;
       strokeErase = (ev.button === 2) || tool === "erase";
@@ -12763,6 +12985,129 @@
     }
     function hideZoneToolbar() { const el = $("#zone-toolbar"); if (el) el.classList.remove("on"); }
     function hideBin() { const el = $("#bin-pop"); if (el) el.classList.remove("on"); }
+
+    /* =====================================================================
+       RIGHT-CLICK CONTEXT MENU — zones, objects & flow connectors
+    ===================================================================== */
+    function hideContextMenu() { $("#ctx-menu")?.classList.remove("on"); }
+    function openContextMenuAt(ev) {
+      if (!site) return;
+      const { x, y } = ftFromClient(ev.clientX, ev.clientY);
+      const cell = cellFromClient(ev.clientX, ev.clientY);
+      const rect = canvas().getBoundingClientRect();
+      const localX = ev.clientX - rect.left - MARGIN, localY = ev.clientY - rect.top - MARGIN;
+
+      const fHit = flowAt(localX, localY);
+      if (fHit) {
+        deselectZone(); selectedCell = null; selectedCells = []; selectedFlowId = fHit.id;
+        updateRightPanel(); redraw();
+        buildContextMenu("flow", fHit, ev.clientX, ev.clientY);
+        return;
+      }
+      if (cell && site.cells[cell.r * site.cols + cell.c]) {
+        const alreadyIn = selectedCells.some(c => c.c === cell.c && c.r === cell.r);
+        if (!alreadyIn) { deselectZone(); selectedFlowId = null; selectedCell = cell; selectedCells = [cell]; }
+        updateRightPanel(); redraw();
+        buildContextMenu("object", cell, ev.clientX, ev.clientY);
+        return;
+      }
+      const z = zoneAt(x, y);
+      if (z) {
+        selectedCell = null; selectedCells = []; selectedFlowId = null; selectZone(z.id);
+        buildContextMenu("zone", z, ev.clientX, ev.clientY);
+        return;
+      }
+      hideContextMenu();
+    }
+    function buildContextMenu(kind, target, clientX, clientY) {
+      const menu = $("#ctx-menu");
+      if (!menu) return;
+      menu.innerHTML = "";
+      function addItem(label, icon, action, opts) {
+        opts = opts || {};
+        const btn = document.createElement("button");
+        if (opts.danger) btn.className = "ctx-danger";
+        if (opts.disabled) btn.disabled = true;
+        btn.innerHTML = `<span class="ctx-icon">${icon}</span><span>${label}</span>`;
+        btn.onclick = () => { hideContextMenu(); action(); };
+        menu.appendChild(btn);
+      }
+      function addSep() { const d = document.createElement("div"); d.className = "ctx-sep"; menu.appendChild(d); }
+
+      if (kind === "zone") {
+        const locked = !!target.locked;
+        addItem(locked ? "Unlock" : "Lock", locked ? "🔓" : "🔒", () => toggleZoneLock(target.id));
+        addItem("Duplicate", "📄", () => duplicateSelectedZone(), { disabled: locked });
+        addItem("Copy", "📋", () => copySelection());
+        addSep();
+        addItem("Bring to Front", "⬆️", () => reorderZone(target.id, "front"), { disabled: locked });
+        addItem("Send to Back", "⬇️", () => reorderZone(target.id, "back"), { disabled: locked });
+        addSep();
+        addItem("Delete", "🗑", () => $("#zt-del")?.click(), { danger: true, disabled: locked });
+      } else if (kind === "object") {
+        const idx = target.r * site.cols + target.c;
+        const locked = !!(site.cellLocks && site.cellLocks[idx]);
+        addItem(locked ? "Unlock" : "Lock", locked ? "🔓" : "🔒", () => toggleObjectLock());
+        addItem("Duplicate", "📄", () => duplicateSelectedObject(), { disabled: locked });
+        addItem("Copy", "📋", () => copySelection());
+        addItem("Rotate 90°", "↻", () => rotateSelectedObjects(1), { disabled: locked });
+        addSep();
+        addItem("Delete", "🗑", () => { if (selectedCells.length > 1) deleteSelectedCells(); else $("#prop-obj-del")?.click(); }, { danger: true, disabled: locked });
+      } else if (kind === "flow") {
+        addItem("Edit Label…", "🏷️", () => {
+          const l = prompt("Label this flow:", target.label || "");
+          if (l !== null) { snapshot(); target.label = l.trim() || null; redraw(); queueSave(); }
+        });
+        addSep();
+        addItem("Delete", "🗑", () => deleteSelectedFlow(), { danger: true });
+      }
+
+      menu.style.left = clientX + "px";
+      menu.style.top = clientY + "px";
+      menu.classList.add("on");
+      requestAnimationFrame(() => {
+        const r = menu.getBoundingClientRect();
+        if (r.right > window.innerWidth) menu.style.left = Math.max(4, window.innerWidth - r.width - 8) + "px";
+        if (r.bottom > window.innerHeight) menu.style.top = Math.max(4, window.innerHeight - r.height - 8) + "px";
+      });
+      // Close on the next click anywhere else — deferred so this same
+      // right-click's bubbled event doesn't immediately close what it opened.
+      setTimeout(() => {
+        document.addEventListener("pointerdown", function closeOnce(e) {
+          if (!menu.contains(e.target)) hideContextMenu();
+        }, { once: true });
+      }, 0);
+    }
+    function toggleZoneLock(id) {
+      const z = site.zones.find(zz => zz.id === id);
+      if (!z) return;
+      snapshot();
+      z.locked = !z.locked;
+      redraw(); updateRightPanel(); queueSave();
+      toast(z.locked ? "Room locked" : "Room unlocked");
+    }
+    function toggleObjectLock() {
+      const targets = (selectedCells && selectedCells.length) ? selectedCells : (selectedCell ? [selectedCell] : []);
+      if (!targets.length) return;
+      snapshot();
+      site.cellLocks = site.cellLocks || {};
+      const anyUnlocked = targets.some(c => !site.cellLocks[c.r * site.cols + c.c]);
+      targets.forEach(c => {
+        const idx = c.r * site.cols + c.c;
+        if (anyUnlocked) site.cellLocks[idx] = true; else delete site.cellLocks[idx];
+      });
+      redraw(); updateRightPanel(); queueSave();
+      toast(anyUnlocked ? "Object locked" : "Object unlocked");
+    }
+    function reorderZone(id, dir) {
+      const idx = site.zones.findIndex(z => z.id === id);
+      if (idx < 0) return;
+      snapshot();
+      const [z] = site.zones.splice(idx, 1);
+      if (dir === "front") site.zones.push(z); else site.zones.unshift(z);
+      redraw(); queueSave();
+      toast(dir === "front" ? "Brought to front" : "Sent to back");
+    }
     function positionOverlays() {
       if (selectedZoneId) {
         const z = site.zones.find(z => z.id === selectedZoneId);
@@ -12777,6 +13122,8 @@
     $("#zt-close").addEventListener("click", deselectZone);
     $("#zt-del").addEventListener("click", () => {
       if (!selectedZoneId) return;
+      const zz = site.zones.find(z => z.id === selectedZoneId);
+      if (zz && zz.locked) return toast("Locked — right-click it to unlock");
       snapshot();
       site.zones = site.zones.filter(z => z.id !== selectedZoneId);
       deselectZone(); updateStats(); queueSave();
@@ -13214,6 +13561,7 @@
     // Object Delete
     $("#prop-obj-del").addEventListener("click", () => {
       if (!selectedCell) return;
+      if (site.cellLocks && site.cellLocks[selectedCell.r * site.cols + selectedCell.c]) return toast("Locked — right-click it to unlock");
       snapshot();
       setPaintCell(selectedCell.c, selectedCell.r, 0);
       selectedCell = null;
@@ -13266,19 +13614,24 @@
     $("#multi-del")?.addEventListener("click", () => deleteSelectedCells());
 
     function deleteSelectedCells() {
-      const hasCells = selectedCells && selectedCells.length > 0;
-      const hasZones = selectedZoneIds && selectedZoneIds.length > 0;
-      if (!hasCells && !hasZones) return;
+      const lockedCount0 = (selectedCells || []).filter(c => site.cellLocks && site.cellLocks[c.r * site.cols + c.c]).length;
+      const unlockedCells = (selectedCells || []).filter(c => !(site.cellLocks && site.cellLocks[c.r * site.cols + c.c]));
+      const unlockedZoneIds = (selectedZoneIds || []).filter(id => { const z = site.zones.find(zz => zz.id === id); return z && !z.locked; });
+      const hasCells = unlockedCells.length > 0;
+      const hasZones = unlockedZoneIds.length > 0;
+      if (!hasCells && !hasZones) { if (lockedCount0) toast("Locked — right-click to unlock"); return; }
       snapshot();
       let count = 0;
       if (hasCells) {
-        selectedCells.forEach(c => { setPaintCell(c.c, c.r, 0); count++; });
-        selectedCells = []; selectedCell = null;
+        unlockedCells.forEach(c => { setPaintCell(c.c, c.r, 0); count++; });
+        selectedCells = selectedCells.filter(c => site.cellLocks && site.cellLocks[c.r * site.cols + c.c]);
+        selectedCell = selectedCells.length ? selectedCells[0] : null;
       }
       if (hasZones) {
-        site.zones = site.zones.filter(z => !selectedZoneIds.includes(z.id));
-        count += selectedZoneIds.length;
-        selectedZoneIds = []; selectedZoneId = null;
+        site.zones = site.zones.filter(z => !unlockedZoneIds.includes(z.id));
+        count += unlockedZoneIds.length;
+        selectedZoneIds = selectedZoneIds.filter(id => !unlockedZoneIds.includes(id));
+        selectedZoneId = selectedZoneIds.length === 1 ? selectedZoneIds[0] : null;
       }
       redraw(); updateStats(); updateRightPanel(); queueSave();
       toast(`Deleted ${count} item${count === 1 ? '' : 's'}`);
@@ -14215,6 +14568,7 @@
       if (!selectedZoneId || !site) return;
       const z = site.zones.find(zz => zz.id === selectedZoneId);
       if (!z) return;
+      if (z.locked) return toast("Locked — right-click it to unlock");
       snapshot();
       z.x = clamp(snapFine(z.x + dxFt), 0, Math.max(0, site.L - z.w));
       z.y = clamp(snapFine(z.y + dyFt), 0, Math.max(0, site.W - z.h));
@@ -14226,6 +14580,9 @@
       if (!site) return;
       const targets = (selectedCells && selectedCells.length) ? selectedCells : (selectedCell ? [selectedCell] : []);
       if (!targets.length) return;
+      if (targets.some(cell => site.cellLocks && site.cellLocks[cell.r * site.cols + cell.c])) {
+        return toast("Locked — right-click it to unlock");
+      }
       for (const cell of targets) {
         const nc = cell.c + dxCells, nr = cell.r + dyCells;
         if (nc < 0 || nr < 0 || nc >= site.cols || nr >= site.rows) return; // all-or-nothing: silently ignore at the boundary
@@ -14263,6 +14620,7 @@
       targets.forEach(cell => {
         const i = cell.r * site.cols + cell.c;
         if (!site.cells[i]) return;
+        if (site.cellLocks && site.cellLocks[i]) return;
         site.rots[i] = ((site.rots[i] || 0) + delta + 4) % 4;
       });
       redraw(); updateRightPanel(); queueSave();
@@ -14357,6 +14715,126 @@
     $("#shortcuts-help-btn")?.addEventListener("click", showShortcutsHelp);
     $("#shortcuts-modal-overlay")?.addEventListener("click", ev => { if (ev.target.id === "shortcuts-modal-overlay") hideShortcutsHelp(); });
 
+    /* =====================================================================
+       COMMAND PALETTE (⌘/Ctrl+K) — search every tool & action by name
+    ===================================================================== */
+    const COMMANDS = [
+      { group: "Tools", label: "Select Tool", kbd: "V", run: () => setTool("select") },
+      { group: "Tools", label: "Wall Tool", kbd: "W", run: () => setTool("paint:wall") },
+      { group: "Tools", label: "Room Tool", kbd: "R", run: () => handleSmartToolSelect("room") },
+      { group: "Tools", label: "Objects Library", kbd: "O", run: () => handleSmartToolSelect("objects") },
+      { group: "Tools", label: "Zone Tool", kbd: "Z", run: () => handleSmartToolSelect("zone") },
+      { group: "Tools", label: "Flow Connector Tool", kbd: "F", run: () => handleSmartToolSelect("flow") },
+      { group: "Tools", label: "Draw & Annotate", kbd: "D", run: () => handleSmartToolSelect("draw") },
+      { group: "Tools", label: "CAD Tools", kbd: "C", run: () => handleSmartToolSelect("cadtools") },
+      { group: "Tools", label: "Measure Tool", kbd: "M", run: () => handleSmartToolSelect("measure") },
+      { group: "Tools", label: "Eraser Tool", kbd: "E", run: () => setTool("erase") },
+      { group: "Edit", label: "Undo", kbd: "⌘Z", run: () => undo() },
+      { group: "Edit", label: "Redo", kbd: "⌘⇧Z", run: () => redo() },
+      { group: "Edit", label: "Duplicate", kbd: "⌘D", run: () => duplicateSelectedObject() },
+      { group: "Edit", label: "Copy", kbd: "⌘C", run: () => copySelection() },
+      { group: "Edit", label: "Paste", kbd: "⌘V", run: () => pasteSelection() },
+      { group: "Edit", label: "Select All Objects", kbd: "⌘A", run: () => selectAllObjects() },
+      { group: "Edit", label: "Delete Selection", kbd: "Del", run: () => { if (selectedZoneId) $("#zt-del")?.click(); else if (selectedFlowId) deleteSelectedFlow(); else if (selectedCells.length > 1) deleteSelectedCells(); else if (selectedCell) $("#prop-obj-del")?.click(); } },
+      { group: "Edit", label: "Lock / Unlock Selection", run: () => { if (selectedZoneId) toggleZoneLock(selectedZoneId); else toggleObjectLock(); } },
+      { group: "Edit", label: "Rotate 90°", kbd: "]", run: () => rotateSelectedObjects(1) },
+      { group: "View", label: "Zoom In", kbd: "⌘+", run: () => $("#zoom-in-btn")?.click() },
+      { group: "View", label: "Zoom Out", kbd: "⌘−", run: () => $("#zoom-out-btn")?.click() },
+      { group: "View", label: "Toggle Grid Lines", run: () => $("#toggle-grid-lines")?.click() },
+      { group: "View", label: "Toggle Light / Dark Mode", run: () => document.querySelector(".theme-toggle-btn")?.click() },
+      { group: "View", label: "Keyboard Shortcuts", kbd: "?", run: () => showShortcutsHelp() },
+      { group: "Layout", label: "Optimize Layout", run: () => optimizeCurrentLayout() },
+      { group: "Layout", label: "Auto-Fix Aisles", run: () => autoFixLayoutBottlenecks() },
+      { group: "Layout", label: "Import Floor Plan", run: () => $("#ed-photo-btn")?.click() },
+      { group: "Layout", label: "Export", run: () => $("#ed-export")?.click() },
+      { group: "Layout", label: "Present", run: () => $("#ed-present")?.click() },
+    ];
+    let cmdkActiveIndex = 0;
+    let cmdkVisibleItems = [];
+    function showCommandPalette() {
+      $("#cmdk-modal-overlay")?.classList.add("on");
+      const input = $("#cmdk-input");
+      if (input) { input.value = ""; renderCommandPalette(""); setTimeout(() => input.focus(), 30); }
+    }
+    function hideCommandPalette() { $("#cmdk-modal-overlay")?.classList.remove("on"); }
+    function renderCommandPalette(query) {
+      const list = $("#cmdk-list");
+      if (!list) return;
+      const q = query.trim().toLowerCase();
+      const matches = COMMANDS.filter(c => !q || c.label.toLowerCase().includes(q) || c.group.toLowerCase().includes(q));
+      cmdkVisibleItems = matches;
+      cmdkActiveIndex = 0;
+      if (!matches.length) {
+        list.innerHTML = `<div class="cmdk-empty">No commands match "${query}"</div>`;
+        return;
+      }
+      let html = "";
+      let lastGroup = null;
+      matches.forEach((c, i) => {
+        if (c.group !== lastGroup) { html += `<div class="cmdk-group-title">${c.group}</div>`; lastGroup = c.group; }
+        html += `<div class="cmdk-item${i === 0 ? " active" : ""}" data-idx="${i}">
+          <span class="cmdk-label-wrap">${c.label}</span>
+          ${c.kbd ? `<span class="cmdk-kbd">${c.kbd}</span>` : ""}
+        </div>`;
+      });
+      list.innerHTML = html;
+      list.querySelectorAll(".cmdk-item").forEach(el => {
+        el.addEventListener("mouseenter", () => { cmdkActiveIndex = +el.dataset.idx; updateCommandPaletteActive(); });
+        el.addEventListener("click", () => runCommandPaletteItem(+el.dataset.idx));
+      });
+    }
+    function updateCommandPaletteActive() {
+      const list = $("#cmdk-list");
+      if (!list) return;
+      list.querySelectorAll(".cmdk-item").forEach(el => el.classList.toggle("active", +el.dataset.idx === cmdkActiveIndex));
+      const activeEl = list.querySelector(".cmdk-item.active");
+      if (activeEl) activeEl.scrollIntoView({ block: "nearest" });
+    }
+    function runCommandPaletteItem(idx) {
+      const cmd = cmdkVisibleItems[idx];
+      if (!cmd) return;
+      hideCommandPalette();
+      cmd.run();
+    }
+    $("#cmdk-input")?.addEventListener("input", e => renderCommandPalette(e.target.value));
+    $("#cmdk-input")?.addEventListener("keydown", e => {
+      if (e.key === "ArrowDown") { e.preventDefault(); cmdkActiveIndex = Math.min(cmdkVisibleItems.length - 1, cmdkActiveIndex + 1); updateCommandPaletteActive(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); cmdkActiveIndex = Math.max(0, cmdkActiveIndex - 1); updateCommandPaletteActive(); }
+      else if (e.key === "Enter") { e.preventDefault(); runCommandPaletteItem(cmdkActiveIndex); }
+      else if (e.key === "Escape") { e.preventDefault(); hideCommandPalette(); }
+    });
+    $("#cmdk-modal-overlay")?.addEventListener("click", ev => { if (ev.target.id === "cmdk-modal-overlay") hideCommandPalette(); });
+    $("#cmdk-open-btn")?.addEventListener("click", showCommandPalette);
+
+    // Curated one-click color swatches next to every color picker — the
+    // native <input type=color> stays for exact/custom values, this just
+    // makes the common case a single click instead of a full picker dance.
+    const SWATCH_COLORS = ["#64748B", "#0891B2", "#16A34A", "#9333EA", "#DC2626", "#EA580C", "#CA8A04", "#1E293B", "#78716C", "#2563EB"];
+    function buildSwatchRow(inputId) {
+      const input = $(inputId);
+      const anchor = input && input.closest(".prop-row, .draw-row");
+      if (!input || !anchor) return;
+      const row = document.createElement("div");
+      row.className = "color-swatch-row";
+      SWATCH_COLORS.forEach(hex => {
+        const sw = document.createElement("button");
+        sw.type = "button";
+        sw.className = "color-swatch";
+        sw.style.background = hex;
+        sw.title = hex;
+        sw.onclick = () => {
+          input.value = hex;
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        };
+        row.appendChild(sw);
+      });
+      anchor.insertAdjacentElement("afterend", row);
+    }
+    buildSwatchRow("#prop-room-color");
+    buildSwatchRow("#prop-obj-color");
+    buildSwatchRow("#draw-pen-color");
+
     /* Global key shortcuts */
     document.addEventListener("keydown", ev => {
       if (!$("#editor").classList.contains("on")) return;
@@ -14368,6 +14846,7 @@
       if (mod && k === "c") { ev.preventDefault(); copySelection(); return; }
       if (mod && k === "v") { ev.preventDefault(); pasteSelection(); return; }
       if (mod && k === "a") { ev.preventDefault(); selectAllObjects(); return; }
+      if (mod && k === "k") { ev.preventDefault(); showCommandPalette(); return; }
       if (mod && (k === "=" || k === "+")) { ev.preventDefault(); $("#zoom-in-btn")?.click(); return; }
       if (mod && k === "-") { ev.preventDefault(); $("#zoom-out-btn")?.click(); return; }
       if (mod && k === "0") {
@@ -14378,7 +14857,7 @@
         updateZoomTxt();
         return;
       }
-      if (ev.key === "Escape") { hideBin(); hideShortcutsHelp(); deselectZone(); flowDraft = null; selectedFlowId = null; redraw(); closeDrawers(); return; }
+      if (ev.key === "Escape") { hideBin(); hideShortcutsHelp(); hideContextMenu(); deselectZone(); flowDraft = null; selectedFlowId = null; redraw(); closeDrawers(); return; }
       if (ev.key === "?" || (ev.shiftKey && ev.key === "/")) { ev.preventDefault(); showShortcutsHelp(); return; }
       if (ev.key === "Delete" || ev.key === "Backspace") {
         if (selectedZoneId) { $("#zt-del").click(); }
