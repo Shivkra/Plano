@@ -4886,6 +4886,106 @@
       margin-top: 1px;
     }
 
+    /* Draw & Annotate drawer */
+    .draw-section {
+      margin-bottom: 18px;
+    }
+
+    .draw-section-title {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--ink-faint);
+      margin-bottom: 8px;
+    }
+
+    .draw-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+
+    .draw-row label {
+      width: 46px;
+      flex-shrink: 0;
+      color: var(--ink-soft);
+      font-weight: 600;
+    }
+
+    .draw-row input[type="range"] {
+      flex: 1;
+    }
+
+    .draw-row span {
+      min-width: 30px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--ink-soft);
+    }
+
+    .draw-row input[type="color"] {
+      width: 36px;
+      height: 26px;
+      padding: 0;
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      cursor: pointer;
+      background: none;
+    }
+
+    .draw-shape-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+    }
+
+    .draw-shape-btn {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--ink);
+    }
+
+    .draw-shape-btn:hover {
+      border-color: var(--ink-faint);
+    }
+
+    .draw-shape-btn.active {
+      background: var(--ink);
+      color: var(--surface);
+      border-color: var(--ink);
+    }
+
+    .draw-asset-list {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .draw-asset-thumb {
+      width: 40px;
+      height: 40px;
+      border-radius: 6px;
+      object-fit: cover;
+      border: 1px solid var(--border-strong);
+      cursor: pointer;
+    }
+
+    .draw-asset-thumb.active {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
     /* Contextual Properties in Right Panel */
     .prop-group {
       margin-bottom: 18px;
@@ -5503,6 +5603,12 @@
           <div class="smart-tool-btn" data-smart-tool="zone" title="Designate operational zones (Z)">
             <span class="st-icon">🏷️</span><span class="st-label">Zone</span><span class="st-kbd">Z</span>
           </div>
+          <div class="smart-tool-btn" data-smart-tool="flow" title="Draw a flow connector between two zones — drag from one to the other (F)">
+            <span class="st-icon">➡️</span><span class="st-label">Flow</span><span class="st-kbd">F</span>
+          </div>
+          <div class="smart-tool-btn" data-smart-tool="draw" title="Pen, shapes &amp; image uploads (D)">
+            <span class="st-icon">🖊️</span><span class="st-label">Draw</span><span class="st-kbd">D</span>
+          </div>
           <div class="smart-tool-btn" data-smart-tool="erase" title="Eraser tool (E)">
             <span class="st-icon">🧹</span><span class="st-label">Erase</span><span class="st-kbd">E</span>
           </div>
@@ -5626,6 +5732,54 @@
             <span class="zpc-text"><span class="zpc-label">Dispatch Zone</span><span class="zpc-sub">Staged &amp;
                 waiting to load</span></span>
           </div>
+        </div>
+      </div>
+
+      <!-- Flyout Drawer: Pen, Shapes, Text & Image Uploads -->
+      <div class="flyout-drawer" id="draw-drawer">
+        <div class="flyout-head">
+          <h3>Draw &amp; Annotate</h3>
+          <button class="btn ghost icon sm" id="draw-drawer-close">✕</button>
+        </div>
+        <p style="font-size:12px; color:var(--ink-soft); margin-bottom:12px; line-height:1.4;">
+          Freehand notes, shape callouts and images — float on top of the floor plan, independent of the grid.
+        </p>
+
+        <div class="draw-section">
+          <div class="draw-section-title">Pen</div>
+          <button class="btn sm secondary full draw-shape-btn-full" id="draw-pen-btn" style="font-weight:700; margin-bottom:10px;">🖊️ Freehand Pen</button>
+          <div class="draw-row">
+            <label>Width</label>
+            <input type="range" id="draw-pen-width" min="1" max="16" value="3">
+            <span id="draw-pen-width-val">3px</span>
+          </div>
+          <div class="draw-row">
+            <label>Color</label>
+            <input type="color" id="draw-pen-color" value="#ef4444">
+          </div>
+        </div>
+
+        <div class="draw-section">
+          <div class="draw-section-title">Shapes</div>
+          <div class="draw-shape-grid">
+            <button class="draw-shape-btn" data-shape="rect" title="Rectangle">▭</button>
+            <button class="draw-shape-btn" data-shape="circle" title="Circle">⬤</button>
+            <button class="draw-shape-btn" data-shape="diamond" title="Diamond">◆</button>
+            <button class="draw-shape-btn" data-shape="line" title="Line">➖</button>
+            <button class="draw-shape-btn" data-shape="arrow" title="Arrow">➡️</button>
+            <button class="draw-shape-btn" data-shape="text" title="Text label">🔤</button>
+          </div>
+        </div>
+
+        <div class="draw-section">
+          <div class="draw-section-title">Assets</div>
+          <button class="btn sm secondary full" id="draw-upload-btn" style="font-weight:700;">📁 Upload Image</button>
+          <input type="file" id="draw-upload-input" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display:none;">
+          <div id="draw-asset-list" class="draw-asset-list"></div>
+        </div>
+
+        <div style="margin-top:6px; border-top:1px solid var(--border); padding-top:10px;">
+          <button class="btn sm ghost full" id="draw-clear-btn" style="color:#DC2626; font-weight:700;">🗑 Clear All Annotations</button>
         </div>
       </div>
 
@@ -5812,6 +5966,13 @@
                   <span>tiers</span>
                 </div>
               </div>
+              <div class="prop-row">
+                <label>Color</label>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <input type="color" id="prop-obj-color" value="#64748B">
+                  <button class="btn ghost sm" id="prop-obj-color-reset" title="Reset to default color" style="padding:4px 8px; font-size:11px;">Reset</button>
+                </div>
+              </div>
 
               <!-- Rotation Segmented Pill -->
               <div style="margin-top:12px; margin-bottom:12px;">
@@ -5850,6 +6011,14 @@
               <div class="field" style="margin-bottom:10px;">
                 <label class="field-label">Zone Name</label>
                 <input type="text" id="prop-room-name">
+              </div>
+
+              <div class="prop-row" style="margin-bottom:12px;">
+                <label>Color</label>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <input type="color" id="prop-room-color" value="#64748B">
+                  <button class="btn ghost sm" id="prop-room-color-reset" title="Reset to default color" style="padding:4px 8px; font-size:11px;">Reset</button>
+                </div>
               </div>
 
               <!-- Shape Morphology Selector -->
@@ -6067,6 +6236,12 @@
                 <div class="layer-row"><span>🦺 Safety &amp; Exits</span><span class="layer-controls"><span
                       class="layer-eye" data-layer="safety">👁️</span> <span class="layer-lock"
                       data-layer="safety">🔓</span></span></div>
+                <div class="layer-row"><span>➡️ Flow Connectors</span><span class="layer-controls"><span
+                      class="layer-eye" data-layer="flow">👁️</span> <span class="layer-lock"
+                      data-layer="flow">🔓</span></span></div>
+                <div class="layer-row"><span>🖊️ Annotations</span><span class="layer-controls"><span
+                      class="layer-eye" data-layer="annotations">👁️</span> <span class="layer-lock"
+                      data-layer="annotations">🔓</span></span></div>
               </div>
             </div>
           </div>
@@ -6123,6 +6298,8 @@
             <div class="sc-row"><span>Room</span><kbd>R</kbd></div>
             <div class="sc-row"><span>Objects</span><kbd>O</kbd></div>
             <div class="sc-row"><span>Zone</span><kbd>Z</kbd></div>
+            <div class="sc-row"><span>Flow connector</span><kbd>F</kbd></div>
+            <div class="sc-row"><span>Draw &amp; Annotate</span><kbd>D</kbd></div>
             <div class="sc-row"><span>CAD Tools</span><kbd>C</kbd></div>
             <div class="sc-row"><span>Measure</span><kbd>M</kbd></div>
             <div class="sc-row"><span>Eraser</span><kbd>E</kbd></div>
@@ -7030,8 +7207,18 @@
     let measuring = false, measureStart = null, measureCurrent = null;
     let detectedIssues = [];      // array of live issues [{type, level, title, desc, c, r, zoneId}]
     let smartGuides = [];         // dynamic alignment guides [{x0,y0,x1,y1,type,distanceText}]
-    let layerVisibility = { building: true, storage: true, equipment: true, operations: true, safety: true };
-    let layerLocks = { building: false, storage: false, equipment: false, operations: false, safety: false };
+    let layerVisibility = { building: true, storage: true, equipment: true, operations: true, safety: true, flow: true, annotations: true };
+    let layerLocks = { building: false, storage: false, equipment: false, operations: false, safety: false, flow: false, annotations: false };
+
+    // Flow connectors (directional arrows between zones)
+    let selectedFlowId = null;
+    let flowDraft = null; // { fromId, curX, curY } — live while dragging a new connector
+
+    // Pen / shape / image annotation layer — drawn independent of the grid
+    let penColor = "#EF4444", penWidth = 3;
+    let activeStroke = null;      // in-progress pen stroke
+    let drawingShapeAnno = null;  // in-progress shape drag {shapeType, x0,y0,x1,y1}
+    const _assetImgCache = {};
 
     const canvas = () => $("#grid");
     const ctx = () => canvas().getContext("2d");
@@ -7053,6 +7240,10 @@
         createdAt: Date.now(), updatedAt: Date.now(),
         L, W,
         zones: [],   // {id, type, x,y,w,h, label}
+        flows: [],       // {id, fromId, toId, label} — directional connectors between zones
+        annotations: [], // {id, type:'pen'|'shape'|'text'|'image', ...} — freehand drawing layer
+        customAssets: [], // {id, dataUrl, naturalW, naturalH} — uploaded images, referenced by image annotations
+        cellColors: {},  // sparse map: cell index -> custom hex color override
         cols: Math.round(L / CELL_FT), rows: Math.round(W / CELL_FT),
         cells: [], rots: [],   // sparse-ish flat arrays length cols*rows
         constraintNote: "",
@@ -7068,6 +7259,10 @@
       if (!Array.isArray(s.cells) || s.cells.length !== n) s.cells = new Array(n).fill(0);
       if (!Array.isArray(s.rots) || s.rots.length !== n) s.rots = new Array(n).fill(0);
       if (!Array.isArray(s.zones)) s.zones = [];
+      if (!Array.isArray(s.flows)) s.flows = [];
+      if (!Array.isArray(s.annotations)) s.annotations = [];
+      if (!Array.isArray(s.customAssets)) s.customAssets = [];
+      if (!s.cellColors || typeof s.cellColors !== "object") s.cellColors = {};
     }
 
     /* =====================================================================
@@ -10452,7 +10647,91 @@
         };
       });
 
+      const drawClose = $("#draw-drawer-close");
+      if (drawClose) drawClose.onclick = () => closeDrawers();
+
+      const penBtn = $("#draw-pen-btn");
+      if (penBtn) penBtn.onclick = () => { closeDrawers(); setTool("pen"); toast("Pen: draw anywhere on the floor plan"); };
+
+      const penWidthInput = $("#draw-pen-width");
+      if (penWidthInput) {
+        penWidthInput.value = penWidth;
+        $("#draw-pen-width-val").textContent = penWidth + "px";
+        penWidthInput.oninput = e => { penWidth = +e.target.value; $("#draw-pen-width-val").textContent = penWidth + "px"; };
+      }
+      const penColorInput = $("#draw-pen-color");
+      if (penColorInput) {
+        penColorInput.value = penColor;
+        penColorInput.oninput = e => { penColor = e.target.value; };
+      }
+
+      document.querySelectorAll(".draw-shape-btn[data-shape]").forEach(btn => {
+        btn.onclick = () => {
+          const shape = btn.dataset.shape;
+          closeDrawers();
+          setTool("shape:" + shape);
+          toast(shape === "text" ? "Click the floor to place a text label" : "Click and drag on the floor to draw the shape");
+        };
+      });
+
+      const uploadBtn = $("#draw-upload-btn");
+      if (uploadBtn) uploadBtn.onclick = () => $("#draw-upload-input")?.click();
+      const uploadInput = $("#draw-upload-input");
+      if (uploadInput) {
+        uploadInput.onchange = ev => {
+          const file = ev.target.files[0];
+          ev.target.value = "";
+          if (!file) return;
+          if (file.size > 3 * 1024 * 1024) return toast("Image is too large — please use one under 3MB");
+          const reader = new FileReader();
+          reader.onload = () => {
+            const img = new Image();
+            img.onload = () => {
+              const assetId = uid();
+              site.customAssets = site.customAssets || [];
+              site.customAssets.push({ id: assetId, dataUrl: reader.result, naturalW: img.width, naturalH: img.height });
+              queueSave();
+              renderDrawAssetList();
+              closeDrawers();
+              setTool("stamp:" + assetId);
+              toast("Uploaded — click the floor to place it");
+            };
+            img.onerror = () => toast("Couldn't read that image");
+            img.src = reader.result;
+          };
+          reader.readAsDataURL(file);
+        };
+      }
+      renderDrawAssetList();
+
+      const clearAnnoBtn = $("#draw-clear-btn");
+      if (clearAnnoBtn) {
+        clearAnnoBtn.onclick = () => {
+          if (!site.annotations || !site.annotations.length) return toast("No annotations to clear");
+          if (!confirm("Clear all pen strokes, shapes, text and images from this floor plan? This can be undone with Ctrl/⌘+Z.")) return;
+          snapshot();
+          site.annotations = [];
+          redraw(); updateStats(); queueSave();
+          toast("Annotations cleared");
+        };
+      }
+
       refreshPaletteActive();
+    }
+
+    function renderDrawAssetList() {
+      const list = $("#draw-asset-list");
+      if (!list) return;
+      list.innerHTML = "";
+      (site.customAssets || []).forEach(asset => {
+        const img = document.createElement("img");
+        img.className = "draw-asset-thumb";
+        img.src = asset.dataUrl;
+        img.dataset.assetId = asset.id;
+        img.title = "Click, then click the floor to place another copy";
+        img.onclick = () => { closeDrawers(); setTool("stamp:" + asset.id); toast("Click the floor to place it"); };
+        list.appendChild(img);
+      });
     }
 
     let parallelActive = false;
@@ -10670,6 +10949,14 @@
         const isOpen = d && d.classList.contains("on");
         closeDrawers();
         if (d && !isOpen) d.classList.add("on");
+      } else if (smartTool === "flow") {
+        closeDrawers();
+        setTool("flow");
+      } else if (smartTool === "draw") {
+        const d = $("#draw-drawer");
+        const isOpen = d && d.classList.contains("on");
+        closeDrawers();
+        if (d && !isOpen) d.classList.add("on");
       } else if (smartTool === "erase") {
         closeDrawers();
         setTool("erase");
@@ -10677,13 +10964,14 @@
     }
 
     function closeDrawers() {
-      const od = $("#obj-drawer"), rd = $("#room-drawer"), id = $("#issues-drawer"), cd = $("#cadtools-drawer"), pd = $("#parallel-drawer"), zd = $("#zone-drawer");
+      const od = $("#obj-drawer"), rd = $("#room-drawer"), id = $("#issues-drawer"), cd = $("#cadtools-drawer"), pd = $("#parallel-drawer"), zd = $("#zone-drawer"), dd = $("#draw-drawer");
       if (od) od.classList.remove("on");
       if (rd) rd.classList.remove("on");
       if (id) id.classList.remove("on");
       if (cd) cd.classList.remove("on");
       if (pd) pd.classList.remove("on");
       if (zd) zd.classList.remove("on");
+      if (dd) dd.classList.remove("on");
     }
 
     function setTool(id) {
@@ -10709,7 +10997,17 @@
         else if (st === "measure" && tool === "measure") active = true;
         else if (st === "zone" && tool.startsWith("zone:")) active = true;
         else if (st === "objects" && tool.startsWith("paint:") && tool !== "paint:wall") active = true;
+        else if (st === "flow" && tool === "flow") active = true;
+        else if (st === "draw" && (tool === "pen" || tool.startsWith("shape:") || tool.startsWith("stamp:"))) active = true;
         el.classList.toggle("active", active);
+      });
+      document.querySelectorAll(".draw-shape-btn[data-shape]").forEach(b => {
+        b.classList.toggle("active", tool === "shape:" + b.dataset.shape);
+      });
+      const penBtn = $("#draw-pen-btn");
+      if (penBtn) penBtn.classList.toggle("active", tool === "pen");
+      document.querySelectorAll(".draw-asset-thumb").forEach(t => {
+        t.classList.toggle("active", tool === "stamp:" + t.dataset.assetId);
       });
       document.querySelectorAll(".obj-card").forEach(c => {
         const objName = (c.dataset && c.dataset.obj) || c.getAttribute("data-obj");
@@ -10802,6 +11100,12 @@
       if (layerVisibility.building) {
         site.zones.forEach(z => drawZone(g, z, z.id === selectedZoneId || (selectedZoneIds && selectedZoneIds.includes(z.id))));
       }
+
+      // Flow connectors (item-movement arrows between zones)
+      if (layerVisibility.flow) drawFlows(g);
+
+      // Pen / shape / text / image annotation layer
+      if (layerVisibility.annotations) drawAnnotations(g);
 
       // Selected Object Highlight (Figma/Canva style synced to exact item dimensions and wall docking)
       if (selectedCell) {
@@ -11183,7 +11487,7 @@
     function drawZone(g, z, selected) {
       const def = ZONE_DEFS[z.type] || { name: "Room", color: "#64748B", group: "room" };
       const x = ftToLocalPx(z.x), y = ftToLocalPx(z.y), w = ftToLocalPx(z.w), h = ftToLocalPx(z.h);
-      g.fillStyle = hexAlpha(def.color, .82);
+      g.fillStyle = hexAlpha(z.color || def.color, .82);
       getZonePath(g, z, x, y, w, h, 6);
       g.fill();
 
@@ -11344,6 +11648,214 @@
       return `${wFt} × ${hFt} ft`;
     }
 
+    /* =====================================================================
+       FLOW CONNECTORS — directional arrows showing item movement between zones
+    ===================================================================== */
+    function zoneCenterFt(z) { return { x: z.x + z.w / 2, y: z.y + z.h / 2 }; }
+    // Point where the ray from z's center toward (tx,ty) crosses z's boundary.
+    function zoneEdgePointFt(z, tx, ty) {
+      const c = zoneCenterFt(z);
+      const dx = tx - c.x, dy = ty - c.y;
+      if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) return c;
+      const halfW = z.w / 2, halfH = z.h / 2;
+      const scaleX = dx !== 0 ? halfW / Math.abs(dx) : Infinity;
+      const scaleY = dy !== 0 ? halfH / Math.abs(dy) : Infinity;
+      const scale = Math.min(scaleX, scaleY);
+      return { x: c.x + dx * scale, y: c.y + dy * scale };
+    }
+    function drawArrowHead(g, tip, dirX, dirY, color) {
+      const len = Math.hypot(dirX, dirY) || 1;
+      const ux = dirX / len, uy = dirY / len;
+      const size = 9, angle = Math.PI / 7;
+      const rot = (x, y, a) => ({ x: x * Math.cos(a) - y * Math.sin(a), y: x * Math.sin(a) + y * Math.cos(a) });
+      const l = rot(-ux, -uy, angle), r = rot(-ux, -uy, -angle);
+      g.beginPath();
+      g.moveTo(tip.x, tip.y);
+      g.lineTo(tip.x + l.x * size, tip.y + l.y * size);
+      g.lineTo(tip.x + r.x * size, tip.y + r.y * size);
+      g.closePath();
+      g.fillStyle = color;
+      g.fill();
+    }
+    // Returns the on-screen (content-px) polyline for a flow, elbowed
+    // (vertical-then-horizontal-then-vertical) when the two zones aren't
+    // roughly aligned, straight otherwise — same shape as a basic flowchart
+    // connector.
+    function getFlowPathPx(f) {
+      const a = site.zones.find(z => z.id === f.fromId), b = site.zones.find(z => z.id === f.toId);
+      if (!a || !b) return null;
+      const ca = zoneCenterFt(a), cb = zoneCenterFt(b);
+      const p1 = zoneEdgePointFt(a, cb.x, cb.y), p2 = zoneEdgePointFt(b, ca.x, ca.y);
+      const p1px = { x: ftToLocalPx(p1.x), y: ftToLocalPx(p1.y) };
+      const p2px = { x: ftToLocalPx(p2.x), y: ftToLocalPx(p2.y) };
+      const dx = p2px.x - p1px.x, dy = p2px.y - p1px.y;
+      if (Math.abs(dx) < 8 || Math.abs(dy) < 8) return [p1px, p2px];
+      const midY = p1px.y + dy / 2;
+      return [p1px, { x: p1px.x, y: midY }, { x: p2px.x, y: midY }, p2px];
+    }
+    function drawFlowArrow(g, pts, opts) {
+      opts = opts || {};
+      const color = opts.color || (opts.selected ? "#F59E0B" : "#1D1B17");
+      g.save();
+      g.strokeStyle = color;
+      g.lineWidth = opts.selected ? 3 : 2.25;
+      g.lineJoin = "round"; g.lineCap = "round";
+      if (opts.dashed) g.setLineDash([6, 4]);
+      g.beginPath();
+      pts.forEach((p, i) => { if (i === 0) g.moveTo(p.x, p.y); else g.lineTo(p.x, p.y); });
+      g.stroke();
+      g.setLineDash([]);
+      const last = pts[pts.length - 1], prev = pts[pts.length - 2];
+      drawArrowHead(g, last, last.x - prev.x, last.y - prev.y, color);
+      if (opts.label) {
+        const mid = pts[Math.floor((pts.length - 1) / 2)];
+        g.font = "700 11px -apple-system,Segoe UI,Roboto,sans-serif";
+        const tw = g.measureText(opts.label).width;
+        g.fillStyle = "rgba(255,255,255,.92)";
+        g.fillRect(mid.x - tw / 2 - 5, mid.y - 9, tw + 10, 18);
+        g.fillStyle = "#1D1B17";
+        g.textAlign = "center"; g.textBaseline = "middle";
+        g.fillText(opts.label, mid.x, mid.y + 1);
+      }
+      g.restore();
+    }
+    function drawFlows(g) {
+      (site.flows || []).forEach(f => {
+        const pts = getFlowPathPx(f);
+        if (pts) drawFlowArrow(g, pts, { selected: f.id === selectedFlowId, label: f.label });
+      });
+      if (flowDraft) {
+        const a = site.zones.find(z => z.id === flowDraft.fromId);
+        if (a) {
+          const c = zoneCenterFt(a);
+          const p1 = { x: ftToLocalPx(c.x), y: ftToLocalPx(c.y) };
+          drawFlowArrow(g, [p1, { x: flowDraft.curX, y: flowDraft.curY }], { dashed: true, color: "#0EA5E9" });
+        }
+      }
+    }
+    function distToSegment(px, py, x1, y1, x2, y2) {
+      const dx = x2 - x1, dy = y2 - y1;
+      const lenSq = dx * dx + dy * dy;
+      let t = lenSq ? ((px - x1) * dx + (py - y1) * dy) / lenSq : 0;
+      t = Math.max(0, Math.min(1, t));
+      return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+    }
+    function flowAt(localX, localY) {
+      for (const f of (site.flows || [])) {
+        const pts = getFlowPathPx(f);
+        if (!pts) continue;
+        for (let i = 0; i < pts.length - 1; i++) {
+          if (distToSegment(localX, localY, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y) < 7) return f;
+        }
+      }
+      return null;
+    }
+    function deleteSelectedFlow() {
+      if (!selectedFlowId) return;
+      snapshot();
+      site.flows = (site.flows || []).filter(f => f.id !== selectedFlowId);
+      selectedFlowId = null;
+      redraw(); updateStats(); queueSave();
+      toast("Flow connector deleted");
+    }
+
+    /* =====================================================================
+       PEN / SHAPE / TEXT / IMAGE ANNOTATIONS — a free-floating drawing layer
+       on top of the grid, for callouts and diagram-style notes
+    ===================================================================== */
+    function annoWidthPx(w) { return Math.max(1, w * (cellPx / 20)); }
+    function drawShapeAnnotation(g, a) {
+      const p0 = { x: ftToLocalPx(a.x0), y: ftToLocalPx(a.y0) };
+      const p1 = { x: ftToLocalPx(a.x1), y: ftToLocalPx(a.y1) };
+      const x = Math.min(p0.x, p1.x), y = Math.min(p0.y, p1.y), w = Math.abs(p1.x - p0.x), h = Math.abs(p1.y - p0.y);
+      g.save();
+      g.strokeStyle = a.color; g.lineWidth = annoWidthPx(a.width);
+      g.lineJoin = "round"; g.lineCap = "round";
+      if (a.shapeType === "rect") {
+        g.strokeRect(x, y, w, h);
+      } else if (a.shapeType === "circle") {
+        g.beginPath(); g.ellipse(x + w / 2, y + h / 2, Math.max(1, w / 2), Math.max(1, h / 2), 0, 0, Math.PI * 2); g.stroke();
+      } else if (a.shapeType === "diamond") {
+        g.beginPath(); g.moveTo(x + w / 2, y); g.lineTo(x + w, y + h / 2); g.lineTo(x + w / 2, y + h); g.lineTo(x, y + h / 2); g.closePath(); g.stroke();
+      } else if (a.shapeType === "line") {
+        g.beginPath(); g.moveTo(p0.x, p0.y); g.lineTo(p1.x, p1.y); g.stroke();
+      } else if (a.shapeType === "arrow") {
+        g.beginPath(); g.moveTo(p0.x, p0.y); g.lineTo(p1.x, p1.y); g.stroke();
+        drawArrowHead(g, p1, p1.x - p0.x, p1.y - p0.y, a.color);
+      }
+      g.restore();
+    }
+    function drawTextAnnotation(g, a) {
+      const px = ftToLocalPx(a.x), py = ftToLocalPx(a.y);
+      g.save();
+      const fontSize = Math.max(10, 13 * (cellPx / 20));
+      g.font = `700 ${fontSize}px -apple-system,Segoe UI,Roboto,sans-serif`;
+      const tw = g.measureText(a.text).width;
+      g.fillStyle = "rgba(255,255,255,.92)";
+      g.fillRect(px - 5, py - fontSize / 2 - 5, tw + 10, fontSize + 10);
+      g.fillStyle = a.color || "#1D1B17";
+      g.textAlign = "left"; g.textBaseline = "middle";
+      g.fillText(a.text, px, py);
+      g.restore();
+    }
+    function getAssetImage(asset) {
+      if (!_assetImgCache[asset.id]) {
+        const img = new Image();
+        img.src = asset.dataUrl;
+        img.onload = () => redraw();
+        _assetImgCache[asset.id] = img;
+      }
+      return _assetImgCache[asset.id];
+    }
+    function drawImageAnnotation(g, a) {
+      const asset = (site.customAssets || []).find(x => x.id === a.assetId);
+      if (!asset) return;
+      const img = getAssetImage(asset);
+      if (!img.complete || !img.naturalWidth) return;
+      const x = ftToLocalPx(a.x), y = ftToLocalPx(a.y);
+      const w = ftToLocalPx(a.x + a.w) - x, h = ftToLocalPx(a.y + a.h) - y;
+      g.drawImage(img, x, y, w, h);
+    }
+    function drawAnnotations(g) {
+      const list = (site.annotations || []).slice();
+      list.forEach(a => {
+        if (a.type === "pen") {
+          if (!a.points || a.points.length < 2) return;
+          g.save();
+          g.strokeStyle = a.color; g.lineWidth = annoWidthPx(a.width);
+          g.lineJoin = "round"; g.lineCap = "round";
+          g.beginPath();
+          a.points.forEach((p, i) => {
+            const px = ftToLocalPx(p.x), py = ftToLocalPx(p.y);
+            if (i === 0) g.moveTo(px, py); else g.lineTo(px, py);
+          });
+          g.stroke();
+          g.restore();
+        } else if (a.type === "shape") {
+          drawShapeAnnotation(g, a);
+        } else if (a.type === "text") {
+          drawTextAnnotation(g, a);
+        } else if (a.type === "image") {
+          drawImageAnnotation(g, a);
+        }
+      });
+      if (activeStroke && activeStroke.points.length > 1) {
+        g.save();
+        g.strokeStyle = activeStroke.color; g.lineWidth = annoWidthPx(activeStroke.width);
+        g.lineJoin = "round"; g.lineCap = "round";
+        g.beginPath();
+        activeStroke.points.forEach((p, i) => {
+          const px = ftToLocalPx(p.x), py = ftToLocalPx(p.y);
+          if (i === 0) g.moveTo(px, py); else g.lineTo(px, py);
+        });
+        g.stroke();
+        g.restore();
+      }
+      if (drawingShapeAnno) {
+        drawShapeAnnotation(g, Object.assign({ color: penColor, width: penWidth }, drawingShapeAnno));
+      }
+    }
+
     function roundRectPath(g, x, y, w, h, r) {
       r = Math.min(r, w / 2, h / 2);
       g.beginPath();
@@ -11448,6 +11960,7 @@
       const cy = pl.cy;
       const w = pl.w;
       const h = pl.h;
+      const fillColor = (site.cellColors && site.cellColors[r * site.cols + c]) || def.color;
 
       g.save();
       g.translate(cx, cy);
@@ -11461,7 +11974,7 @@
         // (matching every other object) would misleadingly imply CCTV
         // occupies real floor area.
         const dotR = Math.max(2, Math.min(w, h) * 0.22);
-        g.fillStyle = def.color;
+        g.fillStyle = fillColor;
         g.beginPath();
         g.arc(0, 0, dotR, 0, Math.PI * 2);
         g.fill();
@@ -11469,7 +11982,7 @@
         return;
       }
 
-      g.fillStyle = def.color;
+      g.fillStyle = fillColor;
       roundRectPath(g, -w / 2, -h / 2, w, h, Math.max(1, Math.min(w, h) * 0.14));
       g.fill();
 
@@ -11579,7 +12092,13 @@
     }
 
     /* ---------- Snapshot / Undo ---------- */
-    function snapshotState() { return JSON.stringify({ cells: site.cells, rots: site.rots, cellDims: site.cellDims || {}, zones: site.zones, L: site.L, W: site.W, cols: site.cols, rows: site.rows }); }
+    function snapshotState() {
+      return JSON.stringify({
+        cells: site.cells, rots: site.rots, cellDims: site.cellDims || {}, cellColors: site.cellColors || {},
+        zones: site.zones, flows: site.flows || [], annotations: site.annotations || [], customAssets: site.customAssets || [],
+        L: site.L, W: site.W, cols: site.cols, rows: site.rows
+      });
+    }
     function snapshot() {
       undoStack.push(snapshotState());
       if (undoStack.length > 60) undoStack.shift();
@@ -11588,7 +12107,8 @@
     }
     function applySnap(str) {
       const s = JSON.parse(str);
-      site.cells = s.cells; site.rots = s.rots; site.cellDims = s.cellDims || {}; site.zones = s.zones;
+      site.cells = s.cells; site.rots = s.rots; site.cellDims = s.cellDims || {}; site.cellColors = s.cellColors || {};
+      site.zones = s.zones; site.flows = s.flows || []; site.annotations = s.annotations || []; site.customAssets = s.customAssets || [];
       site.L = s.L; site.W = s.W; site.cols = s.cols; site.rows = s.rows;
       if ($("#ed-dims")) $("#ed-dims").textContent = `${site.L} × ${site.W} ft`;
       sizeCanvas();
@@ -11597,13 +12117,13 @@
       if (!undoStack.length) return;
       redoStack.push(snapshotState());
       applySnap(undoStack.pop());
-      deselectZone(); selectedCell = null; redraw(); updateStats(); updateUndoBtns(); queueSave();
+      deselectZone(); selectedCell = null; selectedFlowId = null; redraw(); updateStats(); updateUndoBtns(); queueSave();
     }
     function redo() {
       if (!redoStack.length) return;
       undoStack.push(snapshotState());
       applySnap(redoStack.pop());
-      deselectZone(); selectedCell = null; redraw(); updateStats(); updateUndoBtns(); queueSave();
+      deselectZone(); selectedCell = null; selectedFlowId = null; redraw(); updateStats(); updateUndoBtns(); queueSave();
     }
     function updateUndoBtns() { $("#ed-undo").disabled = !undoStack.length; $("#ed-redo").disabled = !redoStack.length; }
     $("#ed-undo").addEventListener("click", undo);
@@ -11621,6 +12141,16 @@
       c.addEventListener("pointerup", onPointerUp);
       c.addEventListener("pointercancel", onPointerUp);
       c.addEventListener("pointerleave", () => { if (!painting && !drawingZone && !dragZone && !measuring && !marqueeSelect) { hoverCell = null; $("#cell-pos").textContent = "–"; redraw(); } });
+      c.addEventListener("dblclick", ev => {
+        if (tool !== "select") return;
+        const rect = c.getBoundingClientRect();
+        const localX = ev.clientX - rect.left - MARGIN, localY = ev.clientY - rect.top - MARGIN;
+        const f = flowAt(localX, localY);
+        if (f) {
+          const label = prompt("Label this flow (e.g. item type or SLA):", f.label || "");
+          if (label !== null) { snapshot(); f.label = label.trim() || null; redraw(); queueSave(); }
+        }
+      });
       $("#boardwrap").addEventListener("scroll", () => { hideBin(); hideZoneToolbar(); });
     }
 
@@ -11641,13 +12171,84 @@
         }
         return;
       }
+      if (tool === "flow") {
+        if (layerLocks.flow) return toast("Flow layer is locked");
+        const { x, y } = ftFromClient(ev.clientX, ev.clientY);
+        const z = zoneAt(x, y);
+        if (z) {
+          safeSetPointerCapture(canvas(), ev.pointerId);
+          const raw = ftFromClientRaw(ev.clientX, ev.clientY);
+          flowDraft = { fromId: z.id, curX: ftToLocalPx(raw.x), curY: ftToLocalPx(raw.y) };
+          redraw();
+        }
+        return;
+      }
+      if (tool === "pen") {
+        if (layerLocks.annotations) return toast("Annotation layer is locked");
+        safeSetPointerCapture(canvas(), ev.pointerId);
+        const raw = ftFromClientRaw(ev.clientX, ev.clientY);
+        activeStroke = { id: uid(), type: "pen", points: [{ x: raw.x, y: raw.y }], color: penColor, width: penWidth };
+        redraw();
+        return;
+      }
+      if (tool.startsWith("shape:") && tool !== "shape:text") {
+        if (layerLocks.annotations) return toast("Annotation layer is locked");
+        const shapeType = tool.slice(6);
+        safeSetPointerCapture(canvas(), ev.pointerId);
+        const raw = ftFromClientRaw(ev.clientX, ev.clientY);
+        drawingShapeAnno = { shapeType, x0: raw.x, y0: raw.y, x1: raw.x, y1: raw.y };
+        return;
+      }
+      if (tool === "shape:text") {
+        if (layerLocks.annotations) return toast("Annotation layer is locked");
+        const raw = ftFromClientRaw(ev.clientX, ev.clientY);
+        const txt = prompt("Label text:", "");
+        if (txt && txt.trim()) {
+          snapshot();
+          site.annotations = site.annotations || [];
+          site.annotations.push({ id: uid(), type: "text", x: raw.x, y: raw.y, text: txt.trim(), color: penColor });
+          queueSave(); redraw(); updateStats();
+        }
+        return;
+      }
+      if (tool.startsWith("stamp:")) {
+        if (layerLocks.annotations) return toast("Annotation layer is locked");
+        const assetId = tool.slice(6);
+        const asset = (site.customAssets || []).find(a => a.id === assetId);
+        if (!asset) return;
+        const raw = ftFromClientRaw(ev.clientX, ev.clientY);
+        const aspect = (asset.naturalH && asset.naturalW) ? asset.naturalH / asset.naturalW : 1;
+        const wFt = 8, hFt = snapFine(wFt * aspect) || wFt;
+        snapshot();
+        site.annotations = site.annotations || [];
+        site.annotations.push({ id: uid(), type: "image", assetId, x: raw.x - wFt / 2, y: raw.y - hFt / 2, w: wFt, h: hFt });
+        queueSave(); redraw(); updateStats();
+        toast("Placed on the floor");
+        return;
+      }
       if (tool === "select") {
         const { x, y } = ftFromClient(ev.clientX, ev.clientY);
         const cell = cellFromClient(ev.clientX, ev.clientY);
 
+        // 0. If clicking near a flow connector's line, select it
+        {
+          const rect = canvas().getBoundingClientRect();
+          const localX = ev.clientX - rect.left - MARGIN, localY = ev.clientY - rect.top - MARGIN;
+          const fHit = flowAt(localX, localY);
+          if (fHit) {
+            deselectZone();
+            selectedCell = null; selectedCells = [];
+            selectedFlowId = fHit.id;
+            updateRightPanel();
+            redraw();
+            return;
+          }
+        }
+
         // 1. If clicking on an object cell, select or drag group
         if (cell && site.cells[cell.r * site.cols + cell.c]) {
           deselectZone();
+          selectedFlowId = null;
           const isAlreadySelected = selectedCells.some(c => c.c === cell.c && c.r === cell.r);
           if (ev.shiftKey) {
             if (isAlreadySelected) {
@@ -11711,6 +12312,7 @@
           safeSetPointerCapture(canvas(), ev.pointerId);
           selectedCell = null;
           selectedCells = [];
+          selectedFlowId = null;
           selectZone(z.id);
           snapshot();
           const raw = ftFromClientRaw(ev.clientX, ev.clientY);
@@ -11734,6 +12336,7 @@
         if (!ev.shiftKey) {
           selectedCell = null;
           selectedCells = [];
+          selectedFlowId = null;
           deselectZone();
         }
         dragGroup = null;
@@ -11778,6 +12381,25 @@
       if (measuring && measureStart) {
         const { x, y } = ftFromClient(ev.clientX, ev.clientY);
         measureCurrent = { x, y };
+        redraw();
+        return;
+      }
+      if (flowDraft) {
+        const raw = ftFromClientRaw(ev.clientX, ev.clientY);
+        flowDraft.curX = ftToLocalPx(raw.x);
+        flowDraft.curY = ftToLocalPx(raw.y);
+        redraw();
+        return;
+      }
+      if (activeStroke) {
+        const raw = ftFromClientRaw(ev.clientX, ev.clientY);
+        activeStroke.points.push({ x: raw.x, y: raw.y });
+        redraw();
+        return;
+      }
+      if (drawingShapeAnno) {
+        const raw = ftFromClientRaw(ev.clientX, ev.clientY);
+        drawingShapeAnno.x1 = raw.x; drawingShapeAnno.y1 = raw.y;
         redraw();
         return;
       }
@@ -11942,6 +12564,43 @@
         measuring = false;
         return;
       }
+      if (flowDraft) {
+        const { x, y } = ftFromClient(ev.clientX, ev.clientY);
+        const z2 = zoneAt(x, y);
+        if (z2 && z2.id !== flowDraft.fromId) {
+          snapshot();
+          site.flows = site.flows || [];
+          site.flows.push({ id: uid(), fromId: flowDraft.fromId, toId: z2.id, label: null });
+          queueSave();
+          toast("Flow connector added");
+        }
+        flowDraft = null;
+        redraw();
+        return;
+      }
+      if (activeStroke) {
+        if (activeStroke.points.length > 1) {
+          snapshot();
+          site.annotations = site.annotations || [];
+          site.annotations.push(activeStroke);
+          queueSave();
+        }
+        activeStroke = null;
+        redraw(); updateStats();
+        return;
+      }
+      if (drawingShapeAnno) {
+        const a = drawingShapeAnno;
+        if (Math.hypot(a.x1 - a.x0, a.y1 - a.y0) > 0.5) {
+          snapshot();
+          site.annotations = site.annotations || [];
+          site.annotations.push({ id: uid(), type: "shape", shapeType: a.shapeType, x0: a.x0, y0: a.y0, x1: a.x1, y1: a.y1, color: penColor, width: penWidth });
+          queueSave();
+        }
+        drawingShapeAnno = null;
+        redraw(); updateStats();
+        return;
+      }
       if (dragZone) {
         const z = dragZone.zone;
         clearPaintUnderZone(z);
@@ -12048,7 +12707,10 @@
       const i = r * site.cols + c;
       site.cells[i] = v;
       site.rots[i] = 0;
-      if (v === 0 && site.cellDims) delete site.cellDims[i];
+      if (v === 0) {
+        if (site.cellDims) delete site.cellDims[i];
+        if (site.cellColors) delete site.cellColors[i];
+      }
     }
     function cellLocked(cell) {
       const cx = cell.c * CELL_FT + CELL_FT / 2, cy = cell.r * CELL_FT + CELL_FT / 2;
@@ -12151,6 +12813,8 @@
           $("#prop-obj-d").value = custom && custom.d != null ? custom.d : (def.d || 2);
           $("#prop-obj-h").value = custom && custom.h != null ? custom.h : (def.h || 8);
           $("#prop-obj-levels").value = custom && custom.levels != null ? custom.levels : (def.levels || 5);
+          const colorInput = $("#prop-obj-color");
+          if (colorInput) colorInput.value = (site.cellColors && site.cellColors[idx]) || def.color || "#64748B";
 
           const rotIdx = site.rots[selectedCell.r * site.cols + selectedCell.c] || 0;
           ["0", "90", "180", "270"].forEach((deg, idx) => {
@@ -12174,6 +12838,8 @@
           multiView.style.display = "none";
           genView.style.display = "none";
           $("#prop-room-name").value = z.label || (ZONE_DEFS[z.type] ? ZONE_DEFS[z.type].name : "Room");
+          const roomColorInput = $("#prop-room-color");
+          if (roomColorInput) roomColorInput.value = z.color || (ZONE_DEFS[z.type] ? ZONE_DEFS[z.type].color : "#64748B");
           $("#prop-room-w").value = z.w;
           $("#prop-room-h").value = z.h;
 
@@ -12322,6 +12988,16 @@
       const z = site.zones.find(z => z.id === selectedZoneId);
       if (z) { z.label = e.target.value; redraw(); queueSave(); }
     });
+    $("#prop-room-color")?.addEventListener("input", e => {
+      if (!selectedZoneId) return;
+      const z = site.zones.find(z => z.id === selectedZoneId);
+      if (z) { z.color = e.target.value; redraw(); queueSave(); }
+    });
+    $("#prop-room-color-reset")?.addEventListener("click", () => {
+      if (!selectedZoneId) return;
+      const z = site.zones.find(z => z.id === selectedZoneId);
+      if (z) { delete z.color; redraw(); updateRightPanel(); queueSave(); toast("Color reset to default"); }
+    });
     $("#prop-room-w").addEventListener("change", e => {
       if (!selectedZoneId) return;
       const z = site.zones.find(z => z.id === selectedZoneId);
@@ -12464,6 +13140,23 @@
     $("#prop-obj-h")?.addEventListener("input", updateSelectedObjectProps);
     $("#prop-obj-levels")?.addEventListener("input", updateSelectedObjectProps);
 
+    $("#prop-obj-color")?.addEventListener("input", e => {
+      if (!site) return;
+      const targets = (selectedCells && selectedCells.length) ? selectedCells : (selectedCell ? [selectedCell] : []);
+      if (!targets.length) return;
+      site.cellColors = site.cellColors || {};
+      targets.forEach(cell => { site.cellColors[cell.r * site.cols + cell.c] = e.target.value; });
+      redraw(); queueSave();
+    });
+    $("#prop-obj-color-reset")?.addEventListener("click", () => {
+      if (!site) return;
+      const targets = (selectedCells && selectedCells.length) ? selectedCells : (selectedCell ? [selectedCell] : []);
+      if (!targets.length || !site.cellColors) return;
+      targets.forEach(cell => { delete site.cellColors[cell.r * site.cols + cell.c]; });
+      redraw(); updateRightPanel(); queueSave();
+      toast("Color reset to default");
+    });
+
     // Object Duplicate
     $("#prop-obj-dup").addEventListener("click", () => duplicateSelectedObject());
     function duplicateSelectedObject() {
@@ -12482,6 +13175,10 @@
       if (site.cellDims && site.cellDims[srcIdx]) {
         site.cellDims = site.cellDims || {};
         site.cellDims[targetIdx] = Object.assign({}, site.cellDims[srcIdx]);
+      }
+      if (site.cellColors && site.cellColors[srcIdx]) {
+        site.cellColors = site.cellColors || {};
+        site.cellColors[targetIdx] = site.cellColors[srcIdx];
       }
       selectedCell = { c: targetC, r: targetR };
       redraw(); updateStats(); queueSave();
@@ -13494,7 +14191,11 @@
       snapshot();
       const captured = targets.map(cell => {
         const i = cell.r * site.cols + cell.c;
-        return { c: cell.c, r: cell.r, v: site.cells[i], rot: site.rots[i], dim: (site.cellDims && site.cellDims[i]) ? Object.assign({}, site.cellDims[i]) : null };
+        return {
+          c: cell.c, r: cell.r, v: site.cells[i], rot: site.rots[i],
+          dim: (site.cellDims && site.cellDims[i]) ? Object.assign({}, site.cellDims[i]) : null,
+          color: (site.cellColors && site.cellColors[i]) || null
+        };
       });
       captured.forEach(item => setPaintCell(item.c, item.r, 0));
       const newCells = captured.map(item => {
@@ -13503,6 +14204,7 @@
         const ni = nr * site.cols + nc;
         site.rots[ni] = item.rot;
         if (item.dim) { site.cellDims = site.cellDims || {}; site.cellDims[ni] = item.dim; }
+        if (item.color) { site.cellColors = site.cellColors || {}; site.cellColors[ni] = item.color; }
         return { c: nc, r: nr };
       });
       selectedCells = newCells;
@@ -13538,7 +14240,11 @@
       const minC = Math.min(...targets.map(c => c.c)), minR = Math.min(...targets.map(c => c.r));
       const items = targets.map(cell => {
         const i = cell.r * site.cols + cell.c;
-        return { dc: cell.c - minC, dr: cell.r - minR, v: site.cells[i], rot: site.rots[i], dim: (site.cellDims && site.cellDims[i]) ? Object.assign({}, site.cellDims[i]) : null };
+        return {
+          dc: cell.c - minC, dr: cell.r - minR, v: site.cells[i], rot: site.rots[i],
+          dim: (site.cellDims && site.cellDims[i]) ? Object.assign({}, site.cellDims[i]) : null,
+          color: (site.cellColors && site.cellColors[i]) || null
+        };
       });
       clipboard = { type: "cells", items, originC: minC, originR: minR, pasteOffset: 0 };
       toast(`Copied ${items.length} object${items.length === 1 ? "" : "s"} — press Ctrl/⌘+V to paste`);
@@ -13554,6 +14260,9 @@
         const nx = clamp(snap2(src.x + off * CELL_FT), 0, Math.max(0, site.L - src.w));
         const ny = clamp(snap2(src.y + off * CELL_FT), 0, Math.max(0, site.W - src.h));
         const nz = mkZone(src.type, nx, ny, src.w, src.h, src.label);
+        ["color", "shape", "corner", "cutW", "cutH", "stemW", "stemH", "innerW", "innerH"].forEach(k => {
+          if (src[k] != null) nz[k] = src[k];
+        });
         site.zones = site.zones || [];
         site.zones.push(nz);
         selectZone(nz.id);
@@ -13573,6 +14282,7 @@
           const ni = nr * site.cols + nc;
           site.rots[ni] = item.rot;
           if (item.dim) { site.cellDims = site.cellDims || {}; site.cellDims[ni] = item.dim; }
+          if (item.color) { site.cellColors = site.cellColors || {}; site.cellColors[ni] = item.color; }
           return { c: nc, r: nr };
         });
         deselectZone();
@@ -13626,10 +14336,11 @@
         updateZoomTxt();
         return;
       }
-      if (ev.key === "Escape") { hideBin(); hideShortcutsHelp(); deselectZone(); closeDrawers(); return; }
+      if (ev.key === "Escape") { hideBin(); hideShortcutsHelp(); deselectZone(); flowDraft = null; selectedFlowId = null; redraw(); closeDrawers(); return; }
       if (ev.key === "?" || (ev.shiftKey && ev.key === "/")) { ev.preventDefault(); showShortcutsHelp(); return; }
       if (ev.key === "Delete" || ev.key === "Backspace") {
         if (selectedZoneId) { $("#zt-del").click(); }
+        else if (selectedFlowId) { deleteSelectedFlow(); }
         else if (selectedCells && selectedCells.length > 1) { deleteSelectedCells(); }
         else if (selectedCell) { $("#prop-obj-del").click(); }
         return;
@@ -13659,6 +14370,8 @@
       if (k === "c" || k === "p") { handleSmartToolSelect("cadtools"); return; }
       if (k === "m") { handleSmartToolSelect("measure"); return; }
       if (k === "z") { handleSmartToolSelect("zone"); return; }
+      if (k === "f") { handleSmartToolSelect("flow"); return; }
+      if (k === "d") { handleSmartToolSelect("draw"); return; }
       if (k === "e") { setTool("erase"); return; }
     });
 
