@@ -2469,6 +2469,62 @@
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
     }
 
+    .finish-split-btn {
+      position: relative;
+      display: inline-flex;
+      align-items: stretch;
+    }
+
+    .finish-main-btn {
+      border-radius: var(--r-md) 0 0 var(--r-md);
+    }
+
+    .finish-caret-btn {
+      border-radius: 0 var(--r-md) var(--r-md) 0;
+      border-left: 1px solid rgba(255, 255, 255, .3);
+      padding: 0 8px;
+      min-width: 26px;
+      font-size: 10px;
+    }
+
+    .finish-dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      min-width: 170px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      box-shadow: var(--shadow-lg);
+      padding: 6px;
+      display: none;
+      z-index: 60;
+    }
+
+    .finish-dropdown.on {
+      display: block;
+    }
+
+    .finish-dropdown button {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 9px 10px;
+      border: none;
+      background: transparent;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      text-align: left;
+    }
+
+    .finish-dropdown button:hover {
+      background: var(--surface-2);
+    }
+
     .btn-tool-pill:disabled {
       opacity: 0.35;
       cursor: not-allowed;
@@ -4397,6 +4453,111 @@
       padding: 40px;
     }
 
+    @keyframes isoFadeIn {
+      from { opacity: 0; transform: scale(.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    #isoview.screen.on {
+      animation: isoFadeIn .32s var(--ease);
+    }
+
+    .iso-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 22px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      z-index: 5;
+    }
+
+    .iso-sub {
+      font-size: var(--fs-xs);
+      color: var(--ink-soft);
+    }
+
+    .iso-body {
+      position: relative;
+      flex: 1;
+      overflow: hidden;
+      background: linear-gradient(180deg, var(--bg-soft) 0%, var(--bg) 65%);
+    }
+
+    #iso-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+
+    #iso-canvas:active {
+      cursor: grabbing;
+    }
+
+    .iso-empty-hint {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: var(--ink-faint);
+      font-size: var(--fs-sm);
+      font-weight: 600;
+      display: none;
+      text-align: center;
+      max-width: 320px;
+    }
+
+    .iso-edit-card {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 250px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-lg);
+      padding: 14px;
+      display: none;
+      z-index: 20;
+    }
+
+    .iso-edit-card.on {
+      display: block;
+    }
+
+    .iso-edit-card-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .iso-edit-card-head input {
+      flex: 1;
+      min-width: 0;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--r-sm);
+      padding: 7px 9px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      background: var(--bg-soft);
+    }
+
+    .iso-edit-card-sub {
+      font-size: var(--fs-xs);
+      color: var(--ink-soft);
+      margin-bottom: 10px;
+    }
+
+    .iso-edit-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
     #present-sheet {
       --sheet-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
       background: #fff;
@@ -5729,8 +5890,14 @@
         <button class="btn secondary sm" id="ed-photo-btn" style="font-weight:700;">📁 Import Floor Plan</button>
         <input type="file" id="ed-photo-input"
           accept="image/jpeg,image/png,image/webp,image/svg+xml,application/pdf,.dwg,.dxf" style="display:none;">
-        <button class="btn ghost sm" id="ed-export">Export</button>
-        <button class="btn primary sm" id="ed-present">▶ Present</button>
+        <div class="finish-split-btn" id="finish-split-btn">
+          <button class="btn primary sm finish-main-btn" id="ed-finish" title="Finish — view your layout as a 3D isometric render">✓ Finish</button>
+          <button class="btn primary sm finish-caret-btn" id="finish-caret-btn" title="More options" aria-label="More options">▾</button>
+          <div class="finish-dropdown" id="finish-dropdown">
+            <button id="ed-present">▶ Present</button>
+            <button id="ed-export">⬇ Export</button>
+          </div>
+        </div>
         <div class="ed-nav-sep"></div>
         <button class="theme-toggle-btn" title="Toggle Light / Dark mode" aria-label="Toggle theme">
           <span class="theme-icon">☀️</span>
@@ -6855,6 +7022,33 @@
     </header>
     <div class="pr-body">
       <div id="present-sheet"></div>
+    </div>
+  </div>
+
+  <!-- ================= ISOMETRIC "FINISH" VIEW ================= -->
+  <div id="isoview" class="screen">
+    <header class="iso-header">
+      <button class="btn ghost icon" id="iso-back" title="Back to editor">←</button>
+      <strong>3D Warehouse View</strong>
+      <span class="iso-sub">Click a room or object to edit it</span>
+      <div class="spacer"></div>
+      <button class="btn ghost sm" id="iso-export-png">⬇ Export PNG</button>
+    </header>
+    <div class="iso-body" id="iso-body">
+      <canvas id="iso-canvas"></canvas>
+      <div class="iso-edit-card" id="iso-edit-card">
+        <div class="iso-edit-card-head">
+          <input type="text" id="iso-edit-name" placeholder="Name">
+          <button class="btn ghost icon sm" id="iso-edit-close">✕</button>
+        </div>
+        <div class="iso-edit-card-sub" id="iso-edit-sub"></div>
+        <div class="color-swatch-row" id="iso-edit-swatches"></div>
+        <div class="iso-edit-actions">
+          <button class="btn sm secondary full" id="iso-edit-dup">📄 Duplicate</button>
+          <button class="btn sm ghost full" id="iso-edit-del" style="color:#DC2626;">🗑 Delete</button>
+        </div>
+      </div>
+      <div class="iso-empty-hint" id="iso-empty-hint">Nothing on the floor yet — go back and lay out some rooms and objects first.</div>
     </div>
   </div>
 
@@ -10638,6 +10832,7 @@
     $("#assistant-question").addEventListener("keydown", e => { if (e.key === "Enter") askAssistant(); });
     $("#assistant-close").addEventListener("click", () => $("#assistant-overlay").classList.remove("on"));
     $("#ed-export").addEventListener("click", () => {
+      hideFinishDropdown();
       const blob = new Blob([JSON.stringify({ format: "warehouse-layout-planner", version: 1, site }, null, 0)], { type: "application/json" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
@@ -10646,6 +10841,16 @@
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 400);
     });
     function slug(s) { return (s || "layout").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "layout"; }
+
+    // Finish split-button dropdown (Present / Export tucked inside it)
+    function hideFinishDropdown() { $("#finish-dropdown")?.classList.remove("on"); }
+    function toggleFinishDropdown() { $("#finish-dropdown")?.classList.toggle("on"); }
+    $("#finish-caret-btn")?.addEventListener("click", ev => { ev.stopPropagation(); toggleFinishDropdown(); });
+    document.addEventListener("pointerdown", ev => {
+      const grp = $("#finish-split-btn");
+      if (grp && !grp.contains(ev.target)) hideFinishDropdown();
+    });
+    $("#ed-present")?.addEventListener("click", hideFinishDropdown);
 
     function queueSave() {
       clearTimeout(saveTimer);
@@ -15382,6 +15587,247 @@
       }
       g.restore();
     }
+
+    /* =====================================================================
+       ISOMETRIC "FINISH" VIEW — a 2.5D render of the current floor plan.
+       Click a room or object to select it — the small edit card reuses the
+       same underlying zone/cell edit functions as the 2D editor (color,
+       name, duplicate, delete). There's no drag-to-move here by design —
+       repositioning still happens back in the 2D editor; this view is
+       for reviewing and light touch-ups once the layout is basically done.
+    ===================================================================== */
+    let isoScale = 10, isoOffsetX = 0, isoOffsetY = 0;
+    let isoHitList = [];   // [{ kind:'zone'|'cell', ref, faces:[[{x,y}...], ...] }] in draw order
+    let isoSelected = null; // { kind:'zone'|'cell', ref }
+
+    const isoCanvasEl = () => $("#iso-canvas");
+    const isoCtx = () => isoCanvasEl().getContext("2d");
+
+    function sizeIsoCanvas() {
+      const c = isoCanvasEl(), body = $("#iso-body");
+      if (!c || !body) return;
+      const dpr = window.devicePixelRatio || 1;
+      const w = Math.max(1, body.clientWidth), h = Math.max(1, body.clientHeight);
+      c.width = w * dpr; c.height = h * dpr;
+      c.style.width = w + "px"; c.style.height = h + "px";
+      isoCtx().setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function isoProject(xFt, yFt, zFt) {
+      return {
+        x: (xFt - yFt) * isoScale + isoOffsetX,
+        y: (xFt + yFt) * isoScale * 0.5 - zFt * isoScale * 0.62 + isoOffsetY
+      };
+    }
+
+    function isoShade(hex, factor) {
+      hex = (hex || "#64748B").replace("#", "");
+      if (hex.length === 3) hex = hex.split("").map(ch => ch + ch).join("");
+      const n = parseInt(hex, 16) || 0;
+      const r = Math.max(0, Math.min(255, Math.round(((n >> 16) & 255) * factor)));
+      const gg = Math.max(0, Math.min(255, Math.round(((n >> 8) & 255) * factor)));
+      const b = Math.max(0, Math.min(255, Math.round((n & 255) * factor)));
+      return `rgb(${r},${gg},${b})`;
+    }
+
+    function isoQuadPath(g, pts) {
+      g.beginPath();
+      g.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
+      g.closePath();
+    }
+
+    function pointInPolygon(px, py, pts) {
+      let inside = false;
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        const xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y;
+        if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) inside = !inside;
+      }
+      return inside;
+    }
+
+    // Draws an axis-aligned box footprint (x,y,w,d in ft) from the floor up
+    // to height h, and returns its visible face polygons in screen space
+    // (top always; the two "near" side faces only when it has real height)
+    // for hit-testing.
+    function drawIsoBox(g, x, y, w, d, h, color, opts) {
+      opts = opts || {};
+      const top = [isoProject(x, y, h), isoProject(x + w, y, h), isoProject(x + w, y + d, h), isoProject(x, y + d, h)];
+      const right = [isoProject(x + w, y, 0), isoProject(x + w, y + d, 0), isoProject(x + w, y + d, h), isoProject(x + w, y, h)];
+      const front = [isoProject(x, y + d, 0), isoProject(x + w, y + d, 0), isoProject(x + w, y + d, h), isoProject(x, y + d, h)];
+      if (h > 0.05) {
+        isoQuadPath(g, right); g.fillStyle = isoShade(color, 0.72); g.fill();
+        isoQuadPath(g, front); g.fillStyle = isoShade(color, 0.56); g.fill();
+      }
+      isoQuadPath(g, top); g.fillStyle = opts.topColor || isoShade(color, opts.topFactor != null ? opts.topFactor : 1); g.fill();
+      g.strokeStyle = opts.strokeColor || "rgba(0,0,0,0.18)"; g.lineWidth = opts.strokeWidth || 1;
+      isoQuadPath(g, top); g.stroke();
+      if (h > 0.05) { isoQuadPath(g, right); g.stroke(); isoQuadPath(g, front); g.stroke(); }
+      return h > 0.05 ? [top, right, front] : [top];
+    }
+
+    function renderIsoView() {
+      if (!site) return;
+      const g = isoCtx(), c = isoCanvasEl();
+      const cw = c.clientWidth, ch = c.clientHeight;
+      g.clearRect(0, 0, cw, ch);
+
+      const hasContent = site.zones.length > 0 || site.cells.some(v => v);
+      const hint = $("#iso-empty-hint");
+      if (hint) hint.style.display = hasContent ? "none" : "block";
+      isoHitList = [];
+      if (!hasContent) return;
+
+      const footW = site.L + site.W;
+      const footH = (site.L + site.W) * 0.5 + 14;
+      isoScale = Math.max(2, Math.min(16, Math.min((cw - 80) / footW, (ch - 130) / footH)));
+      isoOffsetX = cw / 2;
+      isoOffsetY = 80 + site.W * isoScale * 0.5;
+
+      // Ground pad + building slab, so the plan reads as sitting on a lot.
+      const pad = 6;
+      isoQuadPath(g, [isoProject(-pad, -pad, 0), isoProject(site.L + pad, -pad, 0), isoProject(site.L + pad, site.W + pad, 0), isoProject(-pad, site.W + pad, 0)]);
+      g.fillStyle = "#DCE7DA"; g.fill();
+      drawIsoBox(g, 0, 0, site.L, site.W, 0.4, "#E8E4D8", { stroke: false });
+
+      // Depth-sort zones + painted objects back-to-front (painter's algorithm).
+      const items = [];
+      site.zones.forEach(z => items.push({ kind: "zone", ref: z, depth: z.x + z.y + z.w + z.h }));
+      for (let r = 0; r < site.rows; r++) {
+        for (let cc = 0; cc < site.cols; cc++) {
+          if (site.cells[r * site.cols + cc]) items.push({ kind: "cell", ref: { c: cc, r }, depth: cc * CELL_FT + r * CELL_FT });
+        }
+      }
+      items.sort((a, b) => a.depth - b.depth);
+
+      items.forEach(item => {
+        if (item.kind === "zone") {
+          const z = item.ref;
+          const def = ZONE_DEFS[z.type] || { name: "Room", color: "#64748B" };
+          const color = z.color || def.color;
+          const selected = isoSelected && isoSelected.kind === "zone" && isoSelected.ref.id === z.id;
+          const faces = drawIsoBox(g, z.x, z.y, z.w, z.h, 1.6, color, {
+            strokeColor: selected ? "#111" : "rgba(0,0,0,0.18)", strokeWidth: selected ? 2.5 : 1
+          });
+          if (z.w * isoScale > 26) {
+            const lp = isoProject(z.x + z.w / 2, z.y + z.h / 2, 1.6);
+            g.fillStyle = "#1D1B17"; g.font = `700 ${Math.max(9, Math.min(12, isoScale * 0.9))}px -apple-system,Segoe UI,Roboto,sans-serif`;
+            g.textAlign = "center"; g.textBaseline = "middle";
+            g.fillText(z.label || def.name, lp.x, lp.y);
+          }
+          isoHitList.push({ kind: "zone", ref: z, faces });
+        } else {
+          const idx = item.ref.r * site.cols + item.ref.c;
+          const v = site.cells[idx], def = PAINT_BY_ID[v];
+          if (!def) return;
+          const customDim = site.cellDims && site.cellDims[idx];
+          const w = (customDim && customDim.w != null) ? customDim.w : (def.w || CELL_FT);
+          const d = (customDim && customDim.d != null) ? customDim.d : (def.d || CELL_FT);
+          const hFt = (customDim && customDim.h != null) ? customDim.h : (def.h || 3);
+          const color = (site.cellColors && site.cellColors[idx]) || def.color;
+          const cx = item.ref.c * CELL_FT + CELL_FT / 2, cy = item.ref.r * CELL_FT + CELL_FT / 2;
+          const bx = cx - w / 2, by = cy - d / 2;
+          const selected = isoSelected && isoSelected.kind === "cell" && isoSelected.ref.c === item.ref.c && isoSelected.ref.r === item.ref.r;
+          const faces = drawIsoBox(g, bx, by, w, d, hFt, color, {
+            strokeColor: selected ? "#111" : "rgba(0,0,0,0.25)", strokeWidth: selected ? 2.5 : 0.75
+          });
+          if (def.id !== CCTV_ID && w * isoScale > 10) {
+            const tp = isoProject(cx, cy, hFt);
+            g.font = `${Math.max(8, Math.min(15, isoScale * 0.85))}px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple Color Emoji","Segoe UI Emoji",sans-serif`;
+            g.textAlign = "center"; g.textBaseline = "middle";
+            g.fillText(def.glyph || "", tp.x, tp.y);
+          }
+          isoHitList.push({ kind: "cell", ref: item.ref, faces });
+        }
+      });
+    }
+
+    function isoFindHit(px, py) {
+      for (let i = isoHitList.length - 1; i >= 0; i--) {
+        const item = isoHitList[i];
+        for (const face of item.faces) if (pointInPolygon(px, py, face)) return item;
+      }
+      return null;
+    }
+
+    function hideIsoEditCard() { $("#iso-edit-card")?.classList.remove("on"); }
+    function showIsoEditCard(hit) {
+      const card = $("#iso-edit-card"), nameInput = $("#iso-edit-name"), sub = $("#iso-edit-sub"), swatchRow = $("#iso-edit-swatches");
+      if (!card) return;
+      swatchRow.innerHTML = "";
+      if (hit.kind === "zone") {
+        const z = hit.ref;
+        const def = ZONE_DEFS[z.type] || { name: "Room" };
+        nameInput.value = z.label || def.name;
+        sub.textContent = `${Math.round(z.w)} × ${Math.round(z.h)} ft · ${Math.round(getZoneArea(z))} sq ft`;
+        nameInput.oninput = () => { z.label = nameInput.value; queueSave(); renderIsoView(); };
+        SWATCH_COLORS.forEach(hex => {
+          const sw = document.createElement("button");
+          sw.type = "button"; sw.className = "color-swatch"; sw.style.background = hex; sw.title = hex;
+          sw.onclick = () => { snapshot(); z.color = hex; queueSave(); renderIsoView(); };
+          swatchRow.appendChild(sw);
+        });
+      } else {
+        const cell = hit.ref;
+        const idx = cell.r * site.cols + cell.c;
+        const def = PAINT_BY_ID[site.cells[idx]];
+        nameInput.value = def ? def.name : "Object";
+        nameInput.oninput = null;
+        sub.textContent = def ? `${def.w || CELL_FT} × ${def.d || CELL_FT} ft` : "";
+        SWATCH_COLORS.forEach(hex => {
+          const sw = document.createElement("button");
+          sw.type = "button"; sw.className = "color-swatch"; sw.style.background = hex; sw.title = hex;
+          sw.onclick = () => { snapshot(); site.cellColors = site.cellColors || {}; site.cellColors[idx] = hex; queueSave(); renderIsoView(); };
+          swatchRow.appendChild(sw);
+        });
+      }
+      card.classList.add("on");
+    }
+    function handleIsoClick(ev) {
+      const rect = isoCanvasEl().getBoundingClientRect();
+      const hit = isoFindHit(ev.clientX - rect.left, ev.clientY - rect.top);
+      if (!hit) { isoSelected = null; hideIsoEditCard(); renderIsoView(); return; }
+      isoSelected = { kind: hit.kind, ref: hit.ref };
+      if (hit.kind === "zone") { selectedZoneId = hit.ref.id; selectedCell = null; selectedCells = []; }
+      else { selectedCell = hit.ref; selectedCells = [hit.ref]; selectedZoneId = null; }
+      renderIsoView();
+      showIsoEditCard(hit);
+    }
+    $("#iso-edit-close")?.addEventListener("click", () => { isoSelected = null; hideIsoEditCard(); renderIsoView(); });
+    $("#iso-edit-dup")?.addEventListener("click", () => {
+      if (!isoSelected) return;
+      if (isoSelected.kind === "zone") duplicateSelectedZone(); else duplicateSelectedObject();
+      renderIsoView();
+    });
+    $("#iso-edit-del")?.addEventListener("click", () => {
+      if (!isoSelected) return;
+      snapshot();
+      if (isoSelected.kind === "zone") site.zones = site.zones.filter(z => z.id !== isoSelected.ref.id);
+      else setPaintCell(isoSelected.ref.c, isoSelected.ref.r, 0);
+      queueSave(); updateStats();
+      isoSelected = null; hideIsoEditCard(); renderIsoView();
+    });
+    $("#iso-export-png")?.addEventListener("click", () => {
+      const a = document.createElement("a");
+      a.href = isoCanvasEl().toDataURL("image/png");
+      a.download = slug(site.name) + "-3d-view.png";
+      document.body.appendChild(a); a.click(); a.remove();
+    });
+    $("#ed-finish")?.addEventListener("click", () => {
+      hideFinishDropdown();
+      isoSelected = null; hideIsoEditCard();
+      hideBin(); hideZoneToolbar(); hideContextMenu();
+      showScreen("isoview");
+      requestAnimationFrame(() => { sizeIsoCanvas(); renderIsoView(); });
+    });
+    $("#iso-back")?.addEventListener("click", () => {
+      showScreen("editor");
+      redraw(); updateStats(); updateRightPanel();
+    });
+    isoCanvasEl()?.addEventListener("click", handleIsoClick);
+    window.addEventListener("resize", () => {
+      if ($("#isoview")?.classList.contains("on")) { sizeIsoCanvas(); renderIsoView(); }
+    });
 
     /* =====================================================================
        LIGHT / DARK THEME SYSTEM
