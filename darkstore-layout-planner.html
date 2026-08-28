@@ -14030,67 +14030,11 @@
         }
       }
 
-      // 4. CROSS-DOCK SPACE EFFICIENCY & STRUCTURED AISLES
-      const inwardWidth = Math.max(3, Math.min(8, Math.floor(cols * 0.2)));
-      const dispatchWidth = Math.max(3, Math.min(8, Math.floor(cols * 0.2)));
-      const sortStartCol = inwardWidth + 1;
-      const sortEndCol = cols - dispatchWidth - 1;
-
-      // Inward Staging Buffer pallets near Receiving Dock — skip any cell
-      // already covered by a room/zone (Inward Zone, Security, etc.) so this
-      // never paints objects underneath a zone's own fill and content.
-      for (let r = 2; r < rows - 2; r += 2) {
-        for (let c = 2; c <= Math.min(inwardWidth, cols - 3); c += 2) {
-          if (!site.cells[r * cols + c] && !cellLocked({ c, r })) {
-            setPaintCell(c, r, PAINT_DEFS.staging?.id || PAINT_DEFS.sortbox.id);
-            cellsOptimized++;
-          }
-        }
-      }
-
-      // Central Destination Sortation Matrix with 6ft (1-cell) alternating aisles
-      const primarySortElement = PAINT_DEFS.sortbox?.id || 9;
-      for (let r = 2; r < rows - 2; r++) {
-        const isRunRow = (r % 2 === 0);
-        if (isRunRow) {
-          for (let c = sortStartCol; c <= sortEndCol; c++) {
-            if (cellLocked({ c, r })) continue; // a real Sorting/Dispatch/etc. zone already owns this cell
-            if (cols >= 22 && c === Math.floor(cols / 2)) {
-              if (site.cells[r * cols + c]) setPaintCell(c, r, 0); // clear center corridor
-              continue;
-            }
-            if (!site.cells[r * cols + c]) {
-              setPaintCell(c, r, primarySortElement);
-              cellsOptimized++;
-            }
-          }
-          aislesAligned++;
-        } else {
-          // Ensure clear 6ft aisle
-          for (let c = sortStartCol; c <= sortEndCol; c++) {
-            const cur = site.cells[r * cols + c];
-            if (cur === PAINT_DEFS.rack?.id || cur === PAINT_DEFS.doublerack?.id || cur === PAINT_DEFS.sortbox?.id) {
-              setPaintCell(c, r, 0);
-              aislesAligned++;
-            }
-          }
-        }
-      }
-
-      // Outbound Dispatch Marshalling Lanes near Exit Docks
-      for (let r = 2; r < rows - 2; r += 2) {
-        for (let c = Math.max(sortEndCol + 1, cols - dispatchWidth); c < cols - 1; c += 2) {
-          if (!site.cells[r * cols + c] && !cellLocked({ c, r })) {
-            setPaintCell(c, r, PAINT_DEFS.packing?.id || PAINT_DEFS.trolleycage?.id || PAINT_DEFS.sortbox.id);
-            cellsOptimized++;
-          }
-        }
-      }
-
-      // 5. Essential Support Rooms — only add one if its proposed rectangle
-      // doesn't land on top of a zone that's already there (a security room,
-      // an inward zone hugging that same corner, etc.). Skip rather than
-      // overlap; the user can place it manually if the auto position doesn't fit.
+      // 4. Essential Support Rooms — added BEFORE the floor filler below so
+      // that pass correctly treats these as claimed territory (cellLocked)
+      // instead of painting objects first and only then dropping a room on
+      // top of them. Only add one if its proposed rectangle doesn't land on
+      // top of a zone that's already there; skip rather than overlap.
       function rectOverlapsAnyZone(x, y, w, h) {
         return site.zones.some(z => x < z.x + z.w && x + w > z.x && y < z.y + z.h && y + h > z.y);
       }
@@ -14100,34 +14044,97 @@
       const hasException = site.zones.some(z => z.type === "returns");
 
       if (!hasOffice && site.L >= 60 && site.W >= 40 && !rectOverlapsAnyZone(4, 4, 24, 18)) {
-        site.zones.push({
-          id: "z_office_" + Date.now(),
-          label: "Operations Control Office",
-          type: "office",
-          x: 4, y: 4, w: 24, h: 18
-        });
+        const nz = { id: "z_office_" + Date.now(), label: "Operations Control Office", type: "office", x: 4, y: 4, w: 24, h: 18 };
+        site.zones.push(nz);
+        clearPaintUnderZone(nz);
         newRoomsCreated++;
       }
 
       if (!hasBattery && site.L >= 80 && site.W >= 50 && !rectOverlapsAnyZone(4, Math.max(20, site.W - 22), 20, 18)) {
-        site.zones.push({
-          id: "z_battery_" + Date.now(),
-          label: "MHE Battery Charging Bay",
-          type: "battery",
-          x: 4, y: Math.max(20, site.W - 22), w: 20, h: 18
-        });
+        const nz = { id: "z_battery_" + Date.now(), label: "MHE Battery Charging Bay", type: "battery", x: 4, y: Math.max(20, site.W - 22), w: 20, h: 18 };
+        site.zones.push(nz);
+        clearPaintUnderZone(nz);
         newRoomsCreated++;
       }
 
       if (!hasException && site.L >= 90 && !rectOverlapsAnyZone(Math.max(20, site.L - 28), 4, 24, 18)) {
-        site.zones.push({
-          id: "z_returns_" + Date.now(),
-          label: "Missort & Exception Area",
-          type: "returns",
-          x: Math.max(20, site.L - 28), y: 4, w: 24, h: 18
-        });
+        const nz = { id: "z_returns_" + Date.now(), label: "Missort & Exception Area", type: "returns", x: Math.max(20, site.L - 28), y: 4, w: 24, h: 18 };
+        site.zones.push(nz);
+        clearPaintUnderZone(nz);
         newRoomsCreated++;
       }
+
+      // 5. CROSS-DOCK SPACE EFFICIENCY & STRUCTURED AISLES
+      // This whole section is a "fill an empty warehouse from scratch" pass —
+      // it carpets open floor with generic staging/sortation/marshalling
+      // filler. That's the wrong move once the site already has real,
+      // named flow zones (from a 1-click template or the wizard): those
+      // zones — and their own Module/Lane rendering — ARE the sortation
+      // layout. Re-filling whatever's left over on top of them is exactly
+      // what was showing up as "too many overlapping things" — so skip this
+      // entire pass when the site already has flow zones, and only run it
+      // for a genuinely blank floor that hasn't been laid out yet.
+      const hasFlowZones = site.zones.some(z => ["receiving", "sorting", "dispatchQueue", "dock", "bagging", "outboundLane", "dockIn", "dockOut"].includes(z.type));
+
+      if (!hasFlowZones) {
+        const inwardWidth = Math.max(3, Math.min(8, Math.floor(cols * 0.2)));
+        const dispatchWidth = Math.max(3, Math.min(8, Math.floor(cols * 0.2)));
+        const sortStartCol = inwardWidth + 1;
+        const sortEndCol = cols - dispatchWidth - 1;
+
+        // Inward Staging Buffer pallets near Receiving Dock — skip any cell
+        // already covered by a room/zone so this never paints objects
+        // underneath a zone's own fill and content.
+        for (let r = 2; r < rows - 2; r += 2) {
+          for (let c = 2; c <= Math.min(inwardWidth, cols - 3); c += 2) {
+            if (!site.cells[r * cols + c] && !cellLocked({ c, r })) {
+              setPaintCell(c, r, PAINT_DEFS.staging?.id || PAINT_DEFS.sortbox.id);
+              cellsOptimized++;
+            }
+          }
+        }
+
+        // Central Destination Sortation Matrix — a real position, then a gap,
+        // with a full aisle row every 3rd row (not a wall-to-wall carpet).
+        const primarySortElement = PAINT_DEFS.sortbox?.id || 9;
+        for (let r = 2; r < rows - 2; r++) {
+          const isRunRow = (r % 3 !== 0);
+          if (isRunRow) {
+            for (let c = sortStartCol; c <= sortEndCol; c += 2) {
+              if (cellLocked({ c, r })) continue; // a real zone already owns this cell
+              if (cols >= 22 && c === Math.floor(cols / 2)) {
+                if (site.cells[r * cols + c]) setPaintCell(c, r, 0); // clear center corridor
+                continue;
+              }
+              if (!site.cells[r * cols + c]) {
+                setPaintCell(c, r, primarySortElement);
+                cellsOptimized++;
+              }
+            }
+            aislesAligned++;
+          } else {
+            // Ensure clear 6ft aisle
+            for (let c = sortStartCol; c <= sortEndCol; c++) {
+              const cur = site.cells[r * cols + c];
+              if (cur === PAINT_DEFS.rack?.id || cur === PAINT_DEFS.doublerack?.id || cur === PAINT_DEFS.sortbox?.id) {
+                setPaintCell(c, r, 0);
+                aislesAligned++;
+              }
+            }
+          }
+        }
+
+        // Outbound Dispatch Marshalling Lanes near Exit Docks
+        for (let r = 2; r < rows - 2; r += 2) {
+          for (let c = Math.max(sortEndCol + 1, cols - dispatchWidth); c < cols - 1; c += 2) {
+            if (!site.cells[r * cols + c] && !cellLocked({ c, r })) {
+              setPaintCell(c, r, PAINT_DEFS.packing?.id || PAINT_DEFS.trolleycage?.id || PAINT_DEFS.sortbox.id);
+              cellsOptimized++;
+            }
+          }
+        }
+      }
+
 
       // Final Render & Stats
       redraw();
