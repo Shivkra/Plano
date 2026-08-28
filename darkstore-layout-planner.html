@@ -12105,6 +12105,16 @@
       redoStack.length = 0;
       updateUndoBtns();
     }
+    // For "input"-driven fields (typing, dragging a color picker, holding a
+    // number spinner) that fire many times per edit: snapshot once at the
+    // START of the session instead of once per keystroke, so one edit = one
+    // undo step. Call beginEditSession() from "input", editSessionEnded()
+    // from "change" (fires once on blur/Enter/picker-close) to close it out.
+    let _editSessionOpen = false;
+    function beginEditSession() {
+      if (!_editSessionOpen) { snapshot(); _editSessionOpen = true; }
+    }
+    function editSessionEnded() { _editSessionOpen = false; }
     function applySnap(str) {
       const s = JSON.parse(str);
       site.cells = s.cells; site.rots = s.rots; site.cellDims = s.cellDims || {}; site.cellColors = s.cellColors || {};
@@ -12986,27 +12996,29 @@
     $("#prop-room-name").addEventListener("input", e => {
       if (!selectedZoneId) return;
       const z = site.zones.find(z => z.id === selectedZoneId);
-      if (z) { z.label = e.target.value; redraw(); queueSave(); }
+      if (z) { beginEditSession(); z.label = e.target.value; redraw(); queueSave(); }
     });
+    $("#prop-room-name").addEventListener("change", editSessionEnded);
     $("#prop-room-color")?.addEventListener("input", e => {
       if (!selectedZoneId) return;
       const z = site.zones.find(z => z.id === selectedZoneId);
-      if (z) { z.color = e.target.value; redraw(); queueSave(); }
+      if (z) { beginEditSession(); z.color = e.target.value; redraw(); queueSave(); }
     });
+    $("#prop-room-color")?.addEventListener("change", editSessionEnded);
     $("#prop-room-color-reset")?.addEventListener("click", () => {
       if (!selectedZoneId) return;
       const z = site.zones.find(z => z.id === selectedZoneId);
-      if (z) { delete z.color; redraw(); updateRightPanel(); queueSave(); toast("Color reset to default"); }
+      if (z) { snapshot(); delete z.color; redraw(); updateRightPanel(); queueSave(); toast("Color reset to default"); }
     });
     $("#prop-room-w").addEventListener("change", e => {
       if (!selectedZoneId) return;
       const z = site.zones.find(z => z.id === selectedZoneId);
-      if (z) { z.w = snap2(Math.max(4, +e.target.value)); redraw(); updateRightPanel(); queueSave(); }
+      if (z) { snapshot(); z.w = snap2(Math.max(4, +e.target.value)); redraw(); updateRightPanel(); queueSave(); }
     });
     $("#prop-room-h").addEventListener("change", e => {
       if (!selectedZoneId) return;
       const z = site.zones.find(z => z.id === selectedZoneId);
-      if (z) { z.h = snap2(Math.max(4, +e.target.value)); redraw(); updateRightPanel(); queueSave(); }
+      if (z) { snapshot(); z.h = snap2(Math.max(4, +e.target.value)); redraw(); updateRightPanel(); queueSave(); }
     });
 
     // Shape Morphology Switchers
@@ -13041,37 +13053,43 @@
     $("#prop-l-corner")?.addEventListener("change", e => {
       if (!selectedZoneId) return;
       const z = site.zones.find(z => z.id === selectedZoneId);
-      if (z) { z.corner = e.target.value; redraw(); updateRightPanel(); queueSave(); }
+      if (z) { snapshot(); z.corner = e.target.value; redraw(); updateRightPanel(); queueSave(); }
     });
     $("#prop-l-cutw")?.addEventListener("input", e => {
       if (!selectedZoneId) return;
       const z = site.zones.find(z => z.id === selectedZoneId);
-      if (z) { z.cutW = Math.max(2, Math.min(z.w - 2, +e.target.value)); redraw(); updateRightPanel(); queueSave(); }
+      if (z) { beginEditSession(); z.cutW = Math.max(2, Math.min(z.w - 2, +e.target.value)); redraw(); updateRightPanel(); queueSave(); }
     });
+    $("#prop-l-cutw")?.addEventListener("change", editSessionEnded);
     $("#prop-l-cuth")?.addEventListener("input", e => {
       if (!selectedZoneId) return;
       const z = site.zones.find(z => z.id === selectedZoneId);
-      if (z) { z.cutH = Math.max(2, Math.min(z.h - 2, +e.target.value)); redraw(); updateRightPanel(); queueSave(); }
+      if (z) { beginEditSession(); z.cutH = Math.max(2, Math.min(z.h - 2, +e.target.value)); redraw(); updateRightPanel(); queueSave(); }
     });
+    $("#prop-l-cuth")?.addEventListener("change", editSessionEnded);
 
     $("#prop-shape-innerw")?.addEventListener("input", e => {
       if (!selectedZoneId) return;
       const z = site.zones.find(z => z.id === selectedZoneId);
       if (z) {
+        beginEditSession();
         if (z.shape === "t-shape") z.stemW = Math.max(2, Math.min(z.w - 2, +e.target.value));
         else if (z.shape === "u-shape") z.innerW = Math.max(2, Math.min(z.w - 2, +e.target.value));
         redraw(); updateRightPanel(); queueSave();
       }
     });
+    $("#prop-shape-innerw")?.addEventListener("change", editSessionEnded);
     $("#prop-shape-innerh")?.addEventListener("input", e => {
       if (!selectedZoneId) return;
       const z = site.zones.find(z => z.id === selectedZoneId);
       if (z) {
+        beginEditSession();
         if (z.shape === "t-shape") z.stemH = Math.max(2, Math.min(z.h - 2, +e.target.value));
         else if (z.shape === "u-shape") z.innerH = Math.max(2, Math.min(z.h - 2, +e.target.value));
         redraw(); updateRightPanel(); queueSave();
       }
     });
+    $("#prop-shape-innerh")?.addEventListener("change", editSessionEnded);
 
     // Room Duplicate
     $("#prop-room-dup")?.addEventListener("click", () => duplicateSelectedZone());
@@ -13123,6 +13141,7 @@
       if (!site) return;
       const targets = (selectedCells && selectedCells.length) ? selectedCells : (selectedCell ? [selectedCell] : []);
       if (!targets.length) return;
+      beginEditSession();
       site.cellDims = site.cellDims || {};
       const w = parseFloat($("#prop-obj-w")?.value) || 2;
       const d = parseFloat($("#prop-obj-d")?.value) || 2;
@@ -13139,19 +13158,25 @@
     $("#prop-obj-d")?.addEventListener("input", updateSelectedObjectProps);
     $("#prop-obj-h")?.addEventListener("input", updateSelectedObjectProps);
     $("#prop-obj-levels")?.addEventListener("input", updateSelectedObjectProps);
+    ["#prop-obj-w", "#prop-obj-d", "#prop-obj-h", "#prop-obj-levels"].forEach(sel => {
+      $(sel)?.addEventListener("change", editSessionEnded);
+    });
 
     $("#prop-obj-color")?.addEventListener("input", e => {
       if (!site) return;
       const targets = (selectedCells && selectedCells.length) ? selectedCells : (selectedCell ? [selectedCell] : []);
       if (!targets.length) return;
+      beginEditSession();
       site.cellColors = site.cellColors || {};
       targets.forEach(cell => { site.cellColors[cell.r * site.cols + cell.c] = e.target.value; });
       redraw(); queueSave();
     });
+    $("#prop-obj-color")?.addEventListener("change", editSessionEnded);
     $("#prop-obj-color-reset")?.addEventListener("click", () => {
       if (!site) return;
       const targets = (selectedCells && selectedCells.length) ? selectedCells : (selectedCell ? [selectedCell] : []);
       if (!targets.length || !site.cellColors) return;
+      snapshot();
       targets.forEach(cell => { delete site.cellColors[cell.r * site.cols + cell.c]; });
       redraw(); updateRightPanel(); queueSave();
       toast("Color reset to default");
