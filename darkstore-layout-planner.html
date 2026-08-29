@@ -17,7 +17,7 @@
       --border-strong: #D6CFBD;
       --ink: #1D1B17;
       --ink-soft: #5B564A;
-      --ink-faint: #928C7C;
+      --ink-faint: #6B6558;
       --accent: #17171A;
       --accent-hover: #000000;
       --on-accent: #FFFFFF;
@@ -70,8 +70,8 @@
       --border-strong: #414F6B;
       --ink: #F1F5F9;
       --ink-soft: #94A3B8;
-      --ink-faint: #64748B;
-      --accent: #3B82F6;
+      --ink-faint: #94A3B8;
+      --accent: #2E6FE0;
       --accent-hover: #2563EB;
       --on-accent: #FFFFFF;
       --brand-cream: #2A241C;
@@ -442,7 +442,7 @@
        navigating by keyboard was flying blind. :focus-visible keeps this to
        keyboard use only, so mouse clicks don't grow a ring. */
     :focus-visible {
-      outline: 2px solid var(--accent);
+      outline: 2px solid var(--focus);
       outline-offset: 2px;
       border-radius: var(--r-sm);
     }
@@ -455,14 +455,14 @@
     .cmdk-item:focus-visible,
     .ctx-menu button:focus-visible,
     .finish-dropdown button:focus-visible {
-      outline: 2px solid var(--accent);
+      outline: 2px solid var(--focus);
       outline-offset: 2px;
     }
 
     input:focus-visible,
     select:focus-visible,
     textarea:focus-visible {
-      outline: 2px solid var(--accent);
+      outline: 2px solid var(--focus);
       outline-offset: 1px;
     }
 
@@ -5583,7 +5583,7 @@
     }
 
     .draw-asset-thumb.active {
-      outline: 2px solid var(--accent);
+      outline: 2px solid var(--focus);
       outline-offset: 1px;
     }
 
@@ -15799,7 +15799,7 @@
         <div class="sheet-side">
           <h3>Legend — Rooms &amp; Zones</h3>
           <div id="legend-rooms"></div>
-          ${site.zones.some(z => z.type === "office") ? `<div style="font-size:10.5px; color:#928c7c; margin-top:6px;">📹 Manager's Office includes the CCTV monitoring feed</div>` : ""}
+          ${site.zones.some(z => z.type === "office") ? `<div style="font-size:10.5px; color:#6B6558; margin-top:6px;">📹 Manager's Office includes the CCTV monitoring feed</div>` : ""}
           <h3>Legend — Floor Elements</h3>
           <div id="legend-paint"></div>
           <h3>Area Schedule</h3>
@@ -15828,8 +15828,8 @@
 
       const roomRows = Object.entries(rows).filter(([k]) => !k.startsWith("paint_"));
       const paintRows = Object.entries(rows).filter(([k]) => k.startsWith("paint_"));
-      $("#legend-rooms").innerHTML = roomRows.map(([, r]) => legendRow(r)).join("") || `<div style="color:#928c7c; font-size:12px;">None</div>`;
-      $("#legend-paint").innerHTML = paintRows.map(([, r]) => legendRow(r)).join("") || `<div style="color:#928c7c; font-size:12px;">None</div>`;
+      $("#legend-rooms").innerHTML = roomRows.map(([, r]) => legendRow(r)).join("") || `<div style="color:#6B6558; font-size:12px;">None</div>`;
+      $("#legend-paint").innerHTML = paintRows.map(([, r]) => legendRow(r)).join("") || `<div style="color:#6B6558; font-size:12px;">None</div>`;
 
       const allRows = [...roomRows, ...paintRows].sort((a, b) => b[1].area - a[1].area);
       const table = $("#summary-table");
