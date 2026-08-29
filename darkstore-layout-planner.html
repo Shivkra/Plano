@@ -438,6 +438,47 @@
       background: #c9d9ff;
     }
 
+    /* Keyboard focus. The product had no focus indication at all, so anyone
+       navigating by keyboard was flying blind. :focus-visible keeps this to
+       keyboard use only, so mouse clicks don't grow a ring. */
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: var(--r-sm);
+    }
+
+    .btn:focus-visible,
+    .btn-tool-pill:focus-visible,
+    .smart-tool-btn:focus-visible,
+    .obj-card:focus-visible,
+    .zone-pick-card:focus-visible,
+    .cmdk-item:focus-visible,
+    .ctx-menu button:focus-visible,
+    .finish-dropdown button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    /* Screen-reader-only text, for icon-only controls that need a real name. */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     ::-webkit-scrollbar {
       width: 10px;
       height: 10px;
@@ -672,6 +713,22 @@
       display: flex;
       gap: 10px;
       justify-content: flex-end;
+    }
+
+    .prompt-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid var(--border-strong);
+      border-radius: var(--r-md);
+      background: var(--bg-soft);
+      color: var(--ink);
+      font-size: var(--fs-md);
+      font-weight: 600;
+      outline: none;
+    }
+
+    .prompt-input:focus {
+      border-color: var(--accent);
     }
 
     .shortcuts-modal-card {
@@ -5690,7 +5747,7 @@
         <div>
           <h1>Layout Planner</h1>
           <div class="lib-subtitle" style="font-size:13px; font-weight:600; color:var(--ink-soft); margin-top:4px;">
-            Create the best layout in 2 steps
+            Design your hub floor, optimise it to standard, then finish in 3D
           </div>
         </div>
       </div>
@@ -5927,7 +5984,7 @@
     <div class="issues-drawer" id="issues-drawer">
       <div class="flyout-head">
         <h3>Layout Issues &amp; Warnings</h3>
-        <button class="btn ghost icon sm" id="issues-close">✕</button>
+        <button class="btn ghost icon sm" id="issues-close" aria-label="Close">✕</button>
       </div>
       <div id="issues-list"></div>
     </div>
@@ -5971,7 +6028,7 @@
       <div class="flyout-drawer" id="obj-drawer">
         <div class="flyout-head">
           <h3>Store Object Library</h3>
-          <button class="btn ghost icon sm" id="obj-drawer-close">✕</button>
+          <button class="btn ghost icon sm" id="obj-drawer-close" aria-label="Close">✕</button>
         </div>
 
         <div class="flyout-category">
@@ -6025,7 +6082,7 @@
       <div class="flyout-drawer" id="room-drawer">
         <div class="flyout-head">
           <h3>Create Room by Dimensions</h3>
-          <button class="btn ghost icon sm" id="room-drawer-close">✕</button>
+          <button class="btn ghost icon sm" id="room-drawer-close" aria-label="Close">✕</button>
         </div>
         <div class="field">
           <label class="field-label">Room Type</label>
@@ -6063,7 +6120,7 @@
       <div class="flyout-drawer" id="zone-drawer">
         <div class="flyout-head">
           <h3>Draw a Zone</h3>
-          <button class="btn ghost icon sm" id="zone-drawer-close">✕</button>
+          <button class="btn ghost icon sm" id="zone-drawer-close" aria-label="Close">✕</button>
         </div>
         <p style="font-size:12px; color:var(--ink-soft); margin-bottom:14px; line-height:1.4;">
           Pick a zone, then click and drag on the floor to draw it at whatever size you need.
@@ -6091,7 +6148,7 @@
       <div class="flyout-drawer" id="draw-drawer">
         <div class="flyout-head">
           <h3>Draw &amp; Annotate</h3>
-          <button class="btn ghost icon sm" id="draw-drawer-close">✕</button>
+          <button class="btn ghost icon sm" id="draw-drawer-close" aria-label="Close">✕</button>
         </div>
         <p style="font-size:12px; color:var(--ink-soft); margin-bottom:12px; line-height:1.4;">
           Freehand notes, shape callouts and images — float on top of the floor plan, independent of the grid.
@@ -6139,7 +6196,7 @@
       <div class="flyout-drawer" id="cadtools-drawer" style="width:360px;">
         <div class="flyout-head">
           <h3 style="display:flex; align-items:center; gap:6px;"><span>⚡</span> Smart CAD Tools</h3>
-          <button class="btn ghost icon sm" id="cadtools-drawer-close">✕</button>
+          <button class="btn ghost icon sm" id="cadtools-drawer-close" aria-label="Close">✕</button>
         </div>
 
         <p style="font-size:12px; color:var(--ink-soft); margin-bottom:14px; line-height:1.4;">
@@ -6553,13 +6610,10 @@
                 </div>
               </div>
 
-              <!-- Optimize Layout Button (Original Generate Layout Location) -->
-              <div style="margin-top:12px;">
-                <button class="btn primary full" id="prop-optimize-btn" onclick="optimizeCurrentLayout()"
-                  style="font-weight:800; font-size:13px; padding:10px 16px; background:linear-gradient(135deg, #0EA5E9, #6366F1); box-shadow:0 4px 14px rgba(14,165,233,0.35); border:none; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:8px; width:100%; cursor:pointer;">
-                  <span style="font-size:15px;">⚡</span> Optimize Layout
-                </button>
-              </div>
+              <!-- Optimize lives in one place only: the always-visible action
+                   on the canvas. It used to be duplicated here as well, which
+                   meant the product's single most important action had two
+                   different-looking buttons competing for the same job. -->
             </div>
 
             <!-- Space Utilization -->
@@ -6649,7 +6703,7 @@
               <p>Work faster — just like Figma &amp; Canva</p>
             </div>
           </div>
-          <button class="btn ghost icon sm" id="shortcuts-close">✕</button>
+          <button class="btn ghost icon sm" id="shortcuts-close" aria-label="Close">✕</button>
         </div>
         <div class="shortcuts-grid">
           <div class="sc-col">
@@ -6697,7 +6751,7 @@
       <div class="ai-review-card">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
           <h2 style="font-size:18px; font-weight:800;">✨ Store Layout Operational Review</h2>
-          <button class="btn ghost icon sm" id="ai-review-close">✕</button>
+          <button class="btn ghost icon sm" id="ai-review-close" aria-label="Close">✕</button>
         </div>
         <div class="score-badge-big">
           <span>Operational Score</span>
@@ -7062,7 +7116,7 @@
       <div class="iso-edit-card" id="iso-edit-card">
         <div class="iso-edit-card-head">
           <input type="text" id="iso-edit-name" placeholder="Name">
-          <button class="btn ghost icon sm" id="iso-edit-close">✕</button>
+          <button class="btn ghost icon sm" id="iso-edit-close" aria-label="Close">✕</button>
         </div>
         <div class="iso-edit-card-sub" id="iso-edit-sub"></div>
         <div class="color-swatch-row" id="iso-edit-swatches"></div>
@@ -7227,6 +7281,18 @@
         <button class="btn" id="confirm-cancel">Cancel</button>
         <button class="btn danger" id="confirm-ok"
           style="background:#C0392B; color:#fff; border-color:#C0392B;">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="prompt-overlay">
+    <div class="modal">
+      <h2 id="prompt-title">Rename</h2>
+      <p id="prompt-body"></p>
+      <input type="text" id="prompt-input" class="prompt-input" autocomplete="off" spellcheck="false">
+      <div class="row" style="margin-top:18px;">
+        <button class="btn" id="prompt-cancel">Cancel</button>
+        <button class="btn primary" id="prompt-ok">Save</button>
       </div>
     </div>
   </div>
@@ -7465,6 +7531,45 @@
         function onCancel() { cleanup(false); }
         okBtn.addEventListener("click", onOk);
         cancelBtn.addEventListener("click", onCancel);
+      });
+    }
+
+    // Text-entry counterpart to confirmModal. The app was still using the
+    // browser's native prompt() in five places, which looks nothing like the
+    // rest of the product and can't be styled or themed.
+    // Resolves to the entered string, or null if cancelled.
+    function promptModal(title, body, value, okLabel) {
+      return new Promise(resolve => {
+        const ov = $("#prompt-overlay"), input = $("#prompt-input");
+        $("#prompt-title").textContent = title;
+        const bodyEl = $("#prompt-body");
+        bodyEl.textContent = body || "";
+        bodyEl.style.display = body ? "" : "none";
+        $("#prompt-ok").textContent = okLabel || "Save";
+        input.value = value == null ? "" : String(value);
+        ov.classList.add("on");
+        setTimeout(() => { input.focus(); input.select(); }, 30);
+        const okBtn = $("#prompt-ok"), cancelBtn = $("#prompt-cancel");
+        function cleanup(v) {
+          ov.classList.remove("on");
+          okBtn.removeEventListener("click", onOk);
+          cancelBtn.removeEventListener("click", onCancel);
+          input.removeEventListener("keydown", onKey);
+          ov.removeEventListener("pointerdown", onBackdrop);
+          resolve(v);
+        }
+        function onOk() { cleanup(input.value); }
+        function onCancel() { cleanup(null); }
+        function onKey(e) {
+          if (e.key === "Enter") { e.preventDefault(); onOk(); }
+          else if (e.key === "Escape") { e.preventDefault(); onCancel(); }
+          e.stopPropagation(); // don't let editor shortcuts fire while typing
+        }
+        function onBackdrop(e) { if (e.target === ov) onCancel(); }
+        okBtn.addEventListener("click", onOk);
+        cancelBtn.addEventListener("click", onCancel);
+        input.addEventListener("keydown", onKey);
+        ov.addEventListener("pointerdown", onBackdrop);
       });
     }
 
@@ -11123,9 +11228,13 @@
 
       const clearAnnoBtn = $("#draw-clear-btn");
       if (clearAnnoBtn) {
-        clearAnnoBtn.onclick = () => {
+        clearAnnoBtn.onclick = async () => {
           if (!site.annotations || !site.annotations.length) return toast("No annotations to clear");
-          if (!confirm("Clear all pen strokes, shapes, text and images from this floor plan? This can be undone with Ctrl/⌘+Z.")) return;
+          const n = site.annotations.length;
+          const ok = await confirmModal("Clear all annotations?",
+            `This removes ${n} pen stroke${n === 1 ? "" : "s"}, shape${n === 1 ? "" : "s"}, label${n === 1 ? "" : "s"} and image${n === 1 ? "" : "s"} from this floor plan. You can undo it with Ctrl/⌘+Z.`,
+            "Clear all", "Keep them");
+          if (!ok) return;
           snapshot();
           site.annotations = [];
           redraw(); updateStats(); queueSave();
@@ -12597,8 +12706,9 @@
         const localX = ev.clientX - rect.left - MARGIN, localY = ev.clientY - rect.top - MARGIN;
         const f = flowAt(localX, localY);
         if (f) {
-          const label = prompt("Label this flow (e.g. item type or SLA):", f.label || "");
-          if (label !== null) { snapshot(); f.label = label.trim() || null; redraw(); queueSave(); }
+          promptModal("Label this flow", "What moves along this route — item type, SLA, or anything useful to the team.", f.label || "").then(label => {
+            if (label !== null) { snapshot(); f.label = label.trim() || null; redraw(); queueSave(); }
+          });
         }
       });
       $("#boardwrap").addEventListener("scroll", () => { hideBin(); hideZoneToolbar(); hideContextMenu(); });
@@ -12652,13 +12762,14 @@
       if (tool === "shape:text") {
         if (layerLocks.annotations) return toast("Annotation layer is locked");
         const raw = ftFromClientRaw(ev.clientX, ev.clientY);
-        const txt = prompt("Label text:", "");
-        if (txt && txt.trim()) {
-          snapshot();
-          site.annotations = site.annotations || [];
-          site.annotations.push({ id: uid(), type: "text", x: raw.x, y: raw.y, text: txt.trim(), color: penColor });
-          queueSave(); redraw(); updateStats();
-        }
+        promptModal("Add a text label", "This sits on the floor plan as a note.", "", "Add label").then(txt => {
+          if (txt && txt.trim()) {
+            snapshot();
+            site.annotations = site.annotations || [];
+            site.annotations.push({ id: uid(), type: "text", x: raw.x, y: raw.y, text: txt.trim(), color: penColor });
+            queueSave(); redraw(); updateStats();
+          }
+        });
         return;
       }
       if (tool.startsWith("stamp:")) {
@@ -13286,8 +13397,9 @@
         addItem("Delete", "🗑", () => { if (selectedCells.length > 1) deleteSelectedCells(); else $("#prop-obj-del")?.click(); }, { danger: true, disabled: locked });
       } else if (kind === "flow") {
         addItem("Edit Label…", "🏷️", () => {
-          const l = prompt("Label this flow:", target.label || "");
-          if (l !== null) { snapshot(); target.label = l.trim() || null; redraw(); queueSave(); }
+          promptModal("Label this flow", "What moves along this route — item type, SLA, or anything useful to the team.", target.label || "").then(l => {
+            if (l !== null) { snapshot(); target.label = l.trim() || null; redraw(); queueSave(); }
+          });
         });
         addSep();
         addItem("Delete", "🗑", () => deleteSelectedFlow(), { danger: true });
@@ -13361,8 +13473,9 @@
     });
     $("#zt-rename").addEventListener("click", () => {
       const z = site.zones.find(z => z.id === selectedZoneId); if (!z) return;
-      const n = prompt("Room label:", z.label || ZONE_DEFS[z.type].name);
-      if (n !== null && n.trim()) { z.label = n.trim(); showZoneToolbar(); updateRightPanel(); redraw(); queueSave(); }
+      promptModal("Rename room", "", z.label || ZONE_DEFS[z.type].name).then(n => {
+        if (n !== null && n.trim()) { snapshot(); z.label = n.trim(); showZoneToolbar(); updateRightPanel(); redraw(); queueSave(); }
+      });
     });
 
     /* =====================================================================
@@ -15222,7 +15335,11 @@
           await saveSite(s);
           toast("Imported “" + s.name + "”");
           await openSite(s.id);
-        } catch (e) { alert("Could not read that file: " + e.message); }
+        } catch (e) {
+          await confirmModal("Couldn't open that file",
+            (e && e.message ? e.message + ". " : "") + "It needs to be a layout previously exported from this planner (a .json file).",
+            "OK", "Dismiss", false);
+        }
       };
       rd.readAsText(f);
       ev.target.value = "";
@@ -16416,12 +16533,14 @@
     }
     window.downloadMasterBackup = downloadMasterBackup;
 
-    function resetLocalWorkspace() {
-      if (confirm("Reset local workspace cache? This will clear locally cached drafts.")) {
-        localStorage.removeItem(SITE_LIST_KEY);
-        toast("Workspace local cache cleared");
-        setTimeout(() => location.reload(), 500);
-      }
+    async function resetLocalWorkspace() {
+      const ok = await confirmModal("Clear local cache?",
+        "This clears drafts cached in this browser and reloads the page. Layouts already saved to your account are not affected.",
+        "Clear cache", "Cancel");
+      if (!ok) return;
+      localStorage.removeItem(SITE_LIST_KEY);
+      toast("Workspace local cache cleared");
+      setTimeout(() => location.reload(), 500);
     }
     window.resetLocalWorkspace = resetLocalWorkspace;
 
