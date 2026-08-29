@@ -4478,6 +4478,21 @@
       color: var(--ink-soft);
     }
 
+    .iso-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: var(--fs-xs);
+      font-weight: 700;
+      color: var(--ink-soft);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .iso-toggle input {
+      accent-color: var(--ink);
+    }
+
     .iso-body {
       position: relative;
       flex: 1;
@@ -7030,8 +7045,16 @@
     <header class="iso-header">
       <button class="btn ghost icon" id="iso-back" title="Back to editor">←</button>
       <strong>3D Warehouse View</strong>
-      <span class="iso-sub">Click a room or object to edit it</span>
+      <span class="iso-sub">Click to edit · drag to pan · scroll to zoom</span>
       <div class="spacer"></div>
+      <div class="btn-group-pill">
+        <button class="btn-tool-pill" id="iso-zoom-out" title="Zoom out">−</button>
+        <button class="btn-tool-pill" id="iso-zoom-reset" title="Fit to view">Fit</button>
+        <button class="btn-tool-pill" id="iso-zoom-in" title="Zoom in">+</button>
+      </div>
+      <label class="iso-toggle" title="Show room and zone names">
+        <input type="checkbox" id="iso-show-labels" checked> Labels
+      </label>
       <button class="btn ghost sm" id="iso-export-png">⬇ Export PNG</button>
     </header>
     <div class="iso-body" id="iso-body">
@@ -15599,6 +15622,16 @@
     let isoScale = 10, isoOffsetX = 0, isoOffsetY = 0;
     let isoHitList = [];   // [{ kind:'zone'|'cell', ref, faces:[[{x,y}...], ...] }] in draw order
     let isoSelected = null; // { kind:'zone'|'cell', ref }
+    let isoShowLabels = true;
+    let isoDrag = null;    // { startX, startY, ox, oy, moved }
+
+    // Support rooms are real enclosed rooms — they get wall height. Operational
+    // areas (apron, sortation, lanes, staging) are floor regions, not rooms, so
+    // they stay as thin floor markings. Rendering both at the same height was
+    // what made the whole view read as one flat sheet of colour.
+    const ISO_ENCLOSED_ROOMS = new Set(["security", "medical", "conference", "office", "store", "ups", "bathroom", "battery"]);
+    const ISO_ROOM_WALL_FT = 9;
+    const ISO_FLOOR_FT = 0.35;
 
     const isoCanvasEl = () => $("#iso-canvas");
     const isoCtx = () => isoCanvasEl().getContext("2d");
@@ -15613,11 +15646,79 @@
       isoCtx().setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 
+    // Unit-scale projection (scale 1, no offset) — the basis for both the real
+    // projection and the fit calculation, so the two can never disagree.
+    function isoUnit(xFt, yFt, zFt) {
+      return { u: xFt - yFt, v: (xFt + yFt) * 0.5 - zFt * 0.62 };
+    }
+
     function isoProject(xFt, yFt, zFt) {
-      return {
-        x: (xFt - yFt) * isoScale + isoOffsetX,
-        y: (xFt + yFt) * isoScale * 0.5 - zFt * isoScale * 0.62 + isoOffsetY
+      const p = isoUnit(xFt, yFt, zFt);
+      return { x: p.u * isoScale + isoOffsetX, y: p.v * isoScale + isoOffsetY };
+    }
+
+    function isoZoneHeight(z) {
+      return ISO_ENCLOSED_ROOMS.has(z.type) ? ISO_ROOM_WALL_FT : ISO_FLOOR_FT;
+    }
+
+    // Fit the whole model to the viewport by measuring the REAL projected
+    // bounding box (every corner of every solid, including its height and the
+    // ground pad) rather than guessing from L+W. The old code guessed, then
+    // clamped the result with Math.max(2, …), which overrode the fit entirely
+    // and pushed the right-hand side of any wide layout off-canvas.
+    function fitIsoView() {
+      const c = isoCanvasEl();
+      if (!c || !site) return;
+      const cw = c.clientWidth, ch = c.clientHeight;
+      // Laying out against a zero-size canvas (screen still hidden) would bake
+      // in a garbage camera; the caller re-fits once it's actually on screen.
+      if (cw < 40 || ch < 40) return;
+      const pad = 6;
+      let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
+      const acc = (x, y, z) => {
+        const p = isoUnit(x, y, z);
+        if (p.u < minU) minU = p.u; if (p.u > maxU) maxU = p.u;
+        if (p.v < minV) minV = p.v; if (p.v > maxV) maxV = p.v;
       };
+      // Ground pad corners (z = 0)
+      [[-pad, -pad], [site.L + pad, -pad], [site.L + pad, site.W + pad], [-pad, site.W + pad]]
+        .forEach(([x, y]) => acc(x, y, 0));
+      // Tallest zone tops
+      site.zones.forEach(z => {
+        const h = isoZoneHeight(z);
+        [[z.x, z.y], [z.x + z.w, z.y], [z.x + z.w, z.y + z.h], [z.x, z.y + z.h]]
+          .forEach(([x, y]) => acc(x, y, h));
+      });
+      // Tallest object tops
+      for (let r = 0; r < site.rows; r++) {
+        for (let cc = 0; cc < site.cols; cc++) {
+          const idx = r * site.cols + cc;
+          const v = site.cells[idx];
+          if (!v) continue;
+          const def = PAINT_BY_ID[v];
+          if (!def) continue;
+          const dim = site.cellDims && site.cellDims[idx];
+          const hFt = (dim && dim.h != null) ? dim.h : (def.h || 3);
+          acc(cc * CELL_FT + CELL_FT / 2, r * CELL_FT + CELL_FT / 2, hFt);
+        }
+      }
+      if (!isFinite(minU)) return;
+      const margin = 44;
+      const availW = Math.max(20, cw - margin * 2), availH = Math.max(20, ch - margin * 2);
+      const bw = Math.max(0.001, maxU - minU), bh = Math.max(0.001, maxV - minV);
+      isoScale = Math.min(availW / bw, availH / bh);
+      isoOffsetX = margin + (availW - bw * isoScale) / 2 - minU * isoScale;
+      isoOffsetY = margin + (availH - bh * isoScale) / 2 - minV * isoScale;
+    }
+
+    // Zoom about a screen point, keeping whatever is under the cursor fixed.
+    function isoZoomAt(sx, sy, factor) {
+      const next = Math.max(0.4, Math.min(220, isoScale * factor));
+      const ratio = next / isoScale;
+      isoOffsetX = sx - (sx - isoOffsetX) * ratio;
+      isoOffsetY = sy - (sy - isoOffsetY) * ratio;
+      isoScale = next;
+      renderIsoView();
     }
 
     function isoShade(hex, factor) {
@@ -15672,74 +15773,115 @@
       const cw = c.clientWidth, ch = c.clientHeight;
       g.clearRect(0, 0, cw, ch);
 
+      // Opaque backdrop — clearRect alone leaves the corners transparent,
+      // which showed up as black edges in the exported PNG.
+      g.fillStyle = currentTheme === "dark" ? "#171C26" : "#F7F5F0";
+      g.fillRect(0, 0, cw, ch);
+
       const hasContent = site.zones.length > 0 || site.cells.some(v => v);
       const hint = $("#iso-empty-hint");
       if (hint) hint.style.display = hasContent ? "none" : "block";
       isoHitList = [];
       if (!hasContent) return;
 
-      const footW = site.L + site.W;
-      const footH = (site.L + site.W) * 0.5 + 14;
-      isoScale = Math.max(2, Math.min(16, Math.min((cw - 80) / footW, (ch - 130) / footH)));
-      isoOffsetX = cw / 2;
-      isoOffsetY = 80 + site.W * isoScale * 0.5;
-
       // Ground pad + building slab, so the plan reads as sitting on a lot.
       const pad = 6;
       isoQuadPath(g, [isoProject(-pad, -pad, 0), isoProject(site.L + pad, -pad, 0), isoProject(site.L + pad, site.W + pad, 0), isoProject(-pad, site.W + pad, 0)]);
       g.fillStyle = "#DCE7DA"; g.fill();
-      drawIsoBox(g, 0, 0, site.L, site.W, 0.4, "#E8E4D8", { stroke: false });
+      drawIsoBox(g, 0, 0, site.L, site.W, 0.4, "#E8E4D8");
 
-      // Depth-sort zones + painted objects back-to-front (painter's algorithm).
-      const items = [];
-      site.zones.forEach(z => items.push({ kind: "zone", ref: z, depth: z.x + z.y + z.w + z.h }));
+      const labelJobs = [];
+
+      // Zones are floor regions and rooms — always drawn before objects, since
+      // objects physically sit on top of them. (The old single sorted pass
+      // mixed the two and let a later zone's slab paint over objects already
+      // standing inside an earlier one.) Within each group, back-to-front by
+      // the near-corner depth key (x + y).
+      const zonesSorted = site.zones.slice().sort((a, b) => (a.x + a.y) - (b.x + b.y));
+      zonesSorted.forEach(z => {
+        const def = ZONE_DEFS[z.type] || { name: "Room", color: "#64748B" };
+        const color = z.color || def.color;
+        const selected = isoSelected && isoSelected.kind === "zone" && isoSelected.ref.id === z.id;
+        const h = isoZoneHeight(z);
+        const faces = drawIsoBox(g, z.x, z.y, z.w, z.h, h, color, {
+          strokeColor: selected ? "#111" : "rgba(0,0,0,0.22)", strokeWidth: selected ? 2.5 : 1
+        });
+        isoHitList.push({ kind: "zone", ref: z, faces });
+        labelJobs.push({ z, def, h, diamondW: (z.w + z.h) * isoScale });
+      });
+
+      const cells = [];
       for (let r = 0; r < site.rows; r++) {
         for (let cc = 0; cc < site.cols; cc++) {
-          if (site.cells[r * site.cols + cc]) items.push({ kind: "cell", ref: { c: cc, r }, depth: cc * CELL_FT + r * CELL_FT });
+          if (site.cells[r * site.cols + cc]) cells.push({ c: cc, r });
         }
       }
-      items.sort((a, b) => a.depth - b.depth);
-
-      items.forEach(item => {
-        if (item.kind === "zone") {
-          const z = item.ref;
-          const def = ZONE_DEFS[z.type] || { name: "Room", color: "#64748B" };
-          const color = z.color || def.color;
-          const selected = isoSelected && isoSelected.kind === "zone" && isoSelected.ref.id === z.id;
-          const faces = drawIsoBox(g, z.x, z.y, z.w, z.h, 1.6, color, {
-            strokeColor: selected ? "#111" : "rgba(0,0,0,0.18)", strokeWidth: selected ? 2.5 : 1
-          });
-          if (z.w * isoScale > 26) {
-            const lp = isoProject(z.x + z.w / 2, z.y + z.h / 2, 1.6);
-            g.fillStyle = "#1D1B17"; g.font = `700 ${Math.max(9, Math.min(12, isoScale * 0.9))}px -apple-system,Segoe UI,Roboto,sans-serif`;
-            g.textAlign = "center"; g.textBaseline = "middle";
-            g.fillText(z.label || def.name, lp.x, lp.y);
-          }
-          isoHitList.push({ kind: "zone", ref: z, faces });
-        } else {
-          const idx = item.ref.r * site.cols + item.ref.c;
-          const v = site.cells[idx], def = PAINT_BY_ID[v];
-          if (!def) return;
-          const customDim = site.cellDims && site.cellDims[idx];
-          const w = (customDim && customDim.w != null) ? customDim.w : (def.w || CELL_FT);
-          const d = (customDim && customDim.d != null) ? customDim.d : (def.d || CELL_FT);
-          const hFt = (customDim && customDim.h != null) ? customDim.h : (def.h || 3);
-          const color = (site.cellColors && site.cellColors[idx]) || def.color;
-          const cx = item.ref.c * CELL_FT + CELL_FT / 2, cy = item.ref.r * CELL_FT + CELL_FT / 2;
-          const bx = cx - w / 2, by = cy - d / 2;
-          const selected = isoSelected && isoSelected.kind === "cell" && isoSelected.ref.c === item.ref.c && isoSelected.ref.r === item.ref.r;
-          const faces = drawIsoBox(g, bx, by, w, d, hFt, color, {
-            strokeColor: selected ? "#111" : "rgba(0,0,0,0.25)", strokeWidth: selected ? 2.5 : 0.75
-          });
-          if (def.id !== CCTV_ID && w * isoScale > 10) {
-            const tp = isoProject(cx, cy, hFt);
-            g.font = `${Math.max(8, Math.min(15, isoScale * 0.85))}px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple Color Emoji","Segoe UI Emoji",sans-serif`;
-            g.textAlign = "center"; g.textBaseline = "middle";
-            g.fillText(def.glyph || "", tp.x, tp.y);
-          }
-          isoHitList.push({ kind: "cell", ref: item.ref, faces });
+      cells.sort((a, b) => (a.c + a.r) - (b.c + b.r));
+      cells.forEach(cell => {
+        const idx = cell.r * site.cols + cell.c;
+        const v = site.cells[idx], def = PAINT_BY_ID[v];
+        if (!def) return;
+        const customDim = site.cellDims && site.cellDims[idx];
+        const w = (customDim && customDim.w != null) ? customDim.w : (def.w || CELL_FT);
+        const d = (customDim && customDim.d != null) ? customDim.d : (def.d || CELL_FT);
+        const hFt = (customDim && customDim.h != null) ? customDim.h : (def.h || 3);
+        const color = (site.cellColors && site.cellColors[idx]) || def.color;
+        const cx = cell.c * CELL_FT + CELL_FT / 2, cy = cell.r * CELL_FT + CELL_FT / 2;
+        const selected = isoSelected && isoSelected.kind === "cell" && isoSelected.ref.c === cell.c && isoSelected.ref.r === cell.r;
+        const faces = drawIsoBox(g, cx - w / 2, cy - d / 2, w, d, hFt, color, {
+          strokeColor: selected ? "#111" : "rgba(0,0,0,0.25)", strokeWidth: selected ? 2.5 : 0.75
+        });
+        if (def.id !== CCTV_ID && (w + d) * isoScale > 26) {
+          const tp = isoProject(cx, cy, hFt);
+          g.font = `${Math.max(8, Math.min(16, (w + d) * isoScale * 0.22))}px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple Color Emoji","Segoe UI Emoji",sans-serif`;
+          g.textAlign = "center"; g.textBaseline = "middle";
+          g.fillText(def.glyph || "", tp.x, tp.y);
         }
+        isoHitList.push({ kind: "cell", ref: cell, faces });
       });
+
+      // Labels last, so no later solid can paint over one. Each label shrinks
+      // to fit its own room, gets a soft backing plate for contrast against
+      // saturated fills, and is simply dropped when the room is too small to
+      // hold any legible text — far better than the old behaviour, where 31 of
+      // 32 labels spilled outside their own zone and collided with each other.
+      if (isoShowLabels) {
+        const placed = [];
+        labelJobs.sort((a, b) => (b.z.w * b.z.h) - (a.z.w * a.z.h));
+        labelJobs.forEach(job => {
+          const { z, def, h, diamondW } = job;
+          let text = z.label || def.name;
+          const avail = diamondW - 10;
+          if (avail < 26) return;
+          let size = Math.max(8, Math.min(13, diamondW * 0.11));
+          g.font = `700 ${size}px -apple-system,Segoe UI,Roboto,sans-serif`;
+          if (g.measureText(text).width > avail) {
+            size = Math.max(8, size * avail / g.measureText(text).width);
+            g.font = `700 ${size}px -apple-system,Segoe UI,Roboto,sans-serif`;
+          }
+          if (g.measureText(text).width > avail) {
+            while (text.length > 3 && g.measureText(text + "…").width > avail) text = text.slice(0, -1);
+            text += "…";
+          }
+          if (text.length <= 3) return;
+          const lp = isoProject(z.x + z.w / 2, z.y + z.h / 2, h);
+          const tw = g.measureText(text).width, thh = size + 6;
+          const box = { x: lp.x - tw / 2 - 4, y: lp.y - thh / 2, w: tw + 8, h: thh };
+          if (placed.some(p => box.x < p.x + p.w && box.x + box.w > p.x && box.y < p.y + p.h && box.y + box.h > p.y)) return;
+          placed.push(box);
+          g.fillStyle = "rgba(255,255,255,0.82)";
+          roundRectPath(g, box.x, box.y, box.w, box.h, 4); g.fill();
+          g.fillStyle = "#1D1B17";
+          g.textAlign = "center"; g.textBaseline = "middle";
+          g.fillText(text, lp.x, lp.y);
+        });
+      }
+
+      // Scale caption, so the render is still a measurable drawing.
+      g.fillStyle = currentTheme === "dark" ? "rgba(241,245,249,0.6)" : "rgba(29,27,23,0.55)";
+      g.font = "600 11px -apple-system,Segoe UI,Roboto,sans-serif";
+      g.textAlign = "left"; g.textBaseline = "bottom";
+      g.fillText(`${site.L} × ${site.W} ft · ${fmtNum(site.L * site.W)} sq ft`, 14, ch - 12);
     }
 
     function isoFindHit(px, py) {
@@ -15796,7 +15938,16 @@
     $("#iso-edit-close")?.addEventListener("click", () => { isoSelected = null; hideIsoEditCard(); renderIsoView(); });
     $("#iso-edit-dup")?.addEventListener("click", () => {
       if (!isoSelected) return;
-      if (isoSelected.kind === "zone") duplicateSelectedZone(); else duplicateSelectedObject();
+      if (isoSelected.kind === "zone") {
+        duplicateSelectedZone();
+        // duplicateSelectedZone selects the new copy — follow it here too, so
+        // the edit card acts on the copy rather than silently on the original.
+        const nz = site.zones.find(z => z.id === selectedZoneId);
+        if (nz) { isoSelected = { kind: "zone", ref: nz }; showIsoEditCard(isoSelected); }
+      } else {
+        duplicateSelectedObject();
+        if (selectedCell) { isoSelected = { kind: "cell", ref: selectedCell }; showIsoEditCard(isoSelected); }
+      }
       renderIsoView();
     });
     $("#iso-edit-del")?.addEventListener("click", () => {
@@ -15818,15 +15969,53 @@
       isoSelected = null; hideIsoEditCard();
       hideBin(); hideZoneToolbar(); hideContextMenu();
       showScreen("isoview");
-      requestAnimationFrame(() => { sizeIsoCanvas(); renderIsoView(); });
+      requestAnimationFrame(() => { sizeIsoCanvas(); fitIsoView(); renderIsoView(); });
     });
     $("#iso-back")?.addEventListener("click", () => {
       showScreen("editor");
       redraw(); updateStats(); updateRightPanel();
     });
-    isoCanvasEl()?.addEventListener("click", handleIsoClick);
+
+    // Pan + zoom. The canvas already advertised `cursor: grab`, but nothing
+    // was ever wired to it — dragging and scrolling did nothing at all.
+    const isoC = isoCanvasEl();
+    if (isoC) {
+      isoC.addEventListener("pointerdown", ev => {
+        isoDrag = { startX: ev.clientX, startY: ev.clientY, ox: isoOffsetX, oy: isoOffsetY, moved: false };
+        safeSetPointerCapture(isoC, ev.pointerId);
+      });
+      isoC.addEventListener("pointermove", ev => {
+        if (!isoDrag) return;
+        const dx = ev.clientX - isoDrag.startX, dy = ev.clientY - isoDrag.startY;
+        if (!isoDrag.moved && Math.hypot(dx, dy) < 4) return;
+        isoDrag.moved = true;
+        isoOffsetX = isoDrag.ox + dx;
+        isoOffsetY = isoDrag.oy + dy;
+        renderIsoView();
+      });
+      const endDrag = ev => {
+        if (isoDrag && !isoDrag.moved) handleIsoClick(ev);
+        isoDrag = null;
+      };
+      isoC.addEventListener("pointerup", endDrag);
+      isoC.addEventListener("pointercancel", () => { isoDrag = null; });
+      isoC.addEventListener("wheel", ev => {
+        ev.preventDefault();
+        const rect = isoC.getBoundingClientRect();
+        isoZoomAt(ev.clientX - rect.left, ev.clientY - rect.top, ev.deltaY < 0 ? 1.12 : 1 / 1.12);
+      }, { passive: false });
+    }
+    function isoZoomButton(factor) {
+      const c = isoCanvasEl();
+      if (c) isoZoomAt(c.clientWidth / 2, c.clientHeight / 2, factor);
+    }
+    $("#iso-zoom-in")?.addEventListener("click", () => isoZoomButton(1.25));
+    $("#iso-zoom-out")?.addEventListener("click", () => isoZoomButton(1 / 1.25));
+    $("#iso-zoom-reset")?.addEventListener("click", () => { fitIsoView(); renderIsoView(); });
+    $("#iso-show-labels")?.addEventListener("change", e => { isoShowLabels = e.target.checked; renderIsoView(); });
+
     window.addEventListener("resize", () => {
-      if ($("#isoview")?.classList.contains("on")) { sizeIsoCanvas(); renderIsoView(); }
+      if ($("#isoview")?.classList.contains("on")) { sizeIsoCanvas(); fitIsoView(); renderIsoView(); }
     });
 
     /* =====================================================================
