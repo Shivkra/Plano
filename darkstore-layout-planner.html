@@ -2641,6 +2641,204 @@
     }
 
     /* Standalone Floating Action Button (FAB - Bottom Right, adjusted) */
+    /* Four-stage journey indicator */
+    .journey {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      list-style: none;
+      margin: 0 12px 0 0;
+      padding: 0;
+    }
+
+    .journey-step {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px 4px 8px;
+      border-radius: var(--r-pill);
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--ink-faint);
+      white-space: nowrap;
+      transition: color var(--dur-f) var(--ease), background var(--dur-f) var(--ease);
+    }
+
+    .journey-step + .journey-step::before {
+      content: "";
+      width: 12px;
+      height: 1.5px;
+      background: var(--border-strong);
+      margin-right: 2px;
+      flex-shrink: 0;
+    }
+
+    .journey-step .jn-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--border-strong);
+      flex-shrink: 0;
+      transition: background var(--dur-f) var(--ease), box-shadow var(--dur-f) var(--ease);
+    }
+
+    .journey-step.done {
+      color: var(--ink-soft);
+    }
+
+    .journey-step.done .jn-dot {
+      background: var(--success, #16A34A);
+    }
+
+    .journey-step.active {
+      color: var(--ink);
+      background: var(--surface-2);
+    }
+
+    .journey-step.active .jn-dot {
+      background: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+    }
+
+    /* Tight laptop widths: keep the label for the step you're ON (which is the
+       information that matters) and collapse the rest to dots, rather than
+       dropping all the labels or letting the header overflow. */
+    @media (max-width: 1400px) {
+      .journey-step:not(.active) .jn-label { display: none; }
+      .journey-step:not(.active) { padding: 4px 6px; }
+    }
+
+    @media (max-width: 1040px) {
+      .journey .jn-label { display: none; }
+      .journey-step { padding: 4px 6px; }
+    }
+
+    /* Optimize result card — what changed, and a way back. */
+    .optimize-result {
+      position: absolute;
+      right: 22px;
+      bottom: 88px;
+      width: 300px;
+      z-index: 40;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-lg);
+      padding: 14px 16px 12px;
+      display: none;
+    }
+
+    .optimize-result.on {
+      display: block;
+      animation: optResIn .22s var(--ease);
+    }
+
+    @keyframes optResIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .opt-res-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .opt-res-title {
+      font-size: var(--fs-sm);
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .opt-res-util-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .opt-res-util-label {
+      font-size: var(--fs-xs);
+      color: var(--ink-soft);
+      font-weight: 600;
+    }
+
+    .opt-res-util-nums {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 6px;
+      font-size: var(--fs-sm);
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .opt-res-arrow {
+      color: var(--ink-faint);
+      font-weight: 600;
+    }
+
+    .opt-res-delta {
+      font-size: var(--fs-xs);
+      font-weight: 800;
+      color: var(--success, #16A34A);
+    }
+
+    .opt-res-delta.flat {
+      color: var(--ink-faint);
+    }
+
+    .opt-res-bar {
+      height: 6px;
+      border-radius: 99px;
+      background: var(--surface-2);
+      overflow: hidden;
+    }
+
+    .opt-res-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: var(--accent);
+      transition: width .45s var(--ease);
+    }
+
+    .opt-res-changes {
+      margin: 12px 0 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      max-height: 168px;
+      overflow-y: auto;
+    }
+
+    .opt-res-line {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+      font-size: var(--fs-xs);
+      color: var(--ink-soft);
+      line-height: 1.45;
+    }
+
+    .opt-res-line b {
+      color: var(--ink);
+      font-weight: 800;
+    }
+
+    .opt-res-none {
+      font-size: var(--fs-xs);
+      color: var(--ink-faint);
+      line-height: 1.5;
+    }
+
+    .opt-res-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 12px;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+    }
+
     .fab-optimize-btn {
       position: fixed;
       bottom: 60px;
@@ -5948,6 +6146,14 @@
       </div>
 
       <div class="ed-nav-center">
+        <!-- Where the manager is in the four-stage journey. Nothing in the
+             product used to say this, so it was easy to finish designing and
+             not realise Optimize and Finish were the next steps. -->
+        <ol class="journey" id="journey" aria-label="Progress">
+          <li class="journey-step" data-stage="design"><span class="jn-dot"></span><span class="jn-label">Design</span></li>
+          <li class="journey-step" data-stage="optimize"><span class="jn-dot"></span><span class="jn-label">Optimise</span></li>
+          <li class="journey-step" data-stage="finish"><span class="jn-dot"></span><span class="jn-label">Finish in 3D</span></li>
+        </ol>
         <div class="btn-group-pill">
           <button class="btn-tool-pill" id="ed-undo" title="Undo (Cmd/Ctrl+Z)">↩ Undo</button>
           <button class="btn-tool-pill" id="ed-redo" title="Redo (Cmd/Ctrl+Shift+Z)">↪ Redo</button>
@@ -6819,6 +7025,31 @@
       <span class="fab-opt-icon">⚡</span>
       <span class="fab-opt-text">Optimize Layout</span>
     </button>
+
+    <!-- What Optimize actually changed, with a way back. -->
+    <div class="optimize-result" id="optimize-result">
+      <div class="opt-res-head">
+        <span class="opt-res-title">⚡ Layout optimised</span>
+        <button class="btn ghost icon sm" id="opt-res-close" aria-label="Close">✕</button>
+      </div>
+      <div class="opt-res-util">
+        <div class="opt-res-util-row">
+          <span class="opt-res-util-label">Floor used</span>
+          <span class="opt-res-util-nums">
+            <span id="opt-res-before">0%</span>
+            <span class="opt-res-arrow">→</span>
+            <span id="opt-res-after">0%</span>
+            <span class="opt-res-delta" id="opt-res-delta"></span>
+          </span>
+        </div>
+        <div class="opt-res-bar"><div class="opt-res-bar-fill" id="opt-res-bar"></div></div>
+      </div>
+      <div class="opt-res-changes" id="opt-res-changes"></div>
+      <div class="opt-res-actions">
+        <button class="btn sm ghost full" id="opt-res-revert">↩ Revert</button>
+        <button class="btn sm primary full" id="opt-res-keep">Keep changes</button>
+      </div>
+    </div>
   </div>
 
   <!-- ================= MAANG PRODUCT BUILDER & WORKSPACE SETTINGS MODAL ================= -->
@@ -10668,6 +10899,10 @@
     function openEditor(s, options) {
       if (!s) return;
       site = s;
+      // A result card from a previous site must not follow the user here —
+      // its Revert would restore a different layout's state.
+      optimizeRevertState = null;
+      hideOptimizeResult();
       ensureCellsArray(site);
       if (site._freshGenerate === undefined && site.zones && site.zones.length && site.cells.every(c => c === 0)) {
         // Older sites predate the conveyor default.
@@ -14636,9 +14871,105 @@
     }
 
     // Comprehensive Spatial Optimization Engine (Enforces standards & maximizes space efficiency)
+    // Snapshot of the things Optimize is allowed to change, so we can show the
+    // manager a real before/after instead of just asserting it worked.
+    function captureLayoutStats() {
+      const counts = {};
+      let objects = 0;
+      for (let i = 0; i < site.cells.length; i++) {
+        const v = site.cells[i];
+        if (!v) continue;
+        objects++;
+        const def = PAINT_BY_ID[v];
+        const n = def ? def.name : "Item";
+        counts[n] = (counts[n] || 0) + 1;
+      }
+      const zoneArea = site.zones.reduce((s, z) => s + getZoneArea(z), 0);
+      const objArea = objects * CELL_FT * CELL_FT;
+      const total = site.L * site.W;
+      return {
+        objects, counts,
+        rooms: site.zones.length,
+        roomNames: site.zones.map(z => z.label || (ZONE_DEFS[z.type] || {}).name || "Room"),
+        utilPct: total > 0 ? Math.min(100, Math.round((zoneArea + objArea) / total * 100)) : 0
+      };
+    }
+
+    // Journey state. "Design" is done once there's anything on the floor;
+    // "Optimise" once the manager has run it at least once on this site.
+    // Persisted on the site so it survives reloads and switching layouts.
+    function updateJourney(stage) {
+      const el = $("#journey");
+      if (!el || !site) return;
+      const hasContent = (site.zones && site.zones.length > 0) || (site.cells || []).some(v => v);
+      const optimised = !!site._optimisedAt;
+      const active = stage || (optimised ? "finish" : hasContent ? "optimize" : "design");
+      const order = ["design", "optimize", "finish"];
+      const activeIdx = order.indexOf(active);
+      el.querySelectorAll(".journey-step").forEach(step => {
+        const i = order.indexOf(step.dataset.stage);
+        step.classList.toggle("active", i === activeIdx);
+        step.classList.toggle("done", i < activeIdx);
+        if (i === activeIdx) step.setAttribute("aria-current", "step");
+        else step.removeAttribute("aria-current");
+      });
+    }
+
+    let optimizeRevertState = null;
+    function hideOptimizeResult() { $("#optimize-result")?.classList.remove("on"); }
+    function showOptimizeResult(before, after, revertState) {
+      const card = $("#optimize-result");
+      if (!card) return;
+      optimizeRevertState = revertState;
+
+      $("#opt-res-before").textContent = before.utilPct + "%";
+      $("#opt-res-after").textContent = after.utilPct + "%";
+      const delta = after.utilPct - before.utilPct;
+      const deltaEl = $("#opt-res-delta");
+      deltaEl.textContent = delta > 0 ? `+${delta} pts` : delta < 0 ? `${delta} pts` : "no change";
+      deltaEl.classList.toggle("flat", delta === 0);
+      $("#opt-res-bar").style.width = after.utilPct + "%";
+
+      // Itemise what actually changed, by comparing the before/after counts —
+      // no claims the numbers don't support.
+      const lines = [];
+      const names = new Set([...Object.keys(before.counts), ...Object.keys(after.counts)]);
+      [...names].sort().forEach(n => {
+        const d = (after.counts[n] || 0) - (before.counts[n] || 0);
+        if (d > 0) lines.push(`<div class="opt-res-line">＋ <span><b>${d}</b> ${n}${d === 1 ? "" : "s"} added</span></div>`);
+        else if (d < 0) lines.push(`<div class="opt-res-line">− <span><b>${-d}</b> ${n}${d === -1 ? "" : "s"} removed</span></div>`);
+      });
+      const newRooms = after.roomNames.filter(n => !before.roomNames.includes(n));
+      newRooms.forEach(n => lines.push(`<div class="opt-res-line">＋ <span>Room added: <b>${n}</b></span></div>`));
+
+      $("#opt-res-changes").innerHTML = lines.length
+        ? lines.join("")
+        : `<div class="opt-res-none">Your layout already meets the standard — nothing needed changing.</div>`;
+
+      card.classList.add("on");
+    }
+    $("#opt-res-close")?.addEventListener("click", hideOptimizeResult);
+    $("#opt-res-keep")?.addEventListener("click", () => { optimizeRevertState = null; hideOptimizeResult(); toast("Changes kept"); });
+    $("#opt-res-revert")?.addEventListener("click", () => {
+      if (!optimizeRevertState) return hideOptimizeResult();
+      applySnap(optimizeRevertState);
+      optimizeRevertState = null;
+      // The optimize run pushed one undo entry; drop it so Revert doesn't
+      // leave a redundant step in the history.
+      if (undoStack.length) undoStack.pop();
+      updateUndoBtns();
+      deselectZone(); selectedCell = null; selectedCells = [];
+      redraw(); updateStats(); updateRightPanel(); queueSave();
+      hideOptimizeResult();
+      toast("Reverted to your previous layout");
+    });
+
     function optimizeCurrentLayout() {
       if (!site) return;
+      hideOptimizeResult();
       snapshot();
+      const beforeStats = captureLayoutStats();
+      const beforeState = snapshotState();
 
       let actionsCount = 0;
       let dockCleared = 0;
@@ -14838,8 +15169,13 @@
       updateStats();
       queueSave();
 
-      const finalOcc = $("#stat-occ")?.textContent || "74%";
-      toast(`⚡ Layout Optimized: Enforced 6ft aisles, cleared dock buffers & boosted space efficiency to ${finalOcc}!`);
+      site._optimisedAt = Date.now();
+      updateJourney();
+
+      // Optimize rewrites the manager's floor. Rather than asserting success
+      // in a toast that vanishes, show exactly what changed and offer a
+      // one-click way back.
+      showOptimizeResult(beforeStats, captureLayoutStats(), beforeState);
     }
     window.optimizeCurrentLayout = optimizeCurrentLayout;
 
@@ -15267,6 +15603,7 @@
       if (!site) return;
       updateRightPanel();
       runLayoutValidation();
+      updateJourney();
     }
 
     /* =====================================================================
@@ -16108,8 +16445,9 @@
     $("#ed-finish")?.addEventListener("click", () => {
       hideFinishDropdown();
       isoSelected = null; hideIsoEditCard();
-      hideBin(); hideZoneToolbar(); hideContextMenu();
+      hideBin(); hideZoneToolbar(); hideContextMenu(); hideOptimizeResult();
       showScreen("isoview");
+      updateJourney("finish");
       requestAnimationFrame(() => { sizeIsoCanvas(); fitIsoView(); renderIsoView(); });
     });
     $("#iso-back")?.addEventListener("click", () => {
