@@ -3185,7 +3185,7 @@
     .fab-optimize-btn {
       position: fixed;
       bottom: 60px;
-      right: 140px;
+      right: 20px;
       z-index: 750;
       background: linear-gradient(135deg, #0EA5E9 0%, #6366F1 50%, #8B5CF6 100%);
       color: #ffffff !important;
@@ -5090,11 +5090,6 @@
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
       z-index: 5;
-    }
-
-    .iso-sub {
-      font-size: var(--fs-xs);
-      color: var(--ink-soft);
     }
 
     .iso-toggle {
@@ -7439,11 +7434,11 @@
         <span id="zoom-val-txt"
           style="min-width:34px; font-size:11px; font-weight:700; color:var(--ink-soft);">130%</span>
       </div>
-      <button class="shortcuts-fab-btn" id="cmdk-open-btn" title="Command Palette (⌘/Ctrl+K)">
-        <span>⚡</span> Commands
-      </button>
       <button class="shortcuts-fab-btn" id="shortcuts-help-btn" title="Keyboard Shortcuts (?)">
         <span>⌨️</span> Shortcuts
+      </button>
+      <button class="shortcuts-fab-btn" id="cmdk-open-btn" title="Command Palette (⌘/Ctrl+K)">
+        <span>⚡</span> Commands
       </button>
     </footer>
 
@@ -7760,7 +7755,6 @@
     <header class="iso-header">
       <button class="btn ghost icon" id="iso-back" title="Back to editor">←</button>
       <strong>3D Warehouse View</strong>
-      <span class="iso-sub">Drag items to move · drag the floor to pan · scroll to zoom</span>
       <div class="spacer"></div>
       <div class="btn-group-pill">
         <button class="btn-tool-pill" id="iso-zoom-out" title="Zoom out">−</button>
@@ -10030,54 +10024,44 @@
         rationale: "Straight Spine is the default because it's the shortest, most legible process line and the cheapest single conveyor run. Pick Corner Turn if the building or the gate itself can't sit mid-wall, or Loop-Back if the plot is wide and shallow rather than long and narrow.",
       });
 
-      /* ---- 2. How boxes move. Asked BEFORE lanes because it sets the aisle
-         width every later decision has to budget around. A single live
-         number replaces the old 4-card picker (manual/trolley/cage/forklift):
-         almost every hub runs one handling method end to end, so there's
-         nothing to compare — dial the aisle width and the equipment tier
-         and lane width it implies follow automatically. Lane width and
-         staging depth used to be their own questions; both are now
-         research-set defaults instead of asked (lane width rides along with
-         this answer below), so this is the only place aisle trade-offs
-         still need a human's input at all. */
-      const equipTierFor = rows => rows <= 2
-        ? { key: "manual", label: "Hand-carried", laneMinFt: 6 }
-        : rows === 3
-          ? { key: "trolley", label: "Trolleys / pallet trucks", laneMinFt: 6 }
-          : rows === 4
-            ? { key: "cage", label: "Roll-cages", laneMinFt: 8 }
-            : { key: "forklift", label: "Forklifts", laneMinFt: 12 };
-      const equipCompute = widthFt => {
-        const rows = Math.max(1, Math.round(widthFt / CELL_FT));
-        const snappedFt = rows * CELL_FT;
-        const tier = equipTierFor(rows);
-        const floorPct = Math.max(0, 100 - Math.round(snappedFt / W * 100 * 4));
+      /* ---- 2. How wide each entrance gate is. Used to ask how boxes move
+         around the floor (equipment/aisle width) — that traded a live number
+         for a "which of 4 equipment types" framing nobody found useful, and
+         almost every hub runs one handling method anyway, so it's now a
+         silent research-set default (trolley, see defaultGenParams) same as
+         lane width and staging depth. Gate width is the more concrete,
+         easier-to-measure real-world number in that slot: it directly sizes
+         the gate zone the generator actually draws (doorSpacingFt below),
+         where the old aisle-width answer only fed a display metric. */
+      const MIN_GATE_FT = 8; // narrowest a single dock door + apron should be
+      const gateWidthCompute = ftPerDoor => {
+        const wd = Math.max(1, Math.round(ftPerDoor));
+        const doorsNow = Math.max(1, p.dockBays || 4);
         return {
-          tier,
           metrics: [
-            ["Aisle width needed", snappedFt + " ft"],
-            ["Floor left for sorting", floorPct + "%"],
-            ["Meets safe minimum", snappedFt >= MIN_AISLE_FT ? "Yes" : "No"],
+            ["Gate width per door", wd + " ft"],
+            ["Meets minimum functional width", wd >= MIN_GATE_FT ? "Yes" : "No"],
+            [`Wall used at ${doorsNow} door${doorsNow === 1 ? "" : "s"}`, fmtNum(wd * doorsNow) + " ft"],
           ],
-          patch: { handlingEquipment: tier.key, aisleRows: rows, laneWidthFt: tier.laneMinFt },
+          patch: { doorSpacingFt: wd },
         };
       };
       D.push({
-        id: "equipment",
-        title: "How do boxes move around the floor?",
-        why: "This sets how wide every working aisle has to be — the biggest claim on your floor after the lanes themselves.",
+        id: "gateWidth",
+        title: "How wide is each entrance gate?",
+        why: "This sets how much wall each dock door needs, and how much frontage the whole gate bank takes up.",
         options: [],
         customNumeric: {
           standalone: true,
-          unit: "ft aisle width",
-          min: CELL_FT, max: CELL_FT * 8, step: CELL_FT,
-          initial: (p.aisleRows || 3) * CELL_FT,
-          compute: equipCompute,
-          label: "Aisle width",
-          help: "Most hubs run one width the whole floor — 9 ft (trolleys) covers almost everyone. Widen it only if you actually move pallets on forklifts.",
+          unit: "ft per door",
+          min: 6, max: 20, step: 1,
+          initial: p.doorSpacingFt || 12,
+          compute: gateWidthCompute,
+          label: "Gate width",
+          help: "12 ft is the common bay spacing for a single dock door — enough for the leveler and a square approach. Narrower saves wall; wider suits oversized trucks.",
         },
-        recommend: "trolley",
-        rationale: "9 ft is the common default — trolleys clear it two-way without giving up the floor a forklift would demand. Widen it only if you actually move pallets on forklifts.",
+        recommend: "n12",
+        rationale: "12 ft covers a standard dock door and its leveler with room to approach square. Go narrower only if wall space is tight; wider if you regularly load oversized vehicles.",
       });
 
       /* ---- 3. When trucks leave. Drives peak concurrency (staging depth) AND
@@ -10102,46 +10086,55 @@
         rationale: "A few dispatch windows is the steadiest pattern for most hubs — one big night sort peaks hard on floor space and staffing, while running continuously needs cover all day. Pick what your outbound trucks are actually booked for.",
       });
 
-      /* ---- 4. Door count. Used to feed a since-removed split question; now
-         just the total, since doors run as one shared bank either way (see
-         the note below). A door plus its apron needs roughly 12 ft of wall,
-         so the building's frontage caps it.
+      /* ---- 4. Door count — a single adjustable number, not presets. Doors
+         run as one shared bank either way (see the note further down), and
+         gate WIDTH is now its own question above, so doorPatch here only
+         ever sets the count and its in/out reference split, never width.
          Recommendation is anchored on the real cross-dock density benchmark
          (~1 door per 2,500-3,000 sq ft — 3-4x a storage warehouse's density,
-         since inbound and outbound run simultaneously) rather than an
-         arbitrary share of the frontage cap, so a manager who under-counts
-         doors sees the mismatch instead of it silently reading as "wide open". */
+         since inbound and outbound run simultaneously), shown live as the
+         number is dialed rather than baked into three fixed presets. */
       const maxDoors = Math.max(1, Math.floor((L * 0.8) / 12));
       const densityTarget = clamp(Math.round((L * W) / 2750), 1, maxDoors);
-      const doorOpts = [...new Set([
-        Math.max(1, Math.round(maxDoors * 0.35)),
-        densityTarget,
-        maxDoors,
-      ])].sort((a, b) => a - b);
       const winHrs = OP_WINDOW_HOURS[p.wavePattern] || OP_WINDOW_HOURS.night;
       const doorSqftPer = Math.round((L * W) / densityTarget);
-      const doorPatch = n => ({ dockBays: n, dockInBays: Math.max(1, Math.round(n * 0.4)), dockOutBays: Math.max(1, n - Math.round(n * 0.4)), doorSpacingFt: n > 30 ? 14 : 12 });
+      const doorPatch = n => ({ dockBays: n, dockInBays: Math.max(1, Math.round(n * 0.4)), dockOutBays: Math.max(1, n - Math.round(n * 0.4)) });
+      const doorsCompute = n => {
+        n = Math.max(1, Math.round(n));
+        return {
+          metrics: [
+            ["Truck turns per window", "~" + fmtNum(Math.round(n * 1.3 * winHrs))],
+            ["Destinations per door", dests > 0 ? String(Math.ceil(dests / n)) : "—"],
+            ["Sq ft per door", fmtNum(Math.round(L * W / n))],
+          ],
+          patch: doorPatch(n),
+        };
+      };
       D.push({
         id: "doors",
         title: "How many dock doors does the building have?",
         why: "Doors are the hard ceiling on how fast trucks turn around — every other decision has to work inside them.",
-        options: doorOpts.map(n => ({
-          key: "n" + n, label: n + " doors",
-          detail: n >= maxDoors ? `The most a ${L} ft frontage will physically take.`
-            : n === densityTarget ? `~${fmtNum(Math.round(L * W / n))} sq ft per door — typical cross-dock density.`
-              : `Leaves wall free for ${maxDoors - n} more doors later.`,
-          metrics: [["Truck turns per window", "~" + fmtNum(Math.round(n * 1.3 * winHrs))],
-          ["Destinations per door", dests > 0 ? String(Math.ceil(dests / Math.max(1, n))) : "—"],
-          ["Sq ft per door", fmtNum(Math.round(L * W / n))]],
-          patch: doorPatch(n)
-        })),
+        options: [],
+        customNumeric: {
+          standalone: true,
+          unit: "doors",
+          min: 1, max: Math.max(maxDoors, 60),
+          // Prefer the geometry-aware recommendation over p.dockBays on
+          // first visit — dockBays reads back as defaultGenParams()'s flat
+          // 4 the moment ANY earlier question is answered (applyGenPatch
+          // copies the whole merged params object forward), which would
+          // otherwise silently override a good per-building recommendation
+          // with a one-size-fits-all number nobody actually chose. Once
+          // this question has really been answered (dqChoices.doors is
+          // set), honor that real choice instead — e.g. when navigating
+          // back to it.
+          initial: dqChoices.doors ? p.dockBays : densityTarget,
+          compute: doorsCompute,
+          label: "Dock doors",
+          help: `Count the roller shutters your building actually has — this is a fact, not a preference. A cross-dock this size typically runs about one door per ${fmtNum(doorSqftPer)} sq ft (3-4x denser than a storage warehouse, since inbound and outbound work simultaneously) — that's ${densityTarget} doors here.`,
+        },
         recommend: "n" + densityTarget,
-        rationale: `Count the roller shutters your building actually has — this is a fact, not a preference. A cross-dock this size typically runs about one door per ${fmtNum(doorSqftPer)} sq ft (3-4x denser than a storage warehouse, since inbound and outbound work simultaneously) — that's ${densityTarget} doors here. Plenty of real buildings run on just 1-2 — type the exact count below if none of these match.`,
-        // Small operations genuinely run on 1-2 doors and shouldn't be forced
-        // into a preset that doesn't match their building — see feedback that
-        // the door count needed to be typed in directly, not picked from 3
-        // fixed presets.
-        customNumeric: { unit: "doors", min: 1, max: Math.max(maxDoors, 60), buildPatch: doorPatch },
+        rationale: `~${fmtNum(doorSqftPer)} sq ft per door is typical cross-dock density — that's ${densityTarget} doors on a ${fmtNum(L * W)} sq ft floor. Plenty of real buildings run on just 1-2; the number is yours to dial to whatever the building actually has.`,
       });
 
       // Lane width and staging depth used to be their own questions here.
@@ -10230,15 +10223,19 @@
       $("#dq-title").textContent = d.title;
       $("#dq-why").textContent = d.why;
       const cn = d.customNumeric;
-      // A "standalone" numeric decision (currently just equipment/aisle width)
-      // has no preset cards at all — one live number drives every displayed
+      // A "standalone" numeric decision (gate width, dock doors) has no
+      // preset cards at all — one live number drives every displayed
       // metric, recalculated on every keystroke, with a single Continue to
-      // commit it. Fully separate render path so every other question
-      // (cards, with or without the legacy customNumeric "type the exact
-      // count" add-on below) is untouched.
+      // commit it. The optional "We'll use: <tier>" caption only applies to
+      // decisions whose number implies a category (like equipment used to)
+      // — most standalone numbers, like a door count, are just themselves.
+      // Fully separate render path so every other question (cards, with or
+      // without the legacy customNumeric "type the exact count" add-on
+      // below) is untouched.
       if (cn && cn.standalone) {
         const initial = clamp(Math.round(cn.initial), cn.min, cn.max);
         const first = cn.compute(initial);
+        const tierLine = r => r.tier ? `We'll use: <strong>${escapeHtml(r.tier.label)}</strong>` : "";
         body.innerHTML = `
       <div class="dq-opt rec">
         <div class="o-top"><span class="o-label">${escapeHtml(cn.label || "Set the number")}</span><span class="o-pick">My pick</span></div>
@@ -10246,7 +10243,7 @@
         <div style="display:flex;gap:8px;margin:10px 0;align-items:center;">
           <div class="unit-suffix" style="flex:1;"><input type="number" id="dq-live-input" min="${cn.min}" max="${cn.max}" step="${cn.step || 1}" value="${initial}"><span>${escapeHtml(cn.unit)}</span></div>
         </div>
-        <div class="o-detail" id="dq-live-tier">We'll use: <strong>${escapeHtml(first.tier.label)}</strong></div>
+        <div class="o-detail" id="dq-live-tier" style="${first.tier ? "" : "display:none;"}">${tierLine(first)}</div>
         <div class="o-metrics" id="dq-live-metrics">${first.metrics.map(m => `<div class="o-m"><span class="k">${escapeHtml(m[0])}</span><span class="v">${escapeHtml(m[1])}</span></div>`).join("")}</div>
       </div>
       <button class="btn full" id="dq-live-go" style="margin-top:8px;">Continue →</button>` +
@@ -10258,11 +10255,12 @@
         input.addEventListener("input", () => {
           const r = cn.compute(readVal());
           metricsEl.innerHTML = r.metrics.map(m => `<div class="o-m"><span class="k">${escapeHtml(m[0])}</span><span class="v">${escapeHtml(m[1])}</span></div>`).join("");
-          tierEl.innerHTML = `We'll use: <strong>${escapeHtml(r.tier.label)}</strong>`;
+          tierEl.style.display = r.tier ? "" : "none";
+          tierEl.innerHTML = tierLine(r);
         });
         document.getElementById("dq-live-go").addEventListener("click", () => {
           const r = cn.compute(readVal());
-          dqChoices[d.id] = r.tier.key;
+          dqChoices[d.id] = r.tier ? r.tier.key : "n" + readVal();
           applyGenPatch(r.patch);
           dqIndex++;
           renderDqStep();
