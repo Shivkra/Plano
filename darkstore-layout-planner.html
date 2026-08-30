@@ -9972,28 +9972,53 @@
       });
 
       /* ---- 2. How boxes move. Asked BEFORE lanes because it sets the aisle
-         width every later decision has to budget around, and the minimum lane
-         width the lane question is allowed to recommend. Previously assumed
-         "trolley" and never asked. */
-      const equip = [
-        { key: "manual", label: "Carried by hand", rows: 2, note: "Cheapest. Only workable at low volume and short runs." },
-        { key: "trolley", label: "Trolleys / pallet trucks", rows: 3, note: "The common choice for box sortation." },
-        { key: "cage", label: "Roll-cages", rows: 4, note: "Good when boxes are already caged by destination." },
-        { key: "forklift", label: "Forklifts", rows: 6, note: "Needed for pallets. Costs the most floor of any option." },
-      ];
+         width every later decision has to budget around. A single live
+         number replaces the old 4-card picker (manual/trolley/cage/forklift):
+         almost every hub runs one handling method end to end, so there's
+         nothing to compare — dial the aisle width and the equipment tier
+         and lane width it implies follow automatically. Lane width and
+         staging depth used to be their own questions; both are now
+         research-set defaults instead of asked (lane width rides along with
+         this answer below), so this is the only place aisle trade-offs
+         still need a human's input at all. */
+      const equipTierFor = rows => rows <= 2
+        ? { key: "manual", label: "Hand-carried", laneMinFt: 6 }
+        : rows === 3
+          ? { key: "trolley", label: "Trolleys / pallet trucks", laneMinFt: 6 }
+          : rows === 4
+            ? { key: "cage", label: "Roll-cages", laneMinFt: 8 }
+            : { key: "forklift", label: "Forklifts", laneMinFt: 12 };
+      const equipCompute = widthFt => {
+        const rows = Math.max(1, Math.round(widthFt / CELL_FT));
+        const snappedFt = rows * CELL_FT;
+        const tier = equipTierFor(rows);
+        const floorPct = Math.max(0, 100 - Math.round(snappedFt / W * 100 * 4));
+        return {
+          tier,
+          metrics: [
+            ["Aisle width needed", snappedFt + " ft"],
+            ["Floor left for sorting", floorPct + "%"],
+            ["Meets safe minimum", snappedFt >= MIN_AISLE_FT ? "Yes" : "No"],
+          ],
+          patch: { handlingEquipment: tier.key, aisleRows: rows, laneWidthFt: tier.laneMinFt },
+        };
+      };
       D.push({
         id: "equipment",
         title: "How do boxes move around the floor?",
         why: "This sets how wide every working aisle has to be — the biggest claim on your floor after the lanes themselves.",
-        options: equip.map(e => ({
-          key: e.key, label: e.label, detail: e.note,
-          metrics: [["Aisle width needed", e.rows * CELL_FT + " ft"],
-          ["Floor left for sorting", Math.max(0, 100 - Math.round(e.rows * CELL_FT / W * 100 * 4)) + "%"],
-          ["Meets safe minimum", e.rows * CELL_FT >= MIN_AISLE_FT ? "Yes" : "No"]],
-          patch: { handlingEquipment: e.key, aisleRows: e.rows }
-        })),
+        options: [],
+        customNumeric: {
+          standalone: true,
+          unit: "ft aisle width",
+          min: CELL_FT, max: CELL_FT * 8, step: CELL_FT,
+          initial: (p.aisleRows || 3) * CELL_FT,
+          compute: equipCompute,
+          label: "Aisle width",
+          help: "Most hubs run one width the whole floor — 9 ft (trolleys) covers almost everyone. Widen it only if you actually move pallets on forklifts.",
+        },
         recommend: "trolley",
-        rationale: "Trolleys are the usual answer for packed-box sortation — they clear a 6 ft aisle, which is wide enough to pass two-way without giving up the floor a forklift would demand. Only pick forklifts if you actually handle pallets on the sort floor.",
+        rationale: "9 ft is the common default — trolleys clear it two-way without giving up the floor a forklift would demand. Widen it only if you actually move pallets on forklifts.",
       });
 
       /* ---- 3. When trucks leave. Drives peak concurrency (staging depth) AND
@@ -10018,9 +10043,10 @@
         rationale: "A few dispatch windows is the steadiest pattern for most hubs — one big night sort peaks hard on floor space and staffing, while running continuously needs cover all day. Pick what your outbound trucks are actually booked for.",
       });
 
-      /* ---- 4. Door count. The split question below divides this number, and
-         used to divide a hardcoded 4 nobody had supplied. A door plus its apron
-         needs roughly 12 ft of wall, so the building's frontage caps it.
+      /* ---- 4. Door count. Used to feed a since-removed split question; now
+         just the total, since doors run as one shared bank either way (see
+         the note below). A door plus its apron needs roughly 12 ft of wall,
+         so the building's frontage caps it.
          Recommendation is anchored on the real cross-dock density benchmark
          (~1 door per 2,500-3,000 sq ft — 3-4x a storage warehouse's density,
          since inbound and outbound run simultaneously) rather than an
@@ -10059,68 +10085,17 @@
         customNumeric: { unit: "doors", min: 1, max: Math.max(maxDoors, 60), buildPatch: doorPatch },
       });
 
-      // ---- 5. Lane strategy — the single biggest carve-up of the floor.
-      if (dests > 0) {
-        const widths = [6, 8, 12];
-        const eqMin = { manual: 6, trolley: 6, cage: 8, forklift: 12 }[p.handlingEquipment] || 8;
-        const opts = widths.map(wd => {
-          const fit = Math.min(dests, laneFitFor(L, wd));
-          const shared = Math.max(0, dests - fit);
-          const passable = wd >= 12 ? "Forklift" : wd >= 8 ? "Roll-cage" : "Trolley only";
-          return {
-            key: "w" + wd, label: `${wd} ft lanes`,
-            detail: shared > 0 ? `Fits ${fit} of your ${dests} destinations — the last ${shared + 1} share a lane.`
-              : `Fits all ${dests} destinations, with ${Math.max(0, laneFitFor(L, wd) - dests)} spare lane${laneFitFor(L, wd) - dests === 1 ? "" : "s"} for growth.`,
-            metrics: [["Lanes that fit", String(fit)], ["Widest thing that passes", passable], ["Destinations sharing", String(shared)]],
-            patch: { laneWidthFt: wd }
-          };
-        });
-        // Widest lane that still covers every destination — spare width is free
-        // operational headroom, so there's no reason to take a narrower lane than
-        // the floor can afford. Only when nothing covers them all does the
-        // equipment minimum become the sensible floor to hold.
-        const fullCover = widths.filter(wd => Math.min(dests, laneFitFor(L, wd)) >= dests);
-        const recW = fullCover.length ? Math.max(...fullCover) : eqMin;
-        const eqName = ({ manual: "hand", trolley: "trolley", cage: "roll-cage", forklift: "forklift" })[p.handlingEquipment] || "trolley";
-        D.push({
-          id: "lanes", title: "How wide should your outbound lanes be?",
-          why: "One lane per destination is ideal, but wider lanes mean fewer of them. This is the main trade-off on your floor.",
-          options: opts,
-          recommend: "w" + recW,
-          rationale: fullCover.length
-            ? `Your ${L} ft frontage fits all ${dests} destinations even at ${recW} ft, so take the width — the extra room is free headroom for ${eqName} movement and future destinations. Narrower lanes would save space you don't need to save.`
-            : `Nothing fits all ${dests} destinations, so I've held at ${eqMin} ft — the narrowest lane a ${eqName} can still work in. Going below that buys lanes you'd pay for in daily congestion.`,
-        });
-      }
+      // Lane width and staging depth used to be their own questions here.
+      // Lane width now rides along with the equipment answer above (see
+      // equipCompute's patch — it's just the narrowest lane that equipment
+      // can work in, so asking separately only repeated the same decision).
+      // Staging depth's own generated value was never actually read by the
+      // layout generator (input.laneDepthFt has no consumer downstream), so
+      // asking it decided nothing physical — it now takes the researched
+      // default set in defaultGenParams() (20 ft, the depth that covers a
+      // typical peak wave with room over) without a question at all.
 
-      // ---- 3. Staging depth, sized against a real wave volume.
-      if (dests > 0) {
-        const laneW = p.laneWidthFt || 8;
-        const fit = Math.min(dests, laneFitFor(L, laneW));
-        const depths = [12, 20, 28];
-        const opts = depths.map(d => {
-          const cap = Math.round((fit * laneW * d) / BOX_SQFT_STAGED);
-          const pct = peakBoxes > 0 ? Math.round(cap / peakBoxes * 100) : 100;
-          return {
-            key: "d" + d, label: `${d} ft deep`,
-            detail: pct >= 100 ? `Holds your whole peak wave with room over.` : `Holds about ${pct}% of a peak wave — the rest has to move out as it arrives.`,
-            metrics: [["Boxes held", "~" + fmtNum(cap)], ["Peak wave", "~" + fmtNum(peakBoxes) + " boxes"], ["Covers", "~" + pct + "%"]],
-            patch: { laneDepthFt: d }
-          };
-        });
-        const rec = opts.find(o => {
-          const cap = Number(o.metrics[0][1].replace(/[^0-9]/g, ""));
-          return cap >= peakBoxes;
-        }) || opts[opts.length - 1];
-        D.push({
-          id: "stagingDepth", title: "How deep should the staging lanes be?",
-          why: "Deeper lanes hold more of a wave, but eat floor the sort area needs.",
-          options: opts, recommend: rec.key,
-          rationale: `On a ${({ night: "single night sort", waves: "few-wave", continuous: "continuous" })[p.wavePattern] || "night sort"} pattern roughly ${fmtNum(peakBoxes)} boxes sit on the floor at peak. I've recommended the shallowest depth that still holds that, so the rest of the floor stays available for sorting.`,
-        });
-      }
-
-      // ---- 4. Sortation method, judged against their actual daily volume.
+      // ---- 5. Sortation method, judged against their actual daily volume.
       const methods = [
         { key: "manual", label: "By hand into cages", tph: 900, foot: 0.10, note: "Cheapest and most flexible. Needs the most floor and people." },
         { key: "semiauto", label: "Conveyor with manual divert", tph: 2500, foot: 0.16, note: "Middle ground. Fixed conveyor run, fewer people per box." },
@@ -10141,30 +10116,14 @@
         rationale: `At ${fmtNum(boxes)} boxes across roughly ${hoursAvail} working hours you need about ${fmtNum(needTph)} an hour. I've recommended the simplest method that clears that bar — going further up costs money you don't need to spend yet.`,
       });
 
-      // ---- 5. Door split between inbound and outbound.
-      const totalDoors = Math.max(2, (p.dockInBays || 2) + (p.dockOutBays || 2));
-      const splits = [
-        { key: "even", inPct: 0.5, label: "Even split" },
-        { key: "outHeavy", inPct: 0.3, label: "Outbound-heavy" },
-        { key: "inHeavy", inPct: 0.6, label: "Inbound-heavy" },
-      ];
-      D.push({
-        id: "docks", title: "How should doors split between arriving and departing?",
-        why: "Inbound is a few big vehicles; outbound is many smaller ones, often one per destination.",
-        options: splits.map(sp => {
-          const inB = Math.max(1, Math.round(totalDoors * sp.inPct)), outB = Math.max(1, totalDoors - inB);
-          return {
-            key: sp.key, label: sp.label, detail: `${inB} inbound, ${outB} outbound out of ${totalDoors} doors.`,
-            metrics: [["Inbound", String(inB)], ["Outbound", String(outB)],
-            ["Destinations per outbound door", dests > 0 ? String(Math.ceil(dests / outB)) : "—"]],
-            patch: { dockInBays: inB, dockOutBays: outB, dockSeparate: true }
-          };
-        }),
-        recommend: dests > totalDoors * 0.5 ? "outHeavy" : "even",
-        rationale: dests > totalDoors * 0.5
-          ? `You ship to ${dests} destinations, so departures are the bottleneck — weight the doors towards outbound.`
-          : `Your destination count is modest relative to your doors, so an even split keeps both sides flexible.`,
-      });
+      // Door in/out split used to be its own question here. Most hubs run one
+      // shared entrance for both directions — the generated layout already
+      // builds exactly that (a single leveler bank, see generateDefaultLayout
+      // and the "one shared gate" note in the summary) — so splitting doors
+      // into an inbound/outbound percentage never actually changed the
+      // physical layout, only a metric nobody could act on. Removed; doors
+      // stay shared (dockSeparate defaults false) with the roughly-40/60
+      // in/out count the doors question above already sets for reference.
 
       // A blueprint upload answers some of these directly — door-wall layout
       // shows flow pattern, racking shows handling equipment, a conveyor in
@@ -10204,7 +10163,7 @@
     function renderDqStep() {
       const body = $("#dq-body"); if (!body) return;
       // Recomputed at every step, so each decision reflects the ones already made
-      // (lane depth options change once lane width is chosen, and so on).
+      // (sortation's recommendation shifts once dispatch timing is chosen, and so on).
       dqDecisions = buildDesignDecisions(site, currentGenParams());
       if (dqIndex >= dqDecisions.length) { renderDqSummary(); return; }
       const d = dqDecisions[dqIndex];
@@ -10212,6 +10171,47 @@
       $("#dq-title").textContent = d.title;
       $("#dq-why").textContent = d.why;
       const cn = d.customNumeric;
+      // A "standalone" numeric decision (currently just equipment/aisle width)
+      // has no preset cards at all — one live number drives every displayed
+      // metric, recalculated on every keystroke, with a single Continue to
+      // commit it. Fully separate render path so every other question
+      // (cards, with or without the legacy customNumeric "type the exact
+      // count" add-on below) is untouched.
+      if (cn && cn.standalone) {
+        const initial = clamp(Math.round(cn.initial), cn.min, cn.max);
+        const first = cn.compute(initial);
+        body.innerHTML = `
+      <div class="dq-opt rec">
+        <div class="o-top"><span class="o-label">${escapeHtml(cn.label || "Set the number")}</span><span class="o-pick">My pick</span></div>
+        <div class="o-detail">${escapeHtml(cn.help || "")}</div>
+        <div style="display:flex;gap:8px;margin:10px 0;align-items:center;">
+          <div class="unit-suffix" style="flex:1;"><input type="number" id="dq-live-input" min="${cn.min}" max="${cn.max}" step="${cn.step || 1}" value="${initial}"><span>${escapeHtml(cn.unit)}</span></div>
+        </div>
+        <div class="o-detail" id="dq-live-tier">We'll use: <strong>${escapeHtml(first.tier.label)}</strong></div>
+        <div class="o-metrics" id="dq-live-metrics">${first.metrics.map(m => `<div class="o-m"><span class="k">${escapeHtml(m[0])}</span><span class="v">${escapeHtml(m[1])}</span></div>`).join("")}</div>
+      </div>
+      <button class="btn full" id="dq-live-go" style="margin-top:8px;">Continue →</button>` +
+          (dqIndex > 0 ? `<button class="btn ghost full" id="dq-back" style="margin-top:8px;">← Previous decision</button>` : "");
+        const input = document.getElementById("dq-live-input");
+        const metricsEl = document.getElementById("dq-live-metrics");
+        const tierEl = document.getElementById("dq-live-tier");
+        const readVal = () => clamp(parseFloat(input.value) || cn.min, cn.min, cn.max);
+        input.addEventListener("input", () => {
+          const r = cn.compute(readVal());
+          metricsEl.innerHTML = r.metrics.map(m => `<div class="o-m"><span class="k">${escapeHtml(m[0])}</span><span class="v">${escapeHtml(m[1])}</span></div>`).join("");
+          tierEl.innerHTML = `We'll use: <strong>${escapeHtml(r.tier.label)}</strong>`;
+        });
+        document.getElementById("dq-live-go").addEventListener("click", () => {
+          const r = cn.compute(readVal());
+          dqChoices[d.id] = r.tier.key;
+          applyGenPatch(r.patch);
+          dqIndex++;
+          renderDqStep();
+        });
+        const backLive = document.getElementById("dq-back");
+        if (backLive) backLive.addEventListener("click", () => { dqIndex = Math.max(0, dqIndex - 1); renderDqStep(); });
+        return;
+      }
       body.innerHTML = d.options.map((o, i) => `
       <div class="dq-opt ${o.key === d.recommend ? 'rec' : ''}" data-i="${i}">
         <div class="o-top"><span class="o-label">${escapeHtml(o.label)}</span>${o.key === d.recommend ? '<span class="o-pick">My pick</span>' : ''}</div>
@@ -11572,14 +11572,18 @@
        sites. */
     function defaultGenParams() {
       return {
-        dockBays: 4, dockSeparate: false, dockInBays: 2, dockOutBays: 2, ordersPerDay: 3000, aisleRows: 2,
+        dockBays: 4, dockSeparate: false, dockInBays: 2, dockOutBays: 2, ordersPerDay: 3000, aisleRows: 3,
         pedestrianEntry: "left", handlingEquipment: "trolley", flowShape: "spine", doorSpacingFt: 12,
         sortationMethod: "manual", destinationHubs: 0, outboundLanes: false,
         // Receiving scan and missort/exception handling are near-universal in
         // a real mother hub, not optional extras — default on so a manager
         // who never surfaces these decisions still gets a complete hub.
         inboundStaging: true, exceptionArea: true,
-        laneWidthFt: 8, laneDepthFt: 0, wavePattern: "night",
+        // Lane width and staging depth used to be their own wizard questions;
+        // both are now research-set defaults (lane width also rides along
+        // with the equipment answer — see buildDesignDecisions) rather than
+        // asked, so these are real working numbers, not unset sentinels.
+        laneWidthFt: 6, laneDepthFt: 20, wavePattern: "night",
         returnsArea: false, stagingArea: false, chargingArea: false, growthHeadroomPct: 0,
         rooms: {
           security: { on: true, size: "M" }, medical: { on: true, size: "M" }, conference: { on: true, headcount: 8 },
