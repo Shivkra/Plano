@@ -28,6 +28,12 @@
       --danger: #C0392B;
       --danger-bg: #FBEAE7;
       --focus: #2563EB;
+      /* Blueprint-blue: used only on the login screen's technical/drafting
+         decoration (grid, tick marks, eyebrow labels) — a deliberate second
+         accent so that layer reads as drawn detail, not a second CTA colour
+         competing with --accent. */
+      --blueprint: #245A8C;
+      --blueprint-line: rgba(36, 90, 140, .12);
       --r-sm: 6px;
       --r-md: 10px;
       --r-lg: 16px;
@@ -81,6 +87,8 @@
       --danger: #EF4444;
       --danger-bg: #3B1B1B;
       --focus: #60A5FA;
+      --blueprint: #6FA8DC;
+      --blueprint-line: rgba(111, 168, 220, .16);
       --shadow-sm: 0 1px 3px rgba(0, 0, 0, .4);
       --shadow-md: 0 4px 14px rgba(0, 0, 0, .5);
       --shadow-lg: 0 16px 40px rgba(0, 0, 0, .7);
@@ -906,7 +914,7 @@
       border-bottom: 2px solid var(--border);
     }
 
-    .sc-col > .sc-group-title:first-child {
+    .sc-col>.sc-group-title:first-child {
       margin-top: 0;
     }
 
@@ -1004,11 +1012,11 @@
         grid-template-columns: 1fr;
       }
 
-      .sc-col > .sc-group-title:first-child {
+      .sc-col>.sc-group-title:first-child {
         margin-top: 22px;
       }
 
-      .sc-col:first-child > .sc-group-title:first-child {
+      .sc-col:first-child>.sc-group-title:first-child {
         margin-top: 0;
       }
     }
@@ -1054,23 +1062,86 @@
     }
 
     /* ================= LOGIN ================= */
+    /* The old treatment was a dark card floating on a generic dotted vignette
+       — the exact look most AI-built login screens land on by default, which
+       is what read as "bad" here. Grounding it in what this product actually
+       draws — a coordinate floor-plan grid, dimension lines, drafting
+       registration marks — gives the entry screen a identity nothing else
+       shares. */
     #login-gate {
       overflow: hidden;
-      background:
-        radial-gradient(ellipse 900px 560px at 50% 50%, #FDFCF9 0%, var(--bg) 68%);
+      position: relative;
+      background: var(--bg);
       align-items: center;
       justify-content: center;
     }
 
     #login-gate::before {
+      /* Coarse coordinate grid, the same idea as the plan editor's own ruled
+         canvas, faded out toward the edges so it reads as atmosphere. */
       content: "";
       position: absolute;
       inset: 0;
       pointer-events: none;
-      background-image: radial-gradient(circle, rgba(30, 27, 20, .09) 1px, transparent 1px);
-      background-size: 28px 28px;
-      -webkit-mask-image: radial-gradient(ellipse 620px 420px at 50% 50%, black 25%, transparent 72%);
-      mask-image: radial-gradient(ellipse 620px 420px at 50% 50%, black 25%, transparent 72%);
+      background-image:
+        repeating-linear-gradient(0deg, var(--blueprint-line) 0 1px, transparent 1px 84px),
+        repeating-linear-gradient(90deg, var(--blueprint-line) 0 1px, transparent 1px 84px);
+      -webkit-mask-image: radial-gradient(ellipse 820px 660px at 50% 46%, black 0%, transparent 76%);
+      mask-image: radial-gradient(ellipse 820px 660px at 50% 46%, black 0%, transparent 76%);
+    }
+
+    .login-dim {
+      position: absolute;
+      pointer-events: none;
+      color: var(--blueprint);
+      opacity: .55;
+    }
+
+    .login-dim text {
+      font: 700 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      letter-spacing: .08em;
+      fill: currentColor;
+    }
+
+    .login-dim path {
+      stroke: currentColor;
+      stroke-width: 1.2;
+      fill: none;
+    }
+
+    .login-dim--bl {
+      left: 6%;
+      bottom: 14%;
+    }
+
+    .login-dim--tr {
+      right: 7%;
+      top: 13%;
+    }
+
+    @media (max-width: 900px) {
+      .login-dim {
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion:no-preference) {
+      .login-dim path {
+        stroke-dasharray: 220;
+        stroke-dashoffset: 220;
+        animation: loginDimDraw 1.1s .5s cubic-bezier(.16, 1, .3, 1) forwards;
+      }
+
+      .login-dim text {
+        opacity: 0;
+        animation: loginFadeUp .5s .95s ease-out forwards;
+      }
+    }
+
+    @keyframes loginDimDraw {
+      to {
+        stroke-dashoffset: 0;
+      }
     }
 
     .login-logo-wrap {
@@ -1123,9 +1194,61 @@
       text-align: center;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 24px;
-      padding: 48px 40px 42px;
+      border-radius: 14px;
+      padding: 44px 40px 36px;
       box-shadow: 0 24px 60px -20px rgba(20, 18, 12, .22), 0 2px 8px rgba(20, 18, 12, .06);
+    }
+
+    /* A drafted-plate edge, not a soft consumer-app card: a printer's-mark
+       top bar plus four corner registration ticks, borrowed straight from
+       what a blueprint sheet itself looks like. */
+    .login-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 3px;
+      border-radius: 14px 14px 0 0;
+      background: var(--blueprint);
+      opacity: .8;
+    }
+
+    .login-card::after,
+    .login-card i.reg {
+      content: "";
+      position: absolute;
+      width: 9px;
+      height: 9px;
+      pointer-events: none;
+      border: 1.4px solid var(--blueprint);
+      opacity: .45;
+    }
+
+    .login-card::after {
+      top: -4.5px;
+      left: -4.5px;
+      border-width: 1.4px 0 0 1.4px;
+    }
+
+    .login-card i.reg {
+      display: block;
+    }
+
+    .login-card i.reg--tr {
+      top: -4.5px;
+      right: -4.5px;
+      border-width: 1.4px 1.4px 0 0;
+    }
+
+    .login-card i.reg--bl {
+      bottom: -4.5px;
+      left: -4.5px;
+      border-width: 0 0 1.4px 1.4px;
+    }
+
+    .login-card i.reg--br {
+      bottom: -4.5px;
+      right: -4.5px;
+      border-width: 0 1.4px 1.4px 0;
     }
 
     @media (prefers-reduced-motion:no-preference) {
@@ -1176,16 +1299,79 @@
       }
     }
 
-    .login-card h1 {
-      font-size: var(--fs-2xl);
+    /* Wordmark restyled as an equipment nameplate — a bold brand line over a
+       small tracked model/spec line — the way a rack, dock leveler or forklift
+       carries its ID plate. Also fixes a real bug: at 400px the old one-size
+       h1 wrapped "Blitz Planogram" / "Planner" across two uneven lines. */
+    .login-word {
+      margin-bottom: 22px;
+      line-height: 1.2;
+    }
+
+    .login-word-main {
+      display: block;
+      font-size: 30px;
       font-weight: 800;
       letter-spacing: -.02em;
-      margin-bottom: 8px;
+      color: var(--ink);
+    }
+
+    .login-word-sub {
+      display: block;
+      margin-top: 5px;
+      font: 700 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+
+    .login-eyebrow {
+      font: 800 10.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--blueprint);
+      text-align: left;
+      margin-top: 26px;
+    }
+
+    .login-eyebrow::before {
+      content: "";
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      margin-right: 7px;
+      background: var(--blueprint);
+      border-radius: 1px;
+      vertical-align: 1px;
+    }
+
+    /* A shortcut, not a second real choice next to "Continue" — demoted to a
+       quiet text link so it can't out-compete the primary action's weight. */
+    .login-quick-link {
+      display: block;
+      width: 100%;
+      margin-top: 14px;
+      padding: 6px;
+      background: none;
+      border: none;
+      font-size: var(--fs-xs);
+      font-weight: 700;
+      color: var(--ink-faint);
+      cursor: pointer;
+      transition: color var(--dur-f) var(--ease);
+    }
+
+    .login-quick-link:hover {
+      color: var(--blueprint);
     }
 
     .login-card .field {
       margin-top: 30px;
       text-align: left;
+    }
+
+    .login-eyebrow+.field {
+      margin-top: 10px;
     }
 
     .login-card input[type=email] {
@@ -2664,7 +2850,7 @@
       transition: color var(--dur-f) var(--ease), background var(--dur-f) var(--ease);
     }
 
-    .journey-step + .journey-step::before {
+    .journey-step+.journey-step::before {
       content: "";
       width: 12px;
       height: 1.5px;
@@ -2704,13 +2890,23 @@
        information that matters) and collapse the rest to dots, rather than
        dropping all the labels or letting the header overflow. */
     @media (max-width: 1400px) {
-      .journey-step:not(.active) .jn-label { display: none; }
-      .journey-step:not(.active) { padding: 4px 6px; }
+      .journey-step:not(.active) .jn-label {
+        display: none;
+      }
+
+      .journey-step:not(.active) {
+        padding: 4px 6px;
+      }
     }
 
     @media (max-width: 1040px) {
-      .journey .jn-label { display: none; }
-      .journey-step { padding: 4px 6px; }
+      .journey .jn-label {
+        display: none;
+      }
+
+      .journey-step {
+        padding: 4px 6px;
+      }
     }
 
     /* Optimize result card — what changed, and a way back. */
@@ -2734,8 +2930,15 @@
     }
 
     @keyframes optResIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .opt-res-head {
@@ -2878,8 +3081,15 @@
     }
 
     @keyframes pulseOpt {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.25) rotate(10deg); }
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.25) rotate(10deg);
+      }
     }
 
     .zoom-val-txt {
@@ -4709,8 +4919,15 @@
     }
 
     @keyframes isoFadeIn {
-      from { opacity: 0; transform: scale(.96); }
-      to { opacity: 1; transform: scale(1); }
+      from {
+        opacity: 0;
+        transform: scale(.96);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
     }
 
     #isoview.screen.on {
@@ -5912,18 +6129,30 @@
 
   <!-- ================= LOGIN ================= -->
   <div id="login-gate" class="screen on">
+    <svg class="login-dim login-dim--bl" width="150" height="46" viewBox="0 0 150 46" aria-hidden="true">
+      <path d="M0.5 6 V0.5 H149.5 V6 M0.5 0.5 V16 M149.5 0.5 V16"/>
+      <text x="75" y="30" text-anchor="middle">24'-0"</text>
+    </svg>
+    <svg class="login-dim login-dim--tr" width="150" height="46" viewBox="0 0 150 46" aria-hidden="true">
+      <path d="M0.5 40 V45.5 H149.5 V40 M0.5 45.5 V30 M149.5 45.5 V30"/>
+      <text x="75" y="20" text-anchor="middle">36'-0"</text>
+    </svg>
+
     <div class="login-card">
+      <i class="reg reg--tr"></i><i class="reg reg--bl"></i><i class="reg reg--br"></i>
       <div class="login-logo-wrap">
         <div class="login-logo-glow"></div>
         <img class="login-logo" src="Logo.png" alt="Blitz">
       </div>
-      <h1>Blitz Planogram Planner</h1>
+      <h1 class="login-word"><span class="login-word-main">Blitz</span><span class="login-word-sub">Planogram
+          Planner</span></h1>
       <div class="login-known" id="login-known" style="display:none;">
         <div class="lbl">Continue as</div>
         <div class="login-chip-row" id="login-chip-row"></div>
       </div>
       <form id="login-form" novalidate
         onsubmit="event.preventDefault(); signIn(document.getElementById('login-email').value);">
+        <div class="login-eyebrow">Site Access</div>
         <div class="field">
           <label class="field-label" for="login-email">What's your email?</label>
           <input type="email" id="login-email" placeholder="e.g. siva.k@blitznow.in" maxlength="100" autocomplete="off"
@@ -5931,8 +6160,8 @@
           <div class="field-error" id="login-email-error" style="display:none;">Enter a valid email address.</div>
         </div>
         <button type="submit" class="btn primary lg full" id="login-go" style="margin-top:14px;">Continue →</button>
-        <button type="button" class="btn secondary full" id="login-quick" style="margin-top:8px; font-weight:700;"
-          onclick="signIn('siva.k@blitznow.in')">⚡ Quick Sign In as Lead Architect</button>
+        <button type="button" class="login-quick-link" id="login-quick"
+          onclick="signIn('siva.k@blitznow.in')">⚡ Quick sign in as Lead Architect</button>
       </form>
     </div>
   </div>
@@ -6169,8 +6398,10 @@
         <input type="file" id="ed-photo-input"
           accept="image/jpeg,image/png,image/webp,image/svg+xml,application/pdf,.dwg,.dxf" style="display:none;">
         <div class="finish-split-btn" id="finish-split-btn">
-          <button class="btn primary sm finish-main-btn" id="ed-finish" title="Finish — view your layout as a 3D isometric render">✓ Finish</button>
-          <button class="btn primary sm finish-caret-btn" id="finish-caret-btn" title="More options" aria-label="More options">▾</button>
+          <button class="btn primary sm finish-main-btn" id="ed-finish"
+            title="Finish — view your layout as a 3D isometric render">✓ Finish</button>
+          <button class="btn primary sm finish-caret-btn" id="finish-caret-btn" title="More options"
+            aria-label="More options">▾</button>
           <div class="finish-dropdown" id="finish-dropdown">
             <button id="ed-present">▶ Present</button>
             <button id="ed-export">⬇ Export</button>
@@ -6218,7 +6449,8 @@
           <div class="smart-tool-btn" data-smart-tool="zone" title="Designate operational zones (Z)">
             <span class="st-icon">🏷️</span><span class="st-label">Zone</span><span class="st-kbd">Z</span>
           </div>
-          <div class="smart-tool-btn" data-smart-tool="flow" title="Draw a flow connector between two zones — drag from one to the other (F)">
+          <div class="smart-tool-btn" data-smart-tool="flow"
+            title="Draw a flow connector between two zones — drag from one to the other (F)">
             <span class="st-icon">➡️</span><span class="st-label">Flow</span><span class="st-kbd">F</span>
           </div>
           <div class="smart-tool-btn" data-smart-tool="draw" title="Pen, shapes &amp; image uploads (D)">
@@ -6362,7 +6594,8 @@
 
         <div class="draw-section">
           <div class="draw-section-title">Pen</div>
-          <button class="btn sm secondary full draw-shape-btn-full" id="draw-pen-btn" style="font-weight:700; margin-bottom:10px;">🖊️ Freehand Pen</button>
+          <button class="btn sm secondary full draw-shape-btn-full" id="draw-pen-btn"
+            style="font-weight:700; margin-bottom:10px;">🖊️ Freehand Pen</button>
           <div class="draw-row">
             <label>Width</label>
             <input type="range" id="draw-pen-width" min="1" max="16" value="3">
@@ -6389,12 +6622,14 @@
         <div class="draw-section">
           <div class="draw-section-title">Assets</div>
           <button class="btn sm secondary full" id="draw-upload-btn" style="font-weight:700;">📁 Upload Image</button>
-          <input type="file" id="draw-upload-input" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display:none;">
+          <input type="file" id="draw-upload-input" accept="image/png,image/jpeg,image/svg+xml,image/webp"
+            style="display:none;">
           <div id="draw-asset-list" class="draw-asset-list"></div>
         </div>
 
         <div style="margin-top:6px; border-top:1px solid var(--border); padding-top:10px;">
-          <button class="btn sm ghost full" id="draw-clear-btn" style="color:#DC2626; font-weight:700;">🗑 Clear All Annotations</button>
+          <button class="btn sm ghost full" id="draw-clear-btn" style="color:#DC2626; font-weight:700;">🗑 Clear All
+            Annotations</button>
         </div>
       </div>
 
@@ -6586,7 +6821,8 @@
                 <label>Color</label>
                 <div style="display:flex; align-items:center; gap:6px;">
                   <input type="color" id="prop-obj-color" value="#64748B">
-                  <button class="btn ghost sm" id="prop-obj-color-reset" title="Reset to default color" style="padding:4px 8px; font-size:11px;">Reset</button>
+                  <button class="btn ghost sm" id="prop-obj-color-reset" title="Reset to default color"
+                    style="padding:4px 8px; font-size:11px;">Reset</button>
                 </div>
               </div>
 
@@ -6633,7 +6869,8 @@
                 <label>Color</label>
                 <div style="display:flex; align-items:center; gap:6px;">
                   <input type="color" id="prop-room-color" value="#64748B">
-                  <button class="btn ghost sm" id="prop-room-color-reset" title="Reset to default color" style="padding:4px 8px; font-size:11px;">Reset</button>
+                  <button class="btn ghost sm" id="prop-room-color-reset" title="Reset to default color"
+                    style="padding:4px 8px; font-size:11px;">Reset</button>
                 </div>
               </div>
 
@@ -6649,8 +6886,11 @@
               </div>
 
               <!-- L-Shape Specific Cutout Controls -->
-              <div id="prop-l-controls" style="display:none; background:var(--surface-2); padding:8px 10px; border-radius:6px; margin-bottom:10px; border:1px solid var(--border);">
-                <div style="font-size:11px; font-weight:800; color:var(--ink-soft); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">L-Cutout Options</div>
+              <div id="prop-l-controls"
+                style="display:none; background:var(--surface-2); padding:8px 10px; border-radius:6px; margin-bottom:10px; border:1px solid var(--border);">
+                <div
+                  style="font-size:11px; font-weight:800; color:var(--ink-soft); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">
+                  L-Cutout Options</div>
                 <div class="prop-row" style="margin-bottom:6px;">
                   <label style="font-size:11px;">Corner</label>
                   <select id="prop-l-corner" class="setting-select" style="font-size:11px; padding:2px 6px;">
@@ -6677,8 +6917,11 @@
               </div>
 
               <!-- U-Shape / T-Shape Specific Controls -->
-              <div id="prop-custom-shape-controls" style="display:none; background:var(--surface-2); padding:8px 10px; border-radius:6px; margin-bottom:10px; border:1px solid var(--border);">
-                <div style="font-size:11px; font-weight:800; color:var(--ink-soft); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">Corridor / Stem Size</div>
+              <div id="prop-custom-shape-controls"
+                style="display:none; background:var(--surface-2); padding:8px 10px; border-radius:6px; margin-bottom:10px; border:1px solid var(--border);">
+                <div
+                  style="font-size:11px; font-weight:800; color:var(--ink-soft); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">
+                  Corridor / Stem Size</div>
                 <div class="prop-row" style="margin-bottom:6px;">
                   <label style="font-size:11px;">Inner Width</label>
                   <div class="prop-input-wrap">
@@ -6716,7 +6959,8 @@
               </div>
               <div
                 style="display:flex; flex-direction:column; gap:6px; margin-top:14px; border-top:1px solid var(--border); padding-top:12px;">
-                <button class="btn sm secondary full" id="prop-room-dup" style="font-weight:700;" title="Duplicate Room">📄 Duplicate Zone</button>
+                <button class="btn sm secondary full" id="prop-room-dup" style="font-weight:700;"
+                  title="Duplicate Room">📄 Duplicate Zone</button>
                 <button class="btn sm ghost full" id="prop-room-del"
                   style="color:#DC2626; border:1px solid rgba(220,38,38,0.2); font-weight:700;" title="Delete Room">🗑
                   Delete Room</button>
@@ -6852,8 +7096,8 @@
                 <div class="layer-row"><span>➡️ Flow Connectors</span><span class="layer-controls"><span
                       class="layer-eye" data-layer="flow">👁️</span> <span class="layer-lock"
                       data-layer="flow">🔓</span></span></div>
-                <div class="layer-row"><span>🖊️ Annotations</span><span class="layer-controls"><span
-                      class="layer-eye" data-layer="annotations">👁️</span> <span class="layer-lock"
+                <div class="layer-row"><span>🖊️ Annotations</span><span class="layer-controls"><span class="layer-eye"
+                      data-layer="annotations">👁️</span> <span class="layer-lock"
                       data-layer="annotations">🔓</span></span></div>
               </div>
             </div>
@@ -6928,7 +7172,8 @@
           <div class="sc-col">
             <div class="sc-group-title">Edit</div>
             <div class="sc-row"><span>Undo</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>Z</kbd></span></div>
-            <div class="sc-row"><span>Redo</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>⇧</kbd><kbd>Z</kbd></span></div>
+            <div class="sc-row"><span>Redo</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>⇧</kbd><kbd>Z</kbd></span>
+            </div>
             <div class="sc-row"><span>Duplicate</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>D</kbd></span></div>
             <div class="sc-row"><span>Copy</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>C</kbd></span></div>
             <div class="sc-row"><span>Paste</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>V</kbd></span></div>
@@ -6941,11 +7186,13 @@
             <div class="sc-row"><span>Nudge faster</span><span class="keys"><kbd>⇧</kbd><kbd>↑↓←→</kbd></span></div>
             <div class="sc-row"><span>Rotate</span><span class="keys"><kbd>[</kbd><kbd>]</kbd></span></div>
             <div class="sc-group-title">View</div>
-            <div class="sc-row"><span>Zoom in / out</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>+/−</kbd></span></div>
+            <div class="sc-row"><span>Zoom in / out</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>+/−</kbd></span>
+            </div>
             <div class="sc-row"><span>Reset zoom</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>0</kbd></span></div>
             <div class="sc-row"><span>Deselect / close</span><kbd>Esc</kbd></div>
             <div class="sc-row"><span>Show this help</span><kbd>?</kbd></div>
-            <div class="sc-row"><span>Command Palette</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>K</kbd></span></div>
+            <div class="sc-row"><span>Command Palette</span><span class="keys"><kbd>⌘/Ctrl</kbd><kbd>K</kbd></span>
+            </div>
           </div>
         </div>
         <div class="shortcuts-modal-footer">Press <kbd>Esc</kbd> or click outside to close</div>
@@ -7042,7 +7289,9 @@
             <span class="opt-res-delta" id="opt-res-delta"></span>
           </span>
         </div>
-        <div class="opt-res-bar"><div class="opt-res-bar-fill" id="opt-res-bar"></div></div>
+        <div class="opt-res-bar">
+          <div class="opt-res-bar-fill" id="opt-res-bar"></div>
+        </div>
       </div>
       <div class="opt-res-changes" id="opt-res-changes"></div>
       <div class="opt-res-actions">
@@ -7359,7 +7608,8 @@
           <button class="btn sm ghost full" id="iso-edit-del" style="color:#DC2626;">🗑 Delete</button>
         </div>
       </div>
-      <div class="iso-empty-hint" id="iso-empty-hint">Nothing on the floor yet — go back and lay out some rooms and objects first.</div>
+      <div class="iso-empty-hint" id="iso-empty-hint">Nothing on the floor yet — go back and lay out some rooms and
+        objects first.</div>
     </div>
   </div>
 
@@ -7433,7 +7683,8 @@
               <div
                 style="font-size:10.5px; font-weight:800; text-transform:uppercase; color:var(--ink-soft); padding-left:2px;">
                 📦 Generate Objects</div>
-              <div class="gemini-prompt-chip" onclick="applyGeminiStarter('Add 12 Destination Sortation Bins along center aisle')">
+              <div class="gemini-prompt-chip"
+                onclick="applyGeminiStarter('Add 12 Destination Sortation Bins along center aisle')">
                 <span class="chip-icon">🔀</span>
                 <div class="chip-content">
                   <strong>Add Sortation Matrix (12 Hubs)</strong>
@@ -10423,11 +10674,13 @@
 
       return {
         zones, sortX: sortX0, sortW: usedSortWidth, convA: apronY, convB: sortBottomY, laneNote,
-        sur: { GFA, apronDepth, apronArea: apronW * apronDepth, sortArea: modules * MODULE_PITCH * sortDepth,
+        sur: {
+          GFA, apronDepth, apronArea: apronW * apronDepth, sortArea: modules * MODULE_PITCH * sortDepth,
           baggingArea: usedSortWidth * baggingDepth, exceptionArea: rearDepthActual >= 8 ? exceptionAreaTarget : 0,
           equipArea: rearDepthActual >= 8 ? equipAreaTarget : 0, spineArea: roomBandDepth * spineLength,
           crossAisleArea: L * crossAisleDepth, spineAisleArea: spineAisleW * spineLength,
-          totalPositions, modules, positionsPerModule },
+          totalPositions, modules, positionsPerModule
+        },
       };
     }
     // ---- L · Corner Turn: gate in a near-wall column, path turns once into
