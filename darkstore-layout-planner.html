@@ -5854,31 +5854,75 @@
       gap: 6px;
     }
 
+    /* Bolder, more graphic "spec card" treatment — a thick ink outline and a
+       hard offset shadow on hover instead of a soft blurred one, closer to
+       the stamped, hand-drawn-outline look of a printed instrument manual
+       than a generic soft SaaS chip. The dimension text (.obj-dim, added
+       below) reads as a spec callout, and the swatch previews the object's
+       actual placement colour before you commit to it. */
     .obj-card {
       display: flex;
       align-items: center;
       gap: 8px;
       padding: 8px 10px;
       background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--r-md);
+      border: 1.5px solid var(--ink);
+      border-radius: 8px;
       cursor: pointer;
-      transition: all var(--dur-f) var(--ease);
+      transition: transform var(--dur-f) var(--ease), box-shadow var(--dur-f) var(--ease), background var(--dur-f) var(--ease);
       font-size: 12px;
       font-weight: 700;
       color: var(--ink);
     }
 
     .obj-card:hover {
-      border-color: var(--ink);
       background: var(--bg-soft);
-      transform: translateY(-1px);
+      transform: translate(-1px, -1px);
+      box-shadow: 2px 2px 0 var(--ink);
     }
 
     .obj-card.active {
       background: var(--accent);
       color: #fff;
       border-color: var(--accent);
+    }
+
+    .obj-swatch {
+      width: 9px;
+      height: 9px;
+      border-radius: 2px;
+      flex-shrink: 0;
+      border: 1px solid rgba(0, 0, 0, .3);
+    }
+
+    .obj-dim {
+      display: block;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: .02em;
+      color: var(--ink-faint);
+      margin-top: 1px;
+    }
+
+    .obj-card.active .obj-dim {
+      color: rgba(255, 255, 255, .8);
+    }
+
+    .obj-glyph {
+      flex-shrink: 0;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .obj-text {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     /* Zone-type picker — one big obvious card per zone instead of a form,
@@ -6698,46 +6742,46 @@
         <div class="flyout-category">
           <div class="flyout-cat-title">Storage &amp; Racks</div>
           <div class="obj-grid">
-            <div class="obj-card" data-obj="rack">🗄️ Rack (3×1.5')</div>
-            <div class="obj-card" data-obj="sortbox">📦 Sorting Box (4×6')</div>
-            <div class="obj-card" data-obj="palletrack">🧮 Pallet (4×4')</div>
-            <div class="obj-card" data-obj="trolleycage">🛒 Trolley Cage</div>
+            <div class="obj-card" data-obj="rack"><span class="obj-swatch" style="background:#64748B"></span><span class="obj-glyph">🗄️</span><span class="obj-text">Rack<span class="obj-dim">3×1.5'</span></span></div>
+            <div class="obj-card" data-obj="sortbox"><span class="obj-swatch" style="background:#0EA5E9"></span><span class="obj-glyph">📦</span><span class="obj-text">Sorting Box<span class="obj-dim">4×6'</span></span></div>
+            <div class="obj-card" data-obj="palletrack"><span class="obj-swatch" style="background:#334155"></span><span class="obj-glyph">🧮</span><span class="obj-text">Pallet<span class="obj-dim">4×4'</span></span></div>
+            <div class="obj-card" data-obj="trolleycage"><span class="obj-swatch" style="background:#6366F1"></span><span class="obj-glyph">🛒</span><span class="obj-text">Trolley Cage<span class="obj-dim">3×2.5'</span></span></div>
           </div>
         </div>
 
         <div class="flyout-category">
           <div class="flyout-cat-title">Operations &amp; Tables</div>
           <div class="obj-grid">
-            <div class="obj-card" data-obj="packing">🗂️ Packing Area</div>
-            <div class="obj-card" data-obj="table">⺇ Work Table</div>
-            <div class="obj-card" data-obj="conveyor">» Conveyor Belt</div>
-            <div class="obj-card" data-obj="staging">▦ Inward Area</div>
-            <div class="obj-card" data-obj="locker">🗃️ Locker</div>
-            <div class="obj-card" data-obj="chair">🪑 Chair</div>
+            <div class="obj-card" data-obj="packing"><span class="obj-swatch" style="background:#10B981"></span><span class="obj-glyph">🗂️</span><span class="obj-text">Packing Area<span class="obj-dim">4×2'</span></span></div>
+            <div class="obj-card" data-obj="table"><span class="obj-swatch" style="background:#F59E0B"></span><span class="obj-glyph">⺇</span><span class="obj-text">Work Table<span class="obj-dim">3×2'</span></span></div>
+            <div class="obj-card" data-obj="conveyor"><span class="obj-swatch" style="background:#94A3B8"></span><span class="obj-glyph">»</span><span class="obj-text">Conveyor Belt<span class="obj-dim">2×2'</span></span></div>
+            <div class="obj-card" data-obj="staging"><span class="obj-swatch" style="background:#A8A29E"></span><span class="obj-glyph">▦</span><span class="obj-text">Inward Area<span class="obj-dim">4×4'</span></span></div>
+            <div class="obj-card" data-obj="locker"><span class="obj-swatch" style="background:#78716C"></span><span class="obj-glyph">🗃️</span><span class="obj-text">Locker<span class="obj-dim">2×1.5'</span></span></div>
+            <div class="obj-card" data-obj="chair"><span class="obj-swatch" style="background:#FBBF24"></span><span class="obj-glyph">🪑</span><span class="obj-text">Chair<span class="obj-dim">1.7×1.7'</span></span></div>
           </div>
         </div>
 
         <div class="flyout-category">
           <div class="flyout-cat-title">Equipment</div>
           <div class="obj-grid">
-            <div class="obj-card" data-obj="scale">⚖️ Weighing Scale</div>
-            <div class="obj-card" data-obj="ac">❄️ AC Unit</div>
-            <div class="obj-card" data-obj="waterdisp">💧 Water Dispenser</div>
-            <div class="obj-card" data-obj="trolley">🛒 Normal Trolley</div>
+            <div class="obj-card" data-obj="scale"><span class="obj-swatch" style="background:#06B6D4"></span><span class="obj-glyph">⚖️</span><span class="obj-text">Weighing Scale<span class="obj-dim">2×2'</span></span></div>
+            <div class="obj-card" data-obj="ac"><span class="obj-swatch" style="background:#38BDF8"></span><span class="obj-glyph">❄️</span><span class="obj-text">AC Unit<span class="obj-dim">3×0.5'</span></span></div>
+            <div class="obj-card" data-obj="waterdisp"><span class="obj-swatch" style="background:#22D3EE"></span><span class="obj-glyph">💧</span><span class="obj-text">Water Dispenser<span class="obj-dim">1.2×1.2'</span></span></div>
+            <div class="obj-card" data-obj="trolley"><span class="obj-swatch" style="background:#0EA5E9"></span><span class="obj-glyph">🛒</span><span class="obj-text">Normal Trolley<span class="obj-dim">2×1.5'</span></span></div>
           </div>
         </div>
 
         <div class="flyout-category">
           <div class="flyout-cat-title">Infrastructure &amp; Safety</div>
           <div class="obj-grid">
-            <div class="obj-card" data-obj="entry">🔻 Entry Door</div>
-            <div class="obj-card" data-obj="exit">🔺 Exit Door</div>
-            <div class="obj-card" data-obj="fireexit">🚨 Fire Exit</div>
-            <div class="obj-card" data-obj="pillar">‖ Pillar</div>
-            <div class="obj-card" data-obj="door">🚪 Door</div>
-            <div class="obj-card" data-obj="drainage">🕳️ Drainage Point</div>
-            <div class="obj-card" data-obj="fireext">🧯 Fire Extinguisher</div>
-            <div class="obj-card" data-obj="cctv">🔴 CCTV</div>
+            <div class="obj-card" data-obj="entry"><span class="obj-swatch" style="background:#16A34A"></span><span class="obj-glyph">🔻</span><span class="obj-text">Entry Door<span class="obj-dim">3×0.5'</span></span></div>
+            <div class="obj-card" data-obj="exit"><span class="obj-swatch" style="background:#DC2626"></span><span class="obj-glyph">🔺</span><span class="obj-text">Exit Door<span class="obj-dim">6×1'</span></span></div>
+            <div class="obj-card" data-obj="fireexit"><span class="obj-swatch" style="background:#EF4444"></span><span class="obj-glyph">🚨</span><span class="obj-text">Fire Exit<span class="obj-dim">3×0.5'</span></span></div>
+            <div class="obj-card" data-obj="pillar"><span class="obj-swatch" style="background:#57534E"></span><span class="obj-glyph">‖</span><span class="obj-text">Pillar<span class="obj-dim">1.5×1.5'</span></span></div>
+            <div class="obj-card" data-obj="door"><span class="obj-swatch" style="background:#A16207"></span><span class="obj-glyph">🚪</span><span class="obj-text">Door<span class="obj-dim">3×0.5'</span></span></div>
+            <div class="obj-card" data-obj="drainage"><span class="obj-swatch" style="background:#0891B2"></span><span class="obj-glyph">🕳️</span><span class="obj-text">Drainage Point<span class="obj-dim">1×1'</span></span></div>
+            <div class="obj-card" data-obj="fireext"><span class="obj-swatch" style="background:#DC2626"></span><span class="obj-glyph">🧯</span><span class="obj-text">Fire Extinguisher<span class="obj-dim">0.7×0.7'</span></span></div>
+            <div class="obj-card" data-obj="cctv"><span class="obj-swatch" style="background:#DC2626"></span><span class="obj-glyph">🔴</span><span class="obj-text">CCTV<span class="obj-dim">0.5×0.5'</span></span></div>
           </div>
         </div>
       </div>
@@ -8159,41 +8203,61 @@
       rack: { id: 1, key: "1", name: "Rack (3×1.5 ft)", short: "Rack", glyph: "🗄️", color: "#64748B", category: "storage", w: 3, d: 1.5, h: 8, levels: 5 },
       sortbox: { id: 11, key: "", name: "Sorting Box (4×6 ft)", short: "Sort Box", glyph: "📦", color: "#0EA5E9", category: "storage", w: 4, d: 6, h: 4, levels: 1 },
       palletrack: { id: 14, key: "", name: "Rack (4×4 ft)", short: "Pallet", glyph: "🧱", color: "#334155", category: "storage", w: 4, d: 4, h: 12, levels: 3 },
-      trolleycage: { id: 32, key: "", name: "Trolley Cage", short: "Trolley Cage", glyph: "🗃️", color: "#6366F1", category: "storage", w: 3, d: 2, h: 5.5 },
+      // Real roll-cage trolleys run Euro 800×1200mm to UK 1000×1200mm
+      // (≈2.6×3.9 to 3.3×3.9ft) at ~1650-1700mm (≈5.4-5.6ft) tall — nudged
+      // depth up from 2 to 2.5ft to sit inside that range.
+      trolleycage: { id: 32, key: "", name: "Trolley Cage (3×2.5 ft)", short: "Trolley Cage", glyph: "🗃️", color: "#6366F1", category: "storage", w: 3, d: 2.5, h: 5.5 },
 
       // Operations
-      packing: { id: 3, key: "3", name: "Packing Area", short: "Packing", glyph: "📦", color: "#10B981", category: "ops", w: 4, d: 2, h: 3 },
-      receiving: { id: 15, key: "", name: "Receiving Table", short: "Receiving", glyph: "📥", color: "#14B8A6", category: "ops", w: 4, d: 2, h: 3 },
-      dispatch: { id: 16, key: "", name: "Dispatch Table", short: "Dispatch", glyph: "📤", color: "#F97316", category: "ops", w: 4, d: 2, h: 3 },
-      table: { id: 2, key: "2", name: "Work Table", short: "Table", glyph: "🪑", color: "#F59E0B", category: "ops", w: 3, d: 2, h: 3 },
-      conveyor: { id: 5, key: "5", name: "Conveyor Belt", short: "Conveyor", glyph: "»", color: "#94A3B8", category: "ops", w: 2, d: 2, h: 2.5 },
-      staging: { id: 17, key: "", name: "Inward Area", short: "Inward", glyph: "▦", color: "#A8A29E", category: "ops", w: 4, d: 4, h: 0 },
-      locker: { id: 37, key: "", name: "Locker", short: "Locker", glyph: "🔒", color: "#78716C", category: "ops", w: 2, d: 1.5, h: 6 },
-      chair: { id: 38, key: "", name: "Chair", short: "Chair", glyph: "💺", color: "#FBBF24", category: "ops", w: 1.5, d: 1.5, h: 3 },
+      packing: { id: 3, key: "3", name: "Packing Area (4×2 ft)", short: "Packing", glyph: "📦", color: "#10B981", category: "ops", w: 4, d: 2, h: 3 },
+      receiving: { id: 15, key: "", name: "Receiving Table (4×2 ft)", short: "Receiving", glyph: "📥", color: "#14B8A6", category: "ops", w: 4, d: 2, h: 3 },
+      dispatch: { id: 16, key: "", name: "Dispatch Table (4×2 ft)", short: "Dispatch", glyph: "📤", color: "#F97316", category: "ops", w: 4, d: 2, h: 3 },
+      table: { id: 2, key: "2", name: "Work Table (3×2 ft)", short: "Table", glyph: "🪑", color: "#F59E0B", category: "ops", w: 3, d: 2, h: 3 },
+      conveyor: { id: 5, key: "5", name: "Conveyor Belt (2×2 ft)", short: "Conveyor", glyph: "»", color: "#94A3B8", category: "ops", w: 2, d: 2, h: 2.5 },
+      staging: { id: 17, key: "", name: "Inward Area (4×4 ft)", short: "Inward", glyph: "▦", color: "#A8A29E", category: "ops", w: 4, d: 4, h: 0 },
+      locker: { id: 37, key: "", name: "Locker (2×1.5 ft)", short: "Locker", glyph: "🔒", color: "#78716C", category: "ops", w: 2, d: 1.5, h: 6 },
+      // Real stacking chairs run ~19.75-20.5in (1.6-1.7ft) on a side —
+      // nudged up from the too-tight 1.5×1.5 declared before.
+      chair: { id: 38, key: "", name: "Chair (1.7×1.7 ft)", short: "Chair", glyph: "💺", color: "#FBBF24", category: "ops", w: 1.7, d: 1.7, h: 3 },
 
       // Equipment
-      scale: { id: 21, key: "", name: "Weighing Scale", short: "Scale", glyph: "⚖️", color: "#06B6D4", category: "equip", w: 2, d: 2, h: 1 },
-      computer: { id: 22, key: "", name: "Computer Station", short: "Computer", glyph: "💻", color: "#3B82F6", category: "equip", w: 2, d: 2, h: 3 },
-      ac: { id: 23, key: "", name: "AC Unit / HVAC", short: "AC", glyph: "❄️", color: "#38BDF8", category: "equip", w: 2, d: 1, h: 2 },
-      waterdisp: { id: 10, key: "0", name: "Water Dispenser", short: "Water", glyph: "💧", color: "#22D3EE", category: "equip", w: 1.5, d: 1.5, h: 4 },
-      trolley: { id: 34, key: "", name: "Normal Trolley", short: "Trolley", glyph: "🛒", color: "#0EA5E9", category: "equip", w: 2, d: 1.5, h: 3 },
+      // A real platform scale's deck is only ~1-2in (0.15ft) proud of the
+      // floor, not 1ft — h corrected down; the 2×2ft footprint matches the
+      // smallest standard platform sizes and fits this hub's parcel/tote
+      // scale, not a full pallet scale (those run 4×4-4×6ft).
+      scale: { id: 21, key: "", name: "Weighing Scale (2×2 ft)", short: "Scale", glyph: "⚖️", color: "#06B6D4", category: "equip", w: 2, d: 2, h: 0.5 },
+      computer: { id: 22, key: "", name: "Computer Station (2×2 ft)", short: "Computer", glyph: "💻", color: "#3B82F6", category: "equip", w: 2, d: 2, h: 3 },
+      // A wall-mounted split-AC indoor unit is ~30-40in (2.5-3.3ft) wide and
+      // only 6-9in (0.5-0.75ft) deep — was declared as if it were a
+      // free-standing 2×1ft floor object.
+      ac: { id: 23, key: "", name: "AC Unit / HVAC (3×0.5 ft)", short: "AC", glyph: "❄️", color: "#38BDF8", category: "equip", w: 3, d: 0.5, h: 1 },
+      // Real floor-standing water dispensers run ~11-14in (0.9-1.2ft) square
+      // and 32-42in (2.7-3.5ft) tall.
+      waterdisp: { id: 10, key: "0", name: "Water Dispenser (1.2×1.2 ft)", short: "Water", glyph: "💧", color: "#22D3EE", category: "equip", w: 1.2, d: 1.2, h: 3.5 },
+      trolley: { id: 34, key: "", name: "Normal Trolley (2×1.5 ft)", short: "Trolley", glyph: "🛒", color: "#0EA5E9", category: "equip", w: 2, d: 1.5, h: 3 },
 
       // Infrastructure & Safety
-      wall: { id: 8, key: "8", name: "Wall / Blocked", short: "Wall", glyph: "", color: "#44403C", category: "infra", w: 2, d: 2, h: 8 },
-      column: { id: 24, key: "", name: "Structural Column", short: "Column", glyph: "🏛️", color: "#292524", category: "infra", w: 2, d: 2, h: 12 },
-      entry: { id: 6, key: "6", name: "Entry Door", short: "Entry", glyph: "▶", color: "#16A34A", category: "infra", w: 3, d: 0.5, h: 7 },
-      exit: { id: 7, key: "7", name: "Exit Shutter", short: "Exit", glyph: "◀", color: "#DC2626", category: "infra", w: 6, d: 1, h: 8 },
-      fireexit: { id: 25, key: "", name: "Fire Exit", short: "Fire Exit", glyph: "🚨", color: "#EF4444", category: "infra", w: 3, d: 0.5, h: 7 },
-      stairs: { id: 26, key: "", name: "Staircase", short: "Stairs", glyph: "🪜", color: "#71717A", category: "infra", w: 4, d: 6, h: 10 },
-      pillar: { id: 28, key: "", name: "Pillar", short: "Pillar", glyph: "🏛️", color: "#57534E", category: "infra", w: 1.5, d: 1.5, h: 10 },
-      door: { id: 29, key: "", name: "Door", short: "Door", glyph: "🚪", color: "#A16207", category: "infra", w: 3, d: 0.5, h: 7 },
-      rollshutter: { id: 30, key: "", name: "Rolling Shutter", short: "Roll Shutter", glyph: "🚧", color: "#EA580C", category: "infra", w: 8, d: 1, h: 9 },
-      drainage: { id: 31, key: "", name: "Drainage Point", short: "Drainage", glyph: "🕳️", color: "#0891B2", category: "infra", w: 1, d: 1, h: 0.3 },
-      fireext: { id: 35, key: "", name: "Fire Extinguisher", short: "Fire Ext.", glyph: "🧯", color: "#DC2626", category: "infra", w: 0.7, d: 0.7, h: 2 },
+      wall: { id: 8, key: "8", name: "Wall / Blocked (2×2 ft)", short: "Wall", glyph: "", color: "#44403C", category: "infra", w: 2, d: 2, h: 8 },
+      column: { id: 24, key: "", name: "Structural Column (2×2 ft)", short: "Column", glyph: "🏛️", color: "#292524", category: "infra", w: 2, d: 2, h: 12 },
+      entry: { id: 6, key: "6", name: "Entry Door (3×0.5 ft)", short: "Entry", glyph: "▶", color: "#16A34A", category: "infra", w: 3, d: 0.5, h: 7 },
+      exit: { id: 7, key: "7", name: "Exit Shutter (6×1 ft)", short: "Exit", glyph: "◀", color: "#DC2626", category: "infra", w: 6, d: 1, h: 8 },
+      fireexit: { id: 25, key: "", name: "Fire Exit (3×0.5 ft)", short: "Fire Exit", glyph: "🚨", color: "#EF4444", category: "infra", w: 3, d: 0.5, h: 7 },
+      // IBC minimum egress-stair width is 36-44in (3-3.67ft); the 4ft
+      // declared width already clears code. The 6ft run models a
+      // switchback/landing flight (the space-saving, code-compliant way a
+      // real facility reaches a 10ft mezzanine — a single straight flight
+      // for that rise would need a much longer run than the floor can
+      // usually spare).
+      stairs: { id: 26, key: "", name: "Staircase (4×6 ft)", short: "Stairs", glyph: "🪜", color: "#71717A", category: "infra", w: 4, d: 6, h: 10 },
+      pillar: { id: 28, key: "", name: "Pillar (1.5×1.5 ft)", short: "Pillar", glyph: "🏛️", color: "#57534E", category: "infra", w: 1.5, d: 1.5, h: 10 },
+      door: { id: 29, key: "", name: "Door (3×0.5 ft)", short: "Door", glyph: "🚪", color: "#A16207", category: "infra", w: 3, d: 0.5, h: 7 },
+      rollshutter: { id: 30, key: "", name: "Rolling Shutter (8×1 ft)", short: "Roll Shutter", glyph: "🚧", color: "#EA580C", category: "infra", w: 8, d: 1, h: 9 },
+      drainage: { id: 31, key: "", name: "Drainage Point (1×1 ft)", short: "Drainage", glyph: "🕳️", color: "#0891B2", category: "infra", w: 1, d: 1, h: 0.3 },
+      fireext: { id: 35, key: "", name: "Fire Extinguisher (0.7×0.7 ft)", short: "Fire Ext.", glyph: "🧯", color: "#DC2626", category: "infra", w: 0.7, d: 0.7, h: 2 },
       // Drawn as a small red dot on the canvas (see drawPaintCell) rather
       // than a filled block like every other object — a CCTV marker reads
       // as a fixture point, not a footprint.
-      cctv: { id: 36, key: "", name: "CCTV", short: "CCTV", glyph: "🔴", color: "#DC2626", category: "infra", w: 0.5, d: 0.5, h: 8 },
+      cctv: { id: 36, key: "", name: "CCTV (0.5×0.5 ft)", short: "CCTV", glyph: "🔴", color: "#DC2626", category: "infra", w: 0.5, d: 0.5, h: 8 },
     };
     const PAINT_BY_ID = Object.fromEntries(Object.values(PAINT_DEFS).map(e => [e.id, e]));
     const CCTV_ID = PAINT_DEFS.cctv.id;
@@ -13038,15 +13102,11 @@
       const dirA = FLOW_SIDE_DIR[sideA], dirB = FLOW_SIDE_DIR[sideB];
       const dx = p2.x - p1.x, dy = p2.y - p1.y;
       const dist = Math.hypot(dx, dy) || 1;
-      // A real "S", not a curve bulging the same way regardless of layout,
-      // comes from measuring each end's reach along ITS OWN exit axis only —
-      // a side exiting horizontally reaches based on the horizontal gap
-      // between the two points, a vertical exit on the vertical gap. That's
-      // what flattens the curve when the geometry doesn't call for an S
-      // (e.g. directly in line with each other) and keeps it a clean S when
-      // it does (opposite-ish sides with a real offset between them),
-      // instead of always bulging out by a fixed share of the full diagonal
-      // distance no matter which way the two points actually differ.
+      // Each control point reaches out along its OWN exit axis first — a
+      // side exiting horizontally reaches based on the horizontal gap
+      // between the two points, a vertical exit on the vertical gap. This is
+      // what keeps a same-side or perpendicular-side connection a clean
+      // single bend instead of an oversized loop.
       const extFor = dir => {
         const gapOnAxis = Math.abs(dir.x ? dx : dy);
         return Math.max(14, Math.min(100, gapOnAxis * 0.5, dist * 0.5));
@@ -13054,6 +13114,21 @@
       const extA = extFor(dirA), extB = extFor(dirB);
       const c1 = { x: p1.x + dirA.x * extA, y: p1.y + dirA.y * extA };
       const c2 = { x: p2.x + dirB.x * extB, y: p2.y + dirB.y * extB };
+      // On its own, that axis-only reach goes fully straight the moment the
+      // two points line up on the cross axis (e.g. directly across from each
+      // other) — mathematically tidy, but it reads as "a straight line",
+      // not the flowing S this connector is meant to look like. So every
+      // connector also gets a guaranteed sideways flex: nudge the two control
+      // points in OPPOSITE perpendicular directions relative to the p1→p2
+      // line, same idea as pulling the middle of a straight thread into an
+      // S by hand. This is on top of the axis-aware reach above, not instead
+      // of it, so a real offset still curves more than a barely-offset one —
+      // it just never bottoms out at a flat line.
+      const ux = dx / dist, uy = dy / dist;
+      const perpX = -uy, perpY = ux;
+      const flex = Math.max(16, Math.min(70, dist * 0.22));
+      c1.x += perpX * flex; c1.y += perpY * flex;
+      c2.x -= perpX * flex; c2.y -= perpY * flex;
       const samples = [];
       const STEPS = 20;
       for (let i = 0; i <= STEPS; i++) samples.push(cubicBezierPointAt(p1, c1, c2, p2, i / STEPS));
@@ -13130,12 +13205,19 @@
           const dirA = FLOW_SIDE_DIR[flowDraft.fromSide];
           const dx = p2.x - p1.x, dy = p2.y - p1.y;
           const dist = Math.hypot(dx, dy) || 1;
-          // Same axis-aware reach as the finished connector (flowCurveBetween)
-          // — flattens instead of bulging when the cursor is directly in
-          // line with the side it left from.
+          // Same shaping as the finished connector (flowCurveBetween): an
+          // axis-aware reach so it doesn't bulge the same way regardless of
+          // direction, plus a guaranteed sideways flex so it still reads as
+          // a flowing S rather than flattening out when the cursor is
+          // directly in line with the side it left from.
           const ext = Math.max(14, Math.min(100, Math.abs(dirA.x ? dx : dy) * 0.5, dist * 0.5));
           const c1 = { x: p1.x + dirA.x * ext, y: p1.y + dirA.y * ext };
           const c2 = { x: p2.x - dirA.x * ext, y: p2.y - dirA.y * ext };
+          const ux = dx / dist, uy = dy / dist;
+          const perpX = -uy, perpY = ux;
+          const flex = Math.max(16, Math.min(70, dist * 0.22));
+          c1.x += perpX * flex; c1.y += perpY * flex;
+          c2.x -= perpX * flex; c2.y -= perpY * flex;
           drawFlowArrow(g, { p1, c1, c2, p2 }, { dashed: true, color: "#0EA5E9" });
         }
       }
