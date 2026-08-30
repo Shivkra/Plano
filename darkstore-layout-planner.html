@@ -3081,31 +3081,13 @@
       flex-shrink: 0;
     }
 
-    .journey-step .jn-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--border-strong);
-      flex-shrink: 0;
-      transition: background var(--dur-f) var(--ease), box-shadow var(--dur-f) var(--ease);
-    }
-
     .journey-step.done {
       color: var(--ink-soft);
-    }
-
-    .journey-step.done .jn-dot {
-      background: var(--success, #16A34A);
     }
 
     .journey-step.active {
       color: var(--ink);
       background: var(--surface-2);
-    }
-
-    .journey-step.active .jn-dot {
-      background: var(--accent);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
     }
 
     /* Tight laptop widths: keep the label for the step you're ON (which is the
@@ -6641,9 +6623,9 @@
              product used to say this, so it was easy to finish designing and
              not realise Optimize and Finish were the next steps. -->
         <ol class="journey" id="journey" aria-label="Progress">
-          <li class="journey-step" data-stage="design"><span class="jn-dot"></span><span class="jn-label">Design</span></li>
-          <li class="journey-step" data-stage="optimize"><span class="jn-dot"></span><span class="jn-label">Optimise</span></li>
-          <li class="journey-step" data-stage="finish"><span class="jn-dot"></span><span class="jn-label">Finish in 3D</span></li>
+          <li class="journey-step" data-stage="design"><span class="jn-label">Design</span></li>
+          <li class="journey-step" data-stage="optimize"><span class="jn-label">Optimise</span></li>
+          <li class="journey-step" data-stage="finish"><span class="jn-label">Finish in 3D</span></li>
         </ol>
         <div class="btn-group-pill">
           <button class="btn-tool-pill" id="ed-undo" title="Undo (Cmd/Ctrl+Z)">↩ Undo</button>
