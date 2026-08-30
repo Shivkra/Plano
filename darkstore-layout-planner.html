@@ -8416,6 +8416,11 @@
 
     // Flow connectors (directional arrows between zones)
     let selectedFlowId = null;
+    // A single selected annotation (pen line / shape / text / image) — lets
+    // the Select tool + Delete key remove one, same as every other object
+    // type already could. Previously there was no way to select one at all;
+    // a click just fell through to marquee-select.
+    let selectedAnnotationId = null;
     // { fromId, fromSide, curX, curY, startClientX, startClientY } — live
     // while a connector is being drawn. Stays set across a plain click (no
     // real movement) so the *next* click can finish it — see flowDragActive.
@@ -13219,6 +13224,14 @@
       redraw(); updateStats(); queueSave();
       toast("Flow connector deleted");
     }
+    function deleteSelectedAnnotation() {
+      if (!selectedAnnotationId) return;
+      snapshot();
+      site.annotations = (site.annotations || []).filter(a => a.id !== selectedAnnotationId);
+      selectedAnnotationId = null;
+      redraw(); updateStats(); queueSave();
+      toast("Drawing deleted");
+    }
 
     /* =====================================================================
        PEN / SHAPE / TEXT / IMAGE ANNOTATIONS — a free-floating drawing layer
@@ -13300,6 +13313,16 @@
           drawImageAnnotation(g, a);
         }
       });
+      if (selectedAnnotationId) {
+        const sel = list.find(a => a.id === selectedAnnotationId);
+        const b = sel && annotationBoundsPx(sel);
+        if (b) {
+          g.save();
+          g.strokeStyle = "#EC4899"; g.lineWidth = 1.5; g.setLineDash([4, 3]);
+          g.strokeRect(b.x - 6, b.y - 6, b.w + 12, b.h + 12);
+          g.restore();
+        }
+      }
       if (activeStroke && activeStroke.points.length > 1) {
         g.save();
         g.strokeStyle = activeStroke.color; g.lineWidth = annoWidthPx(activeStroke.width);
@@ -13315,6 +13338,90 @@
       if (drawingShapeAnno) {
         drawShapeAnnotation(g, Object.assign({ color: penColor, width: penWidth }, drawingShapeAnno));
       }
+    }
+
+    /* Hit-tests the annotation layer (pen strokes, shapes, text, images) at a
+       LOCAL PIXEL point — same coordinate space drawAnnotations() draws in
+       and flowAt() hit-tests in (client coords minus the canvas rect and
+       MARGIN). Used by the Erase tool below, which previously only cleared
+       grid-painted cells and had no way to touch this layer at all — a
+       drawn line or shape was permanently stuck until "Clear all
+       annotations" wiped every annotation at once. */
+    function annotationAt(localX, localY) {
+      const list = site.annotations || [];
+      for (let i = list.length - 1; i >= 0; i--) {
+        const a = list[i];
+        if (a.type === "pen") {
+          if (!a.points || a.points.length < 2) continue;
+          const tol = Math.max(8, annoWidthPx(a.width));
+          for (let j = 0; j < a.points.length - 1; j++) {
+            const x1 = ftToLocalPx(a.points[j].x), y1 = ftToLocalPx(a.points[j].y);
+            const x2 = ftToLocalPx(a.points[j + 1].x), y2 = ftToLocalPx(a.points[j + 1].y);
+            if (distToSegment(localX, localY, x1, y1, x2, y2) < tol) return a;
+          }
+        } else if (a.type === "shape") {
+          const x1 = ftToLocalPx(a.x0), y1 = ftToLocalPx(a.y0);
+          const x2 = ftToLocalPx(a.x1), y2 = ftToLocalPx(a.y1);
+          const tol = Math.max(8, annoWidthPx(a.width));
+          if (a.shapeType === "line" || a.shapeType === "arrow") {
+            if (distToSegment(localX, localY, x1, y1, x2, y2) < tol) return a;
+          } else {
+            // rect/circle/diamond render as an outline only, not a fill —
+            // hit-test near each edge of the bounding box rather than
+            // treating the whole interior as clickable.
+            const x = Math.min(x1, x2), y = Math.min(y1, y2), w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
+            const edges = [[x, y, x + w, y], [x + w, y, x + w, y + h], [x + w, y + h, x, y + h], [x, y + h, x, y]];
+            if (edges.some(([ex1, ey1, ex2, ey2]) => distToSegment(localX, localY, ex1, ey1, ex2, ey2) < tol)) return a;
+          }
+        } else if (a.type === "text") {
+          const px = ftToLocalPx(a.x), py = ftToLocalPx(a.y);
+          // No live text measurement here (would need a canvas context) — a
+          // generous fixed box errs towards easy-to-erase rather than
+          // hard-to-hit, which is the right trade-off for an eraser.
+          const halfW = Math.max(30, (a.text || "").length * 4);
+          if (Math.abs(localX - px) < halfW + 15 && Math.abs(localY - py) < 18) return a;
+        } else if (a.type === "image") {
+          const x1 = ftToLocalPx(a.x), y1 = ftToLocalPx(a.y);
+          const x2 = ftToLocalPx(a.x + a.w), y2 = ftToLocalPx(a.y + a.h);
+          if (localX >= Math.min(x1, x2) && localX <= Math.max(x1, x2) && localY >= Math.min(y1, y2) && localY <= Math.max(y1, y2)) return a;
+        }
+      }
+      return null;
+    }
+    // Removes the topmost annotation under a local-pixel point, if any.
+    // Returns whether something was actually erased, so callers painting a
+    // continuous stroke only redraw/toast when there was a real change.
+    function eraseAnnotationAt(localX, localY) {
+      const a = annotationAt(localX, localY);
+      if (!a) return false;
+      site.annotations = (site.annotations || []).filter(x => x.id !== a.id);
+      return true;
+    }
+    // Local-pixel bounding box for the selection highlight — same per-type
+    // geometry as annotationAt's hit-test, just expressed as a box instead
+    // of a hit/miss.
+    function annotationBoundsPx(a) {
+      if (a.type === "pen") {
+        if (!a.points || !a.points.length) return null;
+        const xs = a.points.map(p => ftToLocalPx(p.x)), ys = a.points.map(p => ftToLocalPx(p.y));
+        const x = Math.min(...xs), y = Math.min(...ys);
+        return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
+      }
+      if (a.type === "shape") {
+        const x1 = ftToLocalPx(a.x0), y1 = ftToLocalPx(a.y0), x2 = ftToLocalPx(a.x1), y2 = ftToLocalPx(a.y1);
+        const x = Math.min(x1, x2), y = Math.min(y1, y2);
+        return { x, y, w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) };
+      }
+      if (a.type === "text") {
+        const px = ftToLocalPx(a.x), py = ftToLocalPx(a.y);
+        const halfW = Math.max(30, (a.text || "").length * 4);
+        return { x: px - halfW, y: py - 12, w: halfW * 2, h: 24 };
+      }
+      if (a.type === "image") {
+        const x1 = ftToLocalPx(a.x), y1 = ftToLocalPx(a.y), x2 = ftToLocalPx(a.x + a.w), y2 = ftToLocalPx(a.y + a.h);
+        return { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) };
+      }
+      return null;
     }
 
     function roundRectPath(g, x, y, w, h, r) {
@@ -13775,7 +13882,23 @@
           if (fHit) {
             deselectZone();
             selectedCell = null; selectedCells = [];
+            selectedAnnotationId = null;
             selectedFlowId = fHit.id;
+            updateRightPanel();
+            redraw();
+            return;
+          }
+          // 0.5. If clicking on a drawn annotation (pen line, shape, text,
+          // image), select it. There was previously no way to select one at
+          // all — a click here just fell through to marquee-select, so
+          // Delete/Backspace could never reach it and the only way to
+          // remove a line was "Clear all annotations" (everything at once).
+          const aHit = annotationAt(localX, localY);
+          if (aHit) {
+            deselectZone();
+            selectedCell = null; selectedCells = [];
+            selectedFlowId = null;
+            selectedAnnotationId = aHit.id;
             updateRightPanel();
             redraw();
             return;
@@ -13786,6 +13909,7 @@
         if (cell && site.cells[cell.r * site.cols + cell.c]) {
           deselectZone();
           selectedFlowId = null;
+          selectedAnnotationId = null;
           const isAlreadySelected = selectedCells.some(c => c.c === cell.c && c.r === cell.r);
           if (ev.shiftKey) {
             if (isAlreadySelected) {
@@ -13856,6 +13980,7 @@
           selectedCell = null;
           selectedCells = [];
           selectedFlowId = null;
+          selectedAnnotationId = null;
           selectZone(z.id);
           if (z.locked) { toast("Locked — right-click it to unlock"); return; }
           safeSetPointerCapture(canvas(), ev.pointerId);
@@ -13882,6 +14007,7 @@
           selectedCell = null;
           selectedCells = [];
           selectedFlowId = null;
+          selectedAnnotationId = null;
           deselectZone();
         }
         dragGroup = null;
@@ -13908,6 +14034,14 @@
 
       snapshot();
       setPaintCell(cell.c, cell.r, val);
+      // Erase (dedicated tool or right-click) also sweeps the annotation
+      // layer at the actual click point, not just the grid cell underneath
+      // — a pen line or shape sitting on the same cell used to be
+      // untouchable by this tool entirely.
+      if (strokeErase) {
+        const rect = canvas().getBoundingClientRect();
+        eraseAnnotationAt(ev.clientX - rect.left - MARGIN, ev.clientY - rect.top - MARGIN);
+      }
       redraw(); updateStats();
     }
 
@@ -14063,6 +14197,12 @@
         paintLine(lastCell, cell, val);
       }
       lastCell = cell;
+      // Dragging the eraser across a drawn line removes it as the cursor
+      // sweeps over it, same as it clears grid paint along the drag path.
+      if (strokeErase) {
+        const rect = canvas().getBoundingClientRect();
+        eraseAnnotationAt(ev.clientX - rect.left - MARGIN, ev.clientY - rect.top - MARGIN);
+      }
       redraw(); updateStats();
     }
 
@@ -14327,9 +14467,16 @@
 
       const fHit = flowAt(localX, localY);
       if (fHit) {
-        deselectZone(); selectedCell = null; selectedCells = []; selectedFlowId = fHit.id;
+        deselectZone(); selectedCell = null; selectedCells = []; selectedAnnotationId = null; selectedFlowId = fHit.id;
         updateRightPanel(); redraw();
         buildContextMenu("flow", fHit, ev.clientX, ev.clientY);
+        return;
+      }
+      const aHit = annotationAt(localX, localY);
+      if (aHit) {
+        deselectZone(); selectedCell = null; selectedCells = []; selectedFlowId = null; selectedAnnotationId = aHit.id;
+        updateRightPanel(); redraw();
+        buildContextMenu("annotation", aHit, ev.clientX, ev.clientY);
         return;
       }
       if (cell && site.cells[cell.r * site.cols + cell.c]) {
@@ -14389,6 +14536,8 @@
         });
         addSep();
         addItem("Delete", "🗑", () => deleteSelectedFlow(), { danger: true });
+      } else if (kind === "annotation") {
+        addItem("Delete", "🗑", () => deleteSelectedAnnotation(), { danger: true });
       }
 
       menu.style.left = clientX + "px";
@@ -16264,11 +16413,12 @@
         updateZoomTxt();
         return;
       }
-      if (ev.key === "Escape") { hideBin(); hideShortcutsHelp(); hideContextMenu(); deselectZone(); flowDraft = null; flowDragActive = false; selectedFlowId = null; redraw(); closeDrawers(); return; }
+      if (ev.key === "Escape") { hideBin(); hideShortcutsHelp(); hideContextMenu(); deselectZone(); flowDraft = null; flowDragActive = false; selectedFlowId = null; selectedAnnotationId = null; redraw(); closeDrawers(); return; }
       if (ev.key === "?" || (ev.shiftKey && ev.key === "/")) { ev.preventDefault(); showShortcutsHelp(); return; }
       if (ev.key === "Delete" || ev.key === "Backspace") {
         if (selectedZoneId) { $("#zt-del").click(); }
         else if (selectedFlowId) { deleteSelectedFlow(); }
+        else if (selectedAnnotationId) { deleteSelectedAnnotation(); }
         else if (selectedCells && selectedCells.length > 1) { deleteSelectedCells(); }
         else if (selectedCell) { $("#prop-obj-del").click(); }
         return;
