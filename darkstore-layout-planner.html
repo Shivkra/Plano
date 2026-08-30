@@ -3535,6 +3535,13 @@
       background: var(--surface);
     }
 
+    /* Every field on this screen is required — see validateChoiceFields().
+       Clears itself the moment the manager types something. */
+    .choice-input.err {
+      border-color: var(--danger);
+      background: var(--danger-bg);
+    }
+
     .choice-dim-presets {
       display: flex;
       gap: 6px;
@@ -6437,12 +6444,12 @@
           <div class="choice-input-row" style="margin-top:12px;">
             <div>
               <label class="choice-field-label" for="choice-vision-orders">Boxes handled / day</label>
-              <input type="number" class="choice-input" id="choice-vision-orders" value="3000" min="0" max="500000"
-                step="100">
+              <input type="number" class="choice-input" id="choice-vision-orders" min="0" max="500000"
+                step="100" placeholder="e.g. 3000">
             </div>
             <div>
               <label class="choice-field-label" for="choice-vision-dests">Destination hubs shipped to</label>
-              <input type="number" class="choice-input" id="choice-vision-dests" value="0" min="0" max="200">
+              <input type="number" class="choice-input" id="choice-vision-dests" min="0" max="200" placeholder="e.g. 5">
             </div>
           </div>
 
@@ -6472,7 +6479,7 @@
           <div class="drawing-form-fields">
             <div>
               <label class="choice-field-label" for="choice-store-name">Facility / Hub Name</label>
-              <input type="text" class="choice-input" id="choice-store-name" value="Bangalore Mother Hub (15k sq ft)"
+              <input type="text" class="choice-input" id="choice-store-name"
                 placeholder="e.g. Bangalore Mother Hub">
             </div>
 
@@ -6480,12 +6487,14 @@
               <label class="choice-field-label">Floor Dimensions (Feet)</label>
               <div class="choice-input-row">
                 <div>
-                  <input type="number" class="choice-input" id="choice-dim-l" value="150" min="20" max="1000" step="2"
-                    placeholder="Length">
+                  <label class="choice-field-label" for="choice-dim-l">Length</label>
+                  <input type="number" class="choice-input" id="choice-dim-l" min="20" max="1000" step="2"
+                    placeholder="e.g. 150">
                 </div>
                 <div>
-                  <input type="number" class="choice-input" id="choice-dim-w" value="100" min="20" max="1000" step="2"
-                    placeholder="Width">
+                  <label class="choice-field-label" for="choice-dim-w">Width</label>
+                  <input type="number" class="choice-input" id="choice-dim-w" min="20" max="1000" step="2"
+                    placeholder="e.g. 100">
                 </div>
               </div>
             </div>
@@ -6493,12 +6502,12 @@
             <div class="choice-input-row" style="margin-top:12px;">
               <div>
                 <label class="choice-field-label" for="choice-orders">Boxes handled / day</label>
-                <input type="number" class="choice-input" id="choice-orders" value="3000" min="0" max="500000"
-                  step="100">
+                <input type="number" class="choice-input" id="choice-orders" min="0" max="500000"
+                  step="100" placeholder="e.g. 3000">
               </div>
               <div>
                 <label class="choice-field-label" for="choice-dests">Destination hubs shipped to</label>
-                <input type="number" class="choice-input" id="choice-dests" value="0" min="0" max="200">
+                <input type="number" class="choice-input" id="choice-dests" min="0" max="200" placeholder="e.g. 5">
               </div>
             </div>
 
@@ -8588,14 +8597,20 @@
     /* =====================================================================
        DESIGN CHOICE SCREEN LOGIC (Upload Blueprint vs Start Drawing)
     ===================================================================== */
+    // Every field on both cards starts genuinely blank on every visit — no
+    // example name, no example dimensions, no example volume. A manager
+    // should never be able to launch a site purely on numbers they never
+    // actually looked at; see validateChoiceFields() below for the other
+    // half of that (blocking launch until they're filled in).
+    const CHOICE_FIELD_IDS = ["#choice-store-name", "#choice-dim-l", "#choice-dim-w", "#choice-orders", "#choice-dests",
+      "#choice-vision-orders", "#choice-vision-dests"];
     function openDesignChoice() {
       showScreen("design-choice");
-      const nameInput = $("#choice-store-name");
-      if (nameInput) nameInput.value = `Warehouse Site - ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
-      const lInput = $("#choice-dim-l");
-      const wInput = $("#choice-dim-w");
-      if (lInput) lInput.value = "120";
-      if (wInput) wInput.value = "90";
+      CHOICE_FIELD_IDS.forEach(sel => {
+        const el = $(sel);
+        if (el) { el.value = ""; el.classList.remove("err"); }
+      });
+      document.querySelectorAll(".preset-chip").forEach(c => c.classList.remove("active"));
       const statusEl = $("#choice-ai-status");
       if (statusEl) statusEl.style.display = "none";
     }
@@ -8603,17 +8618,52 @@
     function setChoicePreset(l, w, el) {
       const lInput = $("#choice-dim-l");
       const wInput = $("#choice-dim-w");
-      if (lInput) lInput.value = l;
-      if (wInput) wInput.value = w;
+      if (lInput) { lInput.value = l; lInput.classList.remove("err"); }
+      if (wInput) { wInput.value = w; wInput.classList.remove("err"); }
       document.querySelectorAll(".preset-chip").forEach(c => c.classList.remove("active"));
       if (el) el.classList.add("active");
     }
+
+    // Required-field gate shared by both design-choice cards. Checks the raw
+    // typed string, not the parsed number the callers use once this passes —
+    // an empty field and an explicitly-typed "0" mean different things (e.g.
+    // "0 destination hubs" is a real, valid answer; a blank field is not an
+    // answer at all), so this must run before any || fallback quietly
+    // papers over the difference. Flags the first empty field, focuses it,
+    // and returns false; clears any stale flag on fields that do have a
+    // value, so re-checking after a partial fix doesn't relight everything.
+    function validateChoiceFields(sels) {
+      let firstBad = null;
+      sels.forEach(sel => {
+        const el = $(sel);
+        if (!el) return;
+        if (String(el.value ?? "").trim() === "") {
+          el.classList.add("err");
+          if (!firstBad) firstBad = el;
+        } else {
+          el.classList.remove("err");
+        }
+      });
+      if (firstBad) {
+        firstBad.focus();
+        const label = firstBad.previousElementSibling?.textContent?.trim();
+        toast(`Fill in every field before continuing${label ? ` — ${label} is empty` : ""}.`);
+        return false;
+      }
+      return true;
+    }
+    // Clears a field's error flag as soon as the manager starts fixing it,
+    // rather than making them re-click Continue to find out it's cleared.
+    CHOICE_FIELD_IDS.forEach(sel => {
+      $(sel)?.addEventListener("input", e => e.target.classList.remove("err"));
+    });
 
     // Option 2: Direct Canvas Launch — walks the manager through a short run
     // of computed decisions (see startDeepQa) instead of a free-text AI
     // prompt, since every one of those decisions has a real, checkable
     // consequence on THIS site's own dimensions.
     $("#choice-launch-canvas-btn")?.addEventListener("click", async () => {
+      if (!validateChoiceFields(["#choice-store-name", "#choice-dim-l", "#choice-dim-w", "#choice-orders", "#choice-dests"])) return;
       const name = ($("#choice-store-name")?.value || "New Warehouse Layout").trim();
       const l = clamp(parseInt($("#choice-dim-l")?.value) || 120, 20, 1000);
       const w = clamp(parseInt($("#choice-dim-w")?.value) || 90, 20, 1000);
@@ -8636,8 +8686,12 @@
     // Option 1: AI Blueprint Upload
     const choiceDropzone = $("#choice-blueprint-dropzone");
     const choiceFileInput = $("#choice-blueprint-file");
+    const CHOICE_VISION_FIELDS = ["#choice-vision-orders", "#choice-vision-dests"];
 
-    choiceDropzone?.addEventListener("click", () => choiceFileInput?.click());
+    choiceDropzone?.addEventListener("click", () => {
+      if (!validateChoiceFields(CHOICE_VISION_FIELDS)) return;
+      choiceFileInput?.click();
+    });
 
     choiceDropzone?.addEventListener("dragover", e => {
       e.preventDefault();
@@ -8649,11 +8703,16 @@
     choiceDropzone?.addEventListener("drop", e => {
       e.preventDefault();
       choiceDropzone.classList.remove("dragover");
+      if (!validateChoiceFields(CHOICE_VISION_FIELDS)) return;
       const file = e.dataTransfer?.files?.[0];
       if (file) handleChoiceBlueprintUpload(file);
     });
 
     choiceFileInput?.addEventListener("change", e => {
+      // Belt-and-suspenders: the picker only opens past the click-gate
+      // above, but a file can also land here from a stale/back-navigated
+      // input, so this re-checks rather than trusting that gate alone.
+      if (!validateChoiceFields(CHOICE_VISION_FIELDS)) return;
       const file = e.target.files?.[0];
       if (file) handleChoiceBlueprintUpload(file);
     });
