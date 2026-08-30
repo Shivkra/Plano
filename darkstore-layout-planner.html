@@ -1090,6 +1090,35 @@
       justify-content: center;
       --mx: 0px;
       --my: 0px;
+      /* First-impression screen, pinned to the light palette on purpose —
+         same reasoning as the always-white presentation sheet: it's a fixed
+         brand moment, not a workspace the manager stares at all day, so it
+         doesn't need to track the app's dark-mode toggle. Re-declaring the
+         theme tokens here overrides whatever [data-theme="dark"] set higher
+         up, for every descendant that reads them — no need to touch the ~50
+         var(--ink)-style references throughout this screen's CSS one by one. */
+      --bg: #F6F4EF;
+      --bg-soft: #FBFAF7;
+      --surface: #FFFFFF;
+      --border: #E5E0D4;
+      --border-strong: #D6CFBD;
+      --ink: #1D1B17;
+      --ink-faint: #6B6558;
+      --accent: #17171A;
+      --accent-hover: #000000;
+      --danger: #C0392B;
+      --focus: #2563EB;
+      --blueprint: #245A8C;
+      --blueprint-line: rgba(36, 90, 140, .12);
+      --shadow-sm: 0 1px 2px rgba(20, 18, 12, .06), 0 1px 1px rgba(20, 18, 12, .04);
+      --shadow-md: 0 4px 14px rgba(20, 18, 12, .08), 0 1px 3px rgba(20, 18, 12, .06);
+      /* `color` is an inherited property, not a live var() re-read — an
+         element in here with no colour of its own (e.g. the known-user
+         chip's name) would otherwise inherit body's already-resolved
+         dark-mode text colour, straight past every override above. Setting
+         it explicitly here re-establishes correct inheritance from this
+         point down for anything that doesn't set its own. */
+      color: var(--ink);
     }
 
     #login-gate::before {
@@ -1676,6 +1705,16 @@
     body.dark-mode .ed-brand-pill img,
     [data-theme="dark"] .logo-pill img {
       filter: invert(1);
+    }
+
+    /* The mark itself is dark-on-transparent, inverted app-wide so it reads
+       on a dark surface — but the login card is pinned to the light surface
+       above, so it needs its ordinary, un-inverted colours back. Anchored on
+       #login-gate for higher specificity than the rule above, regardless of
+       source order. */
+    [data-theme="dark"] #login-gate .login-logo,
+    body.dark-mode #login-gate .login-logo {
+      filter: none;
     }
 
     .lib-header h1 {
