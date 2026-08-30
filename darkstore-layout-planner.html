@@ -1070,31 +1070,57 @@
        shares. */
     #login-gate {
       overflow: hidden;
-      position: relative;
+      /* No position override here — .screen already sets position:fixed,
+         which both fills the viewport (so centering has full height to work
+         with) AND is itself a containing block for the absolutely-positioned
+         children below. Adding position:relative here was the earlier bug:
+         it silently demoted the gate to a content-sized box, so the card
+         rendered near the top with empty space below instead of centered. */
       background: var(--bg);
       align-items: center;
       justify-content: center;
+      --mx: 0px;
+      --my: 0px;
     }
 
     #login-gate::before {
       /* Coarse coordinate grid, the same idea as the plan editor's own ruled
-         canvas, faded out toward the edges so it reads as atmosphere. */
+         canvas — a drafting table the card sits on, not a decal behind it.
+         Answers the cursor at a low amplitude via --mx/--my (set in JS) for
+         a sense of depth at rest. */
       content: "";
       position: absolute;
-      inset: 0;
+      inset: -40px;
       pointer-events: none;
       background-image:
         repeating-linear-gradient(0deg, var(--blueprint-line) 0 1px, transparent 1px 84px),
         repeating-linear-gradient(90deg, var(--blueprint-line) 0 1px, transparent 1px 84px);
-      -webkit-mask-image: radial-gradient(ellipse 820px 660px at 50% 46%, black 0%, transparent 76%);
-      mask-image: radial-gradient(ellipse 820px 660px at 50% 46%, black 0%, transparent 76%);
+      -webkit-mask-image: radial-gradient(ellipse 860px 680px at 50% 46%, black 0%, transparent 78%);
+      mask-image: radial-gradient(ellipse 860px 680px at 50% 46%, black 0%, transparent 78%);
+      transform: translate(calc(var(--mx) * -1), calc(var(--my) * -1));
+    }
+
+    /* A soft work-light behind the card, like a lamp over a drafting table —
+       gives the centre of the scene somewhere to rest instead of an even,
+       flat wash. */
+    .login-glow {
+      position: absolute;
+      width: 640px;
+      height: 640px;
+      left: 50%;
+      top: 46%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      background: radial-gradient(circle, var(--blueprint-line) 0%, transparent 68%);
+      opacity: .55;
     }
 
     .login-dim {
       position: absolute;
       pointer-events: none;
       color: var(--blueprint);
-      opacity: .55;
+      opacity: .6;
+      transform: translate(calc(var(--mx) * -1.6), calc(var(--my) * -1.6));
     }
 
     .login-dim text {
@@ -1169,9 +1195,33 @@
       height: auto;
     }
 
+    /* Entrance is a stamp, not a fade: the mark drops in slightly big and
+       rotated, like a rubber stamp landing, then settles — followed by the
+       existing slow float once it's at rest. The two animations hand off at
+       the same instant so there's no jump between them. */
     @media (prefers-reduced-motion:no-preference) {
       .login-logo {
-        animation: loginLogoFloat 4.8s ease-in-out infinite;
+        opacity: 0;
+        animation:
+          loginLogoStamp .62s .08s cubic-bezier(.2, 1.6, .4, 1) forwards,
+          loginLogoFloat 4.8s .7s ease-in-out infinite;
+      }
+    }
+
+    @keyframes loginLogoStamp {
+      0% {
+        opacity: 0;
+        transform: scale(.55) rotate(-14deg);
+      }
+
+      70% {
+        opacity: 1;
+        transform: scale(1.06) rotate(3deg);
+      }
+
+      100% {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
       }
     }
 
@@ -1251,39 +1301,86 @@
       border-width: 0 1.4px 1.4px 0;
     }
 
+    /* The top edge draws itself across like a pen stroke, then the four
+       corner ticks click into place a beat later — the card assembling
+       itself, rather than every decoration just fading in with the card. */
     @media (prefers-reduced-motion:no-preference) {
       .login-card {
-        animation: loginCardIn .55s cubic-bezier(.16, 1, .3, 1) both;
+        animation: loginCardIn .5s cubic-bezier(.2, 1, .3, 1) both;
       }
 
-      .login-logo-wrap,
-      .login-card h1,
-      .login-card form {
-        animation: loginFadeUp .5s cubic-bezier(.16, 1, .3, 1) both;
+      .login-card::before {
+        transform: scaleX(0);
+        transform-origin: left;
+        animation: loginBarDraw .45s .32s cubic-bezier(.3, .9, .4, 1) forwards;
       }
 
-      .login-logo-wrap {
-        animation-delay: .02s;
+      .login-card::after,
+      .login-card i.reg {
+        opacity: 0;
+        animation: loginTickIn .4s .58s cubic-bezier(.2, 1.4, .4, 1) forwards;
       }
+    }
 
-      .login-card h1 {
-        animation-delay: .09s;
-      }
-
-      .login-card form {
-        animation-delay: .17s;
+    @keyframes loginBarDraw {
+      to {
+        transform: scaleX(1);
       }
     }
 
     @keyframes loginCardIn {
       from {
         opacity: 0;
-        transform: translateY(16px) scale(.97);
+        transform: translateY(22px) scale(.96);
       }
 
       to {
         opacity: 1;
         transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes loginTickIn {
+      from {
+        opacity: 0;
+        transform: scale(.4);
+      }
+
+      to {
+        opacity: .8;
+        transform: scale(1);
+      }
+    }
+
+    /* One cascading reveal, not three coarse groups — each control gets its
+       own beat so the card visibly assembles itself top to bottom. */
+    @media (prefers-reduced-motion:no-preference) {
+      .login-reveal {
+        animation: loginFadeUp .5s cubic-bezier(.16, 1, .3, 1) both;
+      }
+
+      .login-reveal--1 {
+        animation-delay: .16s;
+      }
+
+      .login-reveal--2 {
+        animation-delay: .22s;
+      }
+
+      .login-reveal--3 {
+        animation-delay: .28s;
+      }
+
+      .login-reveal--4 {
+        animation-delay: .34s;
+      }
+
+      .login-reveal--5 {
+        animation-delay: .4s;
+      }
+
+      .login-reveal--6 {
+        animation-delay: .46s;
       }
     }
 
@@ -1365,6 +1462,34 @@
       color: var(--blueprint);
     }
 
+    /* A one-off flourish for this screen only — a sheen sweeping across the
+       entry action on hover — without touching .btn.primary itself, which
+       every other primary button in the product also relies on. */
+    #login-go {
+      position: relative;
+      overflow: hidden;
+    }
+
+    #login-go::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, .25) 50%, transparent 60%);
+      transform: translateX(-120%);
+    }
+
+    @media (prefers-reduced-motion:no-preference) {
+      #login-go:hover::after {
+        animation: loginBtnSheen .85s cubic-bezier(.3, .1, .2, 1);
+      }
+    }
+
+    @keyframes loginBtnSheen {
+      to {
+        transform: translateX(120%);
+      }
+    }
+
     .login-card .field {
       margin-top: 30px;
       text-align: left;
@@ -1388,9 +1513,65 @@
     }
 
     .login-card input[type=email]:focus {
-      border-color: var(--ink);
+      border-color: var(--blueprint);
       background: var(--surface);
-      box-shadow: 0 0 0 5px rgba(23, 23, 26, .09);
+      box-shadow: 0 0 0 5px var(--blueprint-line);
+    }
+
+    /* Focus reticle: four corner brackets locked in toward the field, that
+       snap outward to frame it on focus — a scanner reading a badge, which
+       is exactly what "Site Access" is asking the manager to do. */
+    .login-reticle-wrap {
+      position: relative;
+    }
+
+    .ret {
+      position: absolute;
+      width: 11px;
+      height: 11px;
+      pointer-events: none;
+      border: 1.6px solid var(--blueprint);
+      opacity: 0;
+      transition: opacity .2s ease, transform .3s cubic-bezier(.2, 1, .3, 1);
+    }
+
+    .ret--tl {
+      top: -5px;
+      left: -5px;
+      border-width: 1.6px 0 0 1.6px;
+      transform: translate(5px, 5px);
+    }
+
+    .ret--tr {
+      top: -5px;
+      right: -5px;
+      border-width: 1.6px 1.6px 0 0;
+      transform: translate(-5px, 5px);
+    }
+
+    .ret--bl {
+      bottom: -5px;
+      left: -5px;
+      border-width: 0 0 1.6px 1.6px;
+      transform: translate(5px, -5px);
+    }
+
+    .ret--br {
+      bottom: -5px;
+      right: -5px;
+      border-width: 0 1.6px 1.6px 0;
+      transform: translate(-5px, -5px);
+    }
+
+    .login-reticle-wrap:focus-within .ret {
+      opacity: .85;
+      transform: translate(0, 0);
+    }
+
+    @media (prefers-reduced-motion:reduce) {
+      .ret {
+        transition: opacity .2s ease;
+      }
     }
 
     .field-error {
@@ -6129,6 +6310,7 @@
 
   <!-- ================= LOGIN ================= -->
   <div id="login-gate" class="screen on">
+    <div class="login-glow"></div>
     <svg class="login-dim login-dim--bl" width="150" height="46" viewBox="0 0 150 46" aria-hidden="true">
       <path d="M0.5 6 V0.5 H149.5 V6 M0.5 0.5 V16 M149.5 0.5 V16"/>
       <text x="75" y="30" text-anchor="middle">24'-0"</text>
@@ -6140,27 +6322,31 @@
 
     <div class="login-card">
       <i class="reg reg--tr"></i><i class="reg reg--bl"></i><i class="reg reg--br"></i>
-      <div class="login-logo-wrap">
+      <div class="login-reveal login-reveal--1 login-logo-wrap">
         <div class="login-logo-glow"></div>
         <img class="login-logo" src="Logo.png" alt="Blitz">
       </div>
-      <h1 class="login-word"><span class="login-word-main">Blitz</span><span class="login-word-sub">Planogram
-          Planner</span></h1>
-      <div class="login-known" id="login-known" style="display:none;">
+      <h1 class="login-reveal login-reveal--2 login-word"><span class="login-word-main">Blitz</span><span
+          class="login-word-sub">Planogram Planner</span></h1>
+      <div class="login-known login-reveal login-reveal--3" id="login-known" style="display:none;">
         <div class="lbl">Continue as</div>
         <div class="login-chip-row" id="login-chip-row"></div>
       </div>
       <form id="login-form" novalidate
         onsubmit="event.preventDefault(); signIn(document.getElementById('login-email').value);">
-        <div class="login-eyebrow">Site Access</div>
-        <div class="field">
+        <div class="login-reveal login-reveal--3 login-eyebrow">Site Access</div>
+        <div class="login-reveal login-reveal--4 field field--reticle">
           <label class="field-label" for="login-email">What's your email?</label>
-          <input type="email" id="login-email" placeholder="e.g. siva.k@blitznow.in" maxlength="100" autocomplete="off"
-            inputmode="email" enterkeyhint="go">
+          <div class="login-reticle-wrap">
+            <input type="email" id="login-email" placeholder="e.g. siva.k@blitznow.in" maxlength="100"
+              autocomplete="off" inputmode="email" enterkeyhint="go">
+            <i class="ret ret--tl"></i><i class="ret ret--tr"></i><i class="ret ret--bl"></i><i class="ret ret--br"></i>
+          </div>
           <div class="field-error" id="login-email-error" style="display:none;">Enter a valid email address.</div>
         </div>
-        <button type="submit" class="btn primary lg full" id="login-go" style="margin-top:14px;">Continue →</button>
-        <button type="button" class="login-quick-link" id="login-quick"
+        <button type="submit" class="login-reveal login-reveal--5 btn primary lg full" id="login-go"
+          style="margin-top:14px;">Continue →</button>
+        <button type="button" class="login-reveal login-reveal--6 login-quick-link" id="login-quick"
           onclick="signIn('siva.k@blitznow.in')">⚡ Quick sign in as Lead Architect</button>
       </form>
     </div>
@@ -16904,6 +17090,36 @@
       if (errEl) errEl.style.display = "none";
       showScreen("login-gate");
     }
+
+    // Low-amplitude cursor parallax on the login backdrop — the grid and
+    // dimension lines drift opposite the pointer, giving the scene a sense
+    // of depth at rest. Only wired for a real mouse (not touch) and only
+    // once, since #login-gate is created once at load; skipped entirely for
+    // reduced motion so nothing moves that didn't explicitly ask to.
+    (function initLoginParallax() {
+      const gate = $("#login-gate");
+      if (!gate) return;
+      if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      if (!(window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches)) return;
+      const MAX = 9; // px of drift at the viewport edge — subtle, not a slide show
+      let raf = null, tx = 0, ty = 0;
+      gate.addEventListener("pointermove", ev => {
+        const r = gate.getBoundingClientRect();
+        const nx = (ev.clientX - r.left) / r.width - .5;   // -0.5 .. 0.5
+        const ny = (ev.clientY - r.top) / r.height - .5;
+        tx = nx * MAX * 2; ty = ny * MAX * 2;
+        if (raf) return;
+        raf = requestAnimationFrame(() => {
+          gate.style.setProperty("--mx", tx.toFixed(1) + "px");
+          gate.style.setProperty("--my", ty.toFixed(1) + "px");
+          raf = null;
+        });
+      });
+      gate.addEventListener("pointerleave", () => {
+        gate.style.setProperty("--mx", "0px");
+        gate.style.setProperty("--my", "0px");
+      });
+    })();
 
     async function signIn(email) {
       email = String(email || "").trim().toLowerCase();
