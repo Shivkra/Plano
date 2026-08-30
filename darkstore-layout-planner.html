@@ -8429,7 +8429,15 @@
 
     // Flow connectors (directional arrows between zones)
     let selectedFlowId = null;
-    let flowDraft = null; // { fromId, curX, curY } — live while dragging a new connector
+    // { fromId, fromSide, curX, curY, startClientX, startClientY } — live
+    // while a connector is being drawn. Stays set across a plain click (no
+    // real movement) so the *next* click can finish it — see flowDragActive.
+    let flowDraft = null;
+    // True only while the pointer that started the current flowDraft is
+    // still physically down — distinguishes "mid-drag" (pointerup here
+    // decides whether to finish or cancel) from "armed after a click"
+    // (pointerup already happened once; a fresh pointerdown finishes it).
+    let flowDragActive = false;
 
     // Pen / shape / image annotation layer — drawn independent of the grid
     let penColor = "#EF4444", penWidth = 3;
@@ -8457,7 +8465,7 @@
         createdAt: Date.now(), updatedAt: Date.now(),
         L, W,
         zones: [],   // {id, type, x,y,w,h, label}
-        flows: [],       // {id, fromId, toId, label} — directional connectors between zones
+        flows: [],       // {id, fromId, fromSide, toId, toSide, label} — directional connectors between zones; side is n/e/s/w, optional (auto-picked if absent, for flows saved before sides existed)
         annotations: [], // {id, type:'pen'|'shape'|'text'|'image', ...} — freehand drawing layer
         customAssets: [], // {id, dataUrl, naturalW, naturalH} — uploaded images, referenced by image annotations
         cellColors: {},  // sparse map: cell index -> custom hex color override
@@ -12222,6 +12230,11 @@
         selectedCells = [];
         deselectZone();
       }
+      // A connector armed by a click-with-no-drag (see the flow pointerdown/
+      // up handlers) has no visible handles once the flow tool isn't active,
+      // but its dashed preview and cursor-tracking would otherwise keep
+      // running underneath whatever tool comes next.
+      if (tool !== "flow") { flowDraft = null; flowDragActive = false; }
       hideBin();
       hideContextMenu();
       refreshPaletteActive();
@@ -12901,7 +12914,71 @@
 
     /* =====================================================================
        FLOW CONNECTORS — directional arrows showing item movement between zones
+
+       Rewritten from a dynamic "closest boundary point" connector (recomputed
+       every render, so it had no fixed anchor to route a curve from) to a
+       fixed-side model: every flow now remembers which of a zone's 4 sides
+       (n/e/s/w, same keys as the existing resize-handle points) it leaves
+       from and arrives at. That gives each end a known exit direction, which
+       is what makes a proper "leaves the box, curves, arrives at the other
+       box" S-curve possible instead of a straight or hard-elbowed line.
+       Flows saved before this existed have no fromSide/toSide — flowSideAuto
+       below picks a reasonable one so old data still renders sensibly.
     ===================================================================== */
+    const FLOW_SIDE_DIR = { n: { x: 0, y: -1 }, e: { x: 1, y: 0 }, s: { x: 0, y: 1 }, w: { x: -1, y: 0 } };
+    function zoneSideMidpointFt(z, side) {
+      const cx = z.x + z.w / 2, cy = z.y + z.h / 2;
+      if (side === "n") return { x: cx, y: z.y };
+      if (side === "s") return { x: cx, y: z.y + z.h };
+      if (side === "w") return { x: z.x, y: cy };
+      return { x: z.x + z.w, y: cy }; // "e"
+    }
+    // Best side of `z` to face `other` from, when no side was explicitly
+    // chosen (legacy flows, or a click that landed in a zone's body rather
+    // than precisely on one of its 4 handles).
+    function flowSideAuto(z, other) {
+      const zc = zoneCenterFt(z), oc = zoneCenterFt(other);
+      const dx = oc.x - zc.x, dy = oc.y - zc.y;
+      // Scale by the zone's own half-extents first, so a wide-but-short zone
+      // still picks left/right for a mostly-horizontal target instead of
+      // defaulting to top/bottom just because dy's raw magnitude is smaller.
+      const nx = z.w > 0 ? dx / (z.w / 2) : dx, ny = z.h > 0 ? dy / (z.h / 2) : dy;
+      return Math.abs(nx) >= Math.abs(ny) ? (dx >= 0 ? "e" : "w") : (dy >= 0 ? "s" : "n");
+    }
+    // Which of z's 4 sides a click landed closest to — used when a flow
+    // starts from a plain click inside a zone's body (no target to face yet,
+    // so flowSideAuto's "which way is the other zone" doesn't apply).
+    function flowSideNearestToPoint(z, xFt, yFt) {
+      const distN = yFt - z.y, distS = (z.y + z.h) - yFt, distW = xFt - z.x, distE = (z.x + z.w) - xFt;
+      const min = Math.min(distN, distS, distW, distE);
+      if (min === distN) return "n"; if (min === distS) return "s";
+      return min === distW ? "w" : "e";
+    }
+    // Every zone's 4 connector points, in local canvas px — the same n/e/s/w
+    // keys zoneHandlePoints already uses for resize handles, just filtered
+    // down to the side midpoints (no corners; a flow always leaves a box
+    // perpendicular to one of its edges, never diagonally).
+    function flowHandlePointsPx(z) {
+      const x = ftToLocalPx(z.x), y = ftToLocalPx(z.y), w = ftToLocalPx(z.w), h = ftToLocalPx(z.h);
+      const pts = zoneHandlePoints(x, y, w, h);
+      return { n: pts.n, e: pts.e, s: pts.s, w: pts.w };
+    }
+    // Hit-test every visible zone's 4 flow handles at once (used only while
+    // the flow tool is active) — returns {zone, side} for the first hit,
+    // topmost zone first so overlapping zones behave like everything else.
+    function flowHandleAt(localX, localY) {
+      if (!site) return null;
+      const hitR = 10;
+      for (let i = site.zones.length - 1; i >= 0; i--) {
+        const z = site.zones[i];
+        const pts = flowHandlePointsPx(z);
+        for (const side of ["n", "e", "s", "w"]) {
+          const [hx, hy] = pts[side];
+          if (Math.hypot(localX - hx, localY - hy) < hitR) return { zone: z, side };
+        }
+      }
+      return null;
+    }
     function zoneCenterFt(z) { return { x: z.x + z.w / 2, y: z.y + z.h / 2 }; }
     // Point where the ray from z's center toward (tx,ty) crosses z's boundary.
     function zoneEdgePointFt(z, tx, ty) {
@@ -12928,38 +13005,56 @@
       g.fillStyle = color;
       g.fill();
     }
-    // Returns the on-screen (content-px) polyline for a flow, elbowed
-    // (vertical-then-horizontal-then-vertical) when the two zones aren't
-    // roughly aligned, straight otherwise — same shape as a basic flowchart
-    // connector.
-    function getFlowPathPx(f) {
+    function cubicBezierPointAt(p1, c1, c2, p2, t) {
+      const u = 1 - t;
+      const a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, d = t * t * t;
+      return { x: a * p1.x + b * c1.x + c * c2.x + d * p2.x, y: a * p1.y + b * c1.y + c * c2.y + d * p2.y };
+    }
+    // Returns the on-screen (content-px) cubic-bezier connector for a flow —
+    // each end leaves its zone perpendicular to whichever side it's anchored
+    // on (fromSide/toSide), curving smoothly toward the other end, the way a
+    // "smart" connector in a diagramming tool reads rather than a ruler-
+    // straight line or a hard right-angle elbow. `samples` is the same curve
+    // flattened to a polyline, for hit-testing (flowAt) and the drag ghost.
+    function getFlowCurvePx(f) {
       const a = site.zones.find(z => z.id === f.fromId), b = site.zones.find(z => z.id === f.toId);
       if (!a || !b) return null;
-      const ca = zoneCenterFt(a), cb = zoneCenterFt(b);
-      const p1 = zoneEdgePointFt(a, cb.x, cb.y), p2 = zoneEdgePointFt(b, ca.x, ca.y);
-      const p1px = { x: ftToLocalPx(p1.x), y: ftToLocalPx(p1.y) };
-      const p2px = { x: ftToLocalPx(p2.x), y: ftToLocalPx(p2.y) };
-      const dx = p2px.x - p1px.x, dy = p2px.y - p1px.y;
-      if (Math.abs(dx) < 8 || Math.abs(dy) < 8) return [p1px, p2px];
-      const midY = p1px.y + dy / 2;
-      return [p1px, { x: p1px.x, y: midY }, { x: p2px.x, y: midY }, p2px];
+      return flowCurveBetween(a, f.fromSide || flowSideAuto(a, b), b, f.toSide || flowSideAuto(b, a));
     }
-    function drawFlowArrow(g, pts, opts) {
+    function flowCurveBetween(a, sideA, b, sideB) {
+      const p1ft = zoneSideMidpointFt(a, sideA), p2ft = zoneSideMidpointFt(b, sideB);
+      const p1 = { x: ftToLocalPx(p1ft.x), y: ftToLocalPx(p1ft.y) };
+      const p2 = { x: ftToLocalPx(p2ft.x), y: ftToLocalPx(p2ft.y) };
+      const dirA = FLOW_SIDE_DIR[sideA], dirB = FLOW_SIDE_DIR[sideB];
+      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      const ext = Math.max(26, Math.min(140, dist * 0.45));
+      const c1 = { x: p1.x + dirA.x * ext, y: p1.y + dirA.y * ext };
+      const c2 = { x: p2.x + dirB.x * ext, y: p2.y + dirB.y * ext };
+      const samples = [];
+      const STEPS = 20;
+      for (let i = 0; i <= STEPS; i++) samples.push(cubicBezierPointAt(p1, c1, c2, p2, i / STEPS));
+      return { p1, c1, c2, p2, samples };
+    }
+    function drawFlowArrow(g, curve, opts) {
       opts = opts || {};
       const color = opts.color || (opts.selected ? "#F59E0B" : "#1D1B17");
+      const { p1, c1, c2, p2 } = curve;
       g.save();
       g.strokeStyle = color;
       g.lineWidth = opts.selected ? 3 : 2.25;
       g.lineJoin = "round"; g.lineCap = "round";
       if (opts.dashed) g.setLineDash([6, 4]);
       g.beginPath();
-      pts.forEach((p, i) => { if (i === 0) g.moveTo(p.x, p.y); else g.lineTo(p.x, p.y); });
+      g.moveTo(p1.x, p1.y);
+      g.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, p2.x, p2.y);
       g.stroke();
       g.setLineDash([]);
-      const last = pts[pts.length - 1], prev = pts[pts.length - 2];
-      drawArrowHead(g, last, last.x - prev.x, last.y - prev.y, color);
+      // Tangent at the arrival end is the direction from the last control
+      // point to the endpoint — the curve's actual direction of travel
+      // there, not a straight line back to the start.
+      drawArrowHead(g, p2, p2.x - c2.x, p2.y - c2.y, color);
       if (opts.label) {
-        const mid = pts[Math.floor((pts.length - 1) / 2)];
+        const mid = cubicBezierPointAt(p1, c1, c2, p2, 0.5);
         g.font = "700 11px -apple-system,Segoe UI,Roboto,sans-serif";
         const tw = g.measureText(opts.label).width;
         g.fillStyle = "rgba(255,255,255,.92)";
@@ -12970,17 +13065,50 @@
       }
       g.restore();
     }
+    // Small round connector handles at the midpoint of each of a zone's 4
+    // sides — the actual click/drag targets for starting or finishing a
+    // flow. Only drawn while the flow tool is active, so they don't clutter
+    // every other tool's view of the floor.
+    function drawFlowHandles(g) {
+      (site.zones || []).forEach(z => {
+        const pts = flowHandlePointsPx(z);
+        ["n", "e", "s", "w"].forEach(side => {
+          const [hx, hy] = pts[side];
+          const isDraftFrom = flowDraft && flowDraft.fromId === z.id && flowDraft.fromSide === side;
+          g.beginPath();
+          g.arc(hx, hy, isDraftFrom ? 6 : 5, 0, Math.PI * 2);
+          g.fillStyle = isDraftFrom ? "#0EA5E9" : "#fff";
+          g.fill();
+          g.lineWidth = 1.6;
+          g.strokeStyle = isDraftFrom ? "#0EA5E9" : "#94A3B8";
+          g.stroke();
+        });
+      });
+    }
     function drawFlows(g) {
       (site.flows || []).forEach(f => {
-        const pts = getFlowPathPx(f);
-        if (pts) drawFlowArrow(g, pts, { selected: f.id === selectedFlowId, label: f.label });
+        const curve = getFlowCurvePx(f);
+        if (curve) drawFlowArrow(g, curve, { selected: f.id === selectedFlowId, label: f.label });
       });
+      if (tool === "flow") drawFlowHandles(g);
       if (flowDraft) {
         const a = site.zones.find(z => z.id === flowDraft.fromId);
         if (a) {
-          const c = zoneCenterFt(a);
-          const p1 = { x: ftToLocalPx(c.x), y: ftToLocalPx(c.y) };
-          drawFlowArrow(g, [p1, { x: flowDraft.curX, y: flowDraft.curY }], { dashed: true, color: "#0EA5E9" });
+          // Live preview while dragging/armed: same curved-connector feel,
+          // anchored to the exact handle the gesture started from, aimed at
+          // the cursor — we don't know the arrival side until it lands on a
+          // target, so the far end assumes a mirrored approach direction,
+          // which still reads as a smooth S rather than snapping shape only
+          // once released.
+          const p1ft = zoneSideMidpointFt(a, flowDraft.fromSide);
+          const p1 = { x: ftToLocalPx(p1ft.x), y: ftToLocalPx(p1ft.y) };
+          const p2 = { x: flowDraft.curX, y: flowDraft.curY };
+          const dirA = FLOW_SIDE_DIR[flowDraft.fromSide];
+          const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+          const ext = Math.max(26, Math.min(140, dist * 0.45));
+          const c1 = { x: p1.x + dirA.x * ext, y: p1.y + dirA.y * ext };
+          const c2 = { x: p2.x - dirA.x * ext, y: p2.y - dirA.y * ext };
+          drawFlowArrow(g, { p1, c1, c2, p2 }, { dashed: true, color: "#0EA5E9" });
         }
       }
     }
@@ -12993,8 +13121,9 @@
     }
     function flowAt(localX, localY) {
       for (const f of (site.flows || [])) {
-        const pts = getFlowPathPx(f);
-        if (!pts) continue;
+        const curve = getFlowCurvePx(f);
+        if (!curve) continue;
+        const pts = curve.samples;
         for (let i = 0; i < pts.length - 1; i++) {
           if (distToSegment(localX, localY, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y) < 7) return f;
         }
@@ -13142,8 +13271,29 @@
       let w = Math.max(4, (itemW / CELL_FT) * cellPx);
       let h = Math.max(4, (itemD / CELL_FT) * cellPx);
 
-      // Walls, entry, exit, or full fixtures occupy the full cell
-      if (def.id === 8 || def.id === 6 || def.id === 7 || (itemW >= CELL_FT && itemD >= CELL_FT)) {
+      // Solid structural elements — wall, structural column, pillar — are
+      // declared smaller than a full cell (a wall is 2ft on a 3ft grid) so
+      // their real-world footprint stays accurate for stats/tooltips, but
+      // that meant a row of them rendered with a visible gap at every seam
+      // instead of one continuous run: each brick centred in its own cell
+      // at 2/3 size, leaving open floor showing through on both sides of
+      // every boundary. These three are the only paint types meant to read
+      // as a continuous surface when placed side by side, so they render at
+      // the FULL cell size regardless of their declared footprint — unlike
+      // entry/exit/doors below, which are deliberately thin opening markers
+      // and are supposed to look narrower than the cell they sit in.
+      if (def.id === 8 || def.id === 24 || def.id === 28) {
+        return {
+          cx: c * cellPx + cellPx / 2,
+          cy: r * cellPx + cellPx / 2,
+          w: cellPx, h: cellPx,
+          ox: c * cellPx, oy: r * cellPx
+        };
+      }
+
+      // Entry, exit, or other full fixtures occupy the full cell at their
+      // own declared size (already >= one cell, so this doesn't gap).
+      if (def.id === 6 || def.id === 7 || (itemW >= CELL_FT && itemD >= CELL_FT)) {
         return {
           cx: c * cellPx + cellPx / 2,
           cy: r * cellPx + cellPx / 2,
@@ -13447,12 +13597,38 @@
       }
       if (tool === "flow") {
         if (layerLocks.flow) return toast("Flow layer is locked");
+        const rect = canvas().getBoundingClientRect();
+        const localX = ev.clientX - rect.left - MARGIN, localY = ev.clientY - rect.top - MARGIN;
+        const handleHit = flowHandleAt(localX, localY);
         const { x, y } = ftFromClient(ev.clientX, ev.clientY);
-        const z = zoneAt(x, y);
-        if (z) {
+        const bodyHit = zoneAt(x, y);
+        const hitZone = handleHit ? handleHit.zone : bodyHit;
+
+        if (flowDraft) {
+          // A connector is already armed from an earlier click (not a drag
+          // in progress — see the pointerup branch below) — this second
+          // click either finishes it onto a different zone, cancels it by
+          // clicking back on the same zone, or cancels it by clicking
+          // empty space.
+          if (hitZone && hitZone.id !== flowDraft.fromId) {
+            const toSide = handleHit ? handleHit.side : flowSideAuto(hitZone, site.zones.find(z => z.id === flowDraft.fromId));
+            snapshot();
+            site.flows = site.flows || [];
+            site.flows.push({ id: uid(), fromId: flowDraft.fromId, fromSide: flowDraft.fromSide, toId: hitZone.id, toSide, label: null });
+            queueSave();
+            toast("Flow connector added");
+          }
+          flowDraft = null;
+          flowDragActive = false;
+          redraw();
+          return;
+        }
+
+        if (hitZone) {
           safeSetPointerCapture(canvas(), ev.pointerId);
-          const raw = ftFromClientRaw(ev.clientX, ev.clientY);
-          flowDraft = { fromId: z.id, curX: ftToLocalPx(raw.x), curY: ftToLocalPx(raw.y) };
+          const fromSide = handleHit ? handleHit.side : flowSideNearestToPoint(hitZone, x, y);
+          flowDraft = { fromId: hitZone.id, fromSide, curX: localX, curY: localY, startClientX: ev.clientX, startClientY: ev.clientY };
+          flowDragActive = true;
           redraw();
         }
         return;
@@ -13853,17 +14029,32 @@
         measuring = false;
         return;
       }
-      if (flowDraft) {
+      if (flowDraft && flowDragActive) {
+        flowDragActive = false;
+        const rect = canvas().getBoundingClientRect();
+        const localX = ev.clientX - rect.left - MARGIN, localY = ev.clientY - rect.top - MARGIN;
+        const handleHit = flowHandleAt(localX, localY);
         const { x, y } = ftFromClient(ev.clientX, ev.clientY);
-        const z2 = zoneAt(x, y);
-        if (z2 && z2.id !== flowDraft.fromId) {
+        const bodyHit = zoneAt(x, y);
+        const hitZone = handleHit ? handleHit.zone : bodyHit;
+        if (hitZone && hitZone.id !== flowDraft.fromId) {
+          const toSide = handleHit ? handleHit.side : flowSideAuto(hitZone, site.zones.find(z => z.id === flowDraft.fromId));
           snapshot();
           site.flows = site.flows || [];
-          site.flows.push({ id: uid(), fromId: flowDraft.fromId, toId: z2.id, label: null });
+          site.flows.push({ id: uid(), fromId: flowDraft.fromId, fromSide: flowDraft.fromSide, toId: hitZone.id, toSide, label: null });
           queueSave();
           toast("Flow connector added");
+          flowDraft = null;
+        } else {
+          // Landed on nothing usable. A real drag that misses cancels, the
+          // same as before — but a near-zero-movement click leaves flowDraft
+          // armed so the *next* click can still finish the connector (the
+          // pointerdown handler's "if (flowDraft)" branch picks it up from
+          // here), rather than forcing every connection into one unbroken
+          // drag gesture.
+          const moved = Math.hypot(ev.clientX - flowDraft.startClientX, ev.clientY - flowDraft.startClientY);
+          if (moved > 5) flowDraft = null;
         }
-        flowDraft = null;
         redraw();
         return;
       }
@@ -16013,7 +16204,7 @@
         updateZoomTxt();
         return;
       }
-      if (ev.key === "Escape") { hideBin(); hideShortcutsHelp(); hideContextMenu(); deselectZone(); flowDraft = null; selectedFlowId = null; redraw(); closeDrawers(); return; }
+      if (ev.key === "Escape") { hideBin(); hideShortcutsHelp(); hideContextMenu(); deselectZone(); flowDraft = null; flowDragActive = false; selectedFlowId = null; redraw(); closeDrawers(); return; }
       if (ev.key === "?" || (ev.shiftKey && ev.key === "/")) { ev.preventDefault(); showShortcutsHelp(); return; }
       if (ev.key === "Delete" || ev.key === "Backspace") {
         if (selectedZoneId) { $("#zt-del").click(); }
@@ -16778,11 +16969,26 @@
         const faces = drawIsoBox(g, cx - w / 2, cy - d / 2, w, d, hFt, color, {
           strokeColor: selected ? "#111" : "rgba(0,0,0,0.25)", strokeWidth: selected ? 2.5 : 0.75
         });
-        if (def.id !== CCTV_ID && (w + d) * isoScale > 26) {
+        // Every real object's own icon on its 3D box, not just a flat colour
+        // block. This drew silently wrong before: the size gate (>26) never
+        // cleared for any object in a real layout at its default fit-to-view
+        // scale — measured 0/8 objects clearing it on the Mother Hub
+        // template — and the text had no fillStyle of its own, so it painted
+        // in whatever colour drawIsoBox's top face last set, i.e. invisible
+        // on top of a same-coloured box even on the rare object big enough
+        // to pass the old gate. The font-size formula already floors at 8px,
+        // so the size gate was never really about legibility — lowered it to
+        // only skip fixtures too small to be more than a couple of screen
+        // pixels, matching the 2D board's own glyph rendering (always white).
+        if (def.id !== CCTV_ID && def.glyph && (w + d) * isoScale > 6) {
           const tp = isoProject(cx, cy, hFt);
+          g.save();
           g.font = `${Math.max(8, Math.min(16, (w + d) * isoScale * 0.22))}px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple Color Emoji","Segoe UI Emoji",sans-serif`;
           g.textAlign = "center"; g.textBaseline = "middle";
-          g.fillText(def.glyph || "", tp.x, tp.y);
+          g.shadowColor = "rgba(0,0,0,0.45)"; g.shadowBlur = 2;
+          g.fillStyle = "#fff";
+          g.fillText(def.glyph, tp.x, tp.y);
+          g.restore();
         }
         isoHitList.push({ kind: "cell", ref: cell, faces });
       });
