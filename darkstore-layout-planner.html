@@ -1016,6 +1016,14 @@
       box-shadow: var(--shadow-sm);
     }
 
+    /* Pulls Shortcuts a little closer to Commands specifically — the
+       12px margin-left above is shared by both buttons, so trimming it
+       here (rather than on .shortcuts-fab-btn) only tightens this one gap,
+       leaving the footer's own spacing before Commands untouched. */
+    #shortcuts-help-btn {
+      margin-left: 4px;
+    }
+
     @media (max-width: 640px) {
       .shortcuts-grid {
         grid-template-columns: 1fr;
