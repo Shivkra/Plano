@@ -8197,6 +8197,16 @@
     };
     const PAINT_BY_ID = Object.fromEntries(Object.values(PAINT_DEFS).map(e => [e.id, e]));
     const CCTV_ID = PAINT_DEFS.cctv.id;
+    // Paint types that keep their real, sub-cell footprint instead of the
+    // full-cell default (see getCellObjectPlacement): a door/shutter is
+    // drawn as a thin wall-opening marker, and drainage/fire-extinguisher
+    // are small point fixtures — both would look wrong blown up to a full
+    // 3ft square the way a chair or a rack should be. CCTV is excluded too,
+    // but never reaches that code path — it's drawn as a dot, not a box.
+    const PAINT_KEEP_THIN_IDS = new Set([
+      PAINT_DEFS.entry.id, PAINT_DEFS.exit.id, PAINT_DEFS.fireexit.id, PAINT_DEFS.door.id, PAINT_DEFS.rollshutter.id,
+      PAINT_DEFS.drainage.id, PAINT_DEFS.fireext.id, PAINT_DEFS.cctv.id
+    ]);
     const ROTATABLE_PAINT = new Set([1, 2, 3, 5, 6, 7, 14, 15, 16, 17, 21, 22, 23, 25, 26, 29, 30]);
     const PAINT_ORDER = ["rack", "sortbox", "palletrack", "trolleycage", "packing", "receiving", "dispatch", "table", "conveyor", "staging", "locker", "chair", "scale", "computer", "ac", "waterdisp", "trolley", "entry", "exit", "fireexit", "column", "stairs", "wall", "pillar", "door", "rollshutter", "drainage", "fireext", "cctv"];
 
@@ -13026,10 +13036,24 @@
       const p1 = { x: ftToLocalPx(p1ft.x), y: ftToLocalPx(p1ft.y) };
       const p2 = { x: ftToLocalPx(p2ft.x), y: ftToLocalPx(p2ft.y) };
       const dirA = FLOW_SIDE_DIR[sideA], dirB = FLOW_SIDE_DIR[sideB];
-      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-      const ext = Math.max(26, Math.min(140, dist * 0.45));
-      const c1 = { x: p1.x + dirA.x * ext, y: p1.y + dirA.y * ext };
-      const c2 = { x: p2.x + dirB.x * ext, y: p2.y + dirB.y * ext };
+      const dx = p2.x - p1.x, dy = p2.y - p1.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      // A real "S", not a curve bulging the same way regardless of layout,
+      // comes from measuring each end's reach along ITS OWN exit axis only —
+      // a side exiting horizontally reaches based on the horizontal gap
+      // between the two points, a vertical exit on the vertical gap. That's
+      // what flattens the curve when the geometry doesn't call for an S
+      // (e.g. directly in line with each other) and keeps it a clean S when
+      // it does (opposite-ish sides with a real offset between them),
+      // instead of always bulging out by a fixed share of the full diagonal
+      // distance no matter which way the two points actually differ.
+      const extFor = dir => {
+        const gapOnAxis = Math.abs(dir.x ? dx : dy);
+        return Math.max(14, Math.min(100, gapOnAxis * 0.5, dist * 0.5));
+      };
+      const extA = extFor(dirA), extB = extFor(dirB);
+      const c1 = { x: p1.x + dirA.x * extA, y: p1.y + dirA.y * extA };
+      const c2 = { x: p2.x + dirB.x * extB, y: p2.y + dirB.y * extB };
       const samples = [];
       const STEPS = 20;
       for (let i = 0; i <= STEPS; i++) samples.push(cubicBezierPointAt(p1, c1, c2, p2, i / STEPS));
@@ -13104,8 +13128,12 @@
           const p1 = { x: ftToLocalPx(p1ft.x), y: ftToLocalPx(p1ft.y) };
           const p2 = { x: flowDraft.curX, y: flowDraft.curY };
           const dirA = FLOW_SIDE_DIR[flowDraft.fromSide];
-          const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-          const ext = Math.max(26, Math.min(140, dist * 0.45));
+          const dx = p2.x - p1.x, dy = p2.y - p1.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          // Same axis-aware reach as the finished connector (flowCurveBetween)
+          // — flattens instead of bulging when the cursor is directly in
+          // line with the side it left from.
+          const ext = Math.max(14, Math.min(100, Math.abs(dirA.x ? dx : dy) * 0.5, dist * 0.5));
           const c1 = { x: p1.x + dirA.x * ext, y: p1.y + dirA.y * ext };
           const c2 = { x: p2.x - dirA.x * ext, y: p2.y - dirA.y * ext };
           drawFlowArrow(g, { p1, c1, c2, p2 }, { dashed: true, color: "#0EA5E9" });
@@ -13271,18 +13299,18 @@
       let w = Math.max(4, (itemW / CELL_FT) * cellPx);
       let h = Math.max(4, (itemD / CELL_FT) * cellPx);
 
-      // Solid structural elements — wall, structural column, pillar — are
-      // declared smaller than a full cell (a wall is 2ft on a 3ft grid) so
-      // their real-world footprint stays accurate for stats/tooltips, but
-      // that meant a row of them rendered with a visible gap at every seam
-      // instead of one continuous run: each brick centred in its own cell
-      // at 2/3 size, leaving open floor showing through on both sides of
-      // every boundary. These three are the only paint types meant to read
-      // as a continuous surface when placed side by side, so they render at
-      // the FULL cell size regardless of their declared footprint — unlike
-      // entry/exit/doors below, which are deliberately thin opening markers
-      // and are supposed to look narrower than the cell they sit in.
-      if (def.id === 8 || def.id === 24 || def.id === 28) {
+      // Almost every object is declared at its real-world footprint (a chair
+      // is 1.5ft, a wall is 2ft, on a 3ft grid) so stats/tooltips stay
+      // accurate — but rendering at that same fraction is what made a row of
+      // them look like separate floating chips with open floor at every
+      // seam, live during a drag too since the ghost preview shares this
+      // same placement function. Fixed by making full-cell the default for
+      // any object that's meant to occupy the spot it's placed in, and
+      // opting OUT only the few types that are deliberately not a footprint:
+      // a door/shutter is a thin wall-opening marker, and drainage/fire-
+      // extinguisher are small point fixtures — both would look wrong
+      // blown up to fill a whole cell the way a chair or a rack should.
+      if (!PAINT_KEEP_THIN_IDS.has(def.id)) {
         return {
           cx: c * cellPx + cellPx / 2,
           cy: r * cellPx + cellPx / 2,
@@ -16955,6 +16983,16 @@
         }
       }
       cells.sort((a, b) => (a.c + a.r) - (b.c + b.r));
+      // Furniture and equipment don't actually look like the tall box a
+      // flush icon on top implied — a chair, a trolley, a computer station.
+      // These render as a short floor pad (so you can still see the real
+      // footprint and its colour) with the object's own icon floating above
+      // it as an upright badge, connected by a leader line — a standalone
+      // marker standing on the spot, the way a map pin sits above the map,
+      // instead of a decal glued to a box's lid. Racks, walls, columns and
+      // stairs stay real extruded volumes below, because those genuinely
+      // are box-shaped in real life and their height is worth showing.
+      const BILLBOARD_CATEGORIES = new Set(["ops", "equip"]);
       cells.forEach(cell => {
         const idx = cell.r * site.cols + cell.c;
         const v = site.cells[idx], def = PAINT_BY_ID[v];
@@ -16966,6 +17004,51 @@
         const color = (site.cellColors && site.cellColors[idx]) || def.color;
         const cx = cell.c * CELL_FT + CELL_FT / 2, cy = cell.r * CELL_FT + CELL_FT / 2;
         const selected = isoSelected && isoSelected.kind === "cell" && isoSelected.ref.c === cell.c && isoSelected.ref.r === cell.r;
+
+        if (def.id !== CCTV_ID && BILLBOARD_CATEGORIES.has(def.category)) {
+          const padH = Math.min(hFt || 0.4, 0.8) || 0.4;
+          const faces = drawIsoBox(g, cx - w / 2, cy - d / 2, w, d, padH, color, {
+            strokeColor: selected ? "#111" : "rgba(0,0,0,0.25)", strokeWidth: selected ? 2.5 : 0.75
+          });
+          if (def.glyph) {
+            const baseTop = isoProject(cx, cy, padH);
+            // Even a very short item (h=1ft) floats its badge a bit clear of
+            // the pad, so it never looks squashed onto it; taller items
+            // still float noticeably higher, so relative height reads.
+            const tp = isoProject(cx, cy, Math.max(hFt, 2.2));
+            const iconR = Math.max(9, Math.min(20, (w + d) * isoScale * 0.16));
+            g.save();
+            g.strokeStyle = "rgba(0,0,0,0.28)"; g.lineWidth = 1.2;
+            g.beginPath(); g.moveTo(baseTop.x, baseTop.y); g.lineTo(tp.x, tp.y + iconR); g.stroke();
+
+            g.beginPath(); g.arc(tp.x, tp.y, iconR, 0, Math.PI * 2);
+            g.fillStyle = color;
+            g.shadowColor = "rgba(0,0,0,0.35)"; g.shadowBlur = 5; g.shadowOffsetY = 2;
+            g.fill();
+            g.shadowColor = "transparent"; g.shadowBlur = 0; g.shadowOffsetY = 0;
+            g.strokeStyle = selected ? "#F59E0B" : "rgba(255,255,255,0.85)";
+            g.lineWidth = selected ? 2.5 : 1.4;
+            g.stroke();
+
+            g.font = `${Math.max(9, Math.round(iconR * 1.05))}px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple Color Emoji","Segoe UI Emoji",sans-serif`;
+            g.textAlign = "center"; g.textBaseline = "middle";
+            g.fillStyle = "#fff";
+            g.fillText(def.glyph, tp.x, tp.y + iconR * 0.03);
+            g.restore();
+
+            // The badge is the object's real visual footprint now, so it
+            // needs to be part of the clickable area too — not just the
+            // short pad underneath it.
+            const hh = iconR * 1.15;
+            faces.push([
+              { x: tp.x - hh, y: tp.y - hh }, { x: tp.x + hh, y: tp.y - hh },
+              { x: tp.x + hh, y: tp.y + hh }, { x: tp.x - hh, y: tp.y + hh }
+            ]);
+          }
+          isoHitList.push({ kind: "cell", ref: cell, faces });
+          return;
+        }
+
         const faces = drawIsoBox(g, cx - w / 2, cy - d / 2, w, d, hFt, color, {
           strokeColor: selected ? "#111" : "rgba(0,0,0,0.25)", strokeWidth: selected ? 2.5 : 0.75
         });
