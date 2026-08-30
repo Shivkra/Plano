@@ -3049,70 +3049,6 @@
     }
 
     /* Standalone Floating Action Button (FAB - Bottom Right, adjusted) */
-    /* Four-stage journey indicator */
-    .journey {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      list-style: none;
-      margin: 0 12px 0 0;
-      padding: 0;
-    }
-
-    .journey-step {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px 4px 8px;
-      border-radius: var(--r-pill);
-      font-size: 11.5px;
-      font-weight: 700;
-      color: var(--ink-faint);
-      white-space: nowrap;
-      transition: color var(--dur-f) var(--ease), background var(--dur-f) var(--ease);
-    }
-
-    .journey-step+.journey-step::before {
-      content: "";
-      width: 12px;
-      height: 1.5px;
-      background: var(--border-strong);
-      margin-right: 2px;
-      flex-shrink: 0;
-    }
-
-    .journey-step.done {
-      color: var(--ink-soft);
-    }
-
-    .journey-step.active {
-      color: var(--ink);
-      background: var(--surface-2);
-    }
-
-    /* Tight laptop widths: keep the label for the step you're ON (which is the
-       information that matters) and collapse the rest to dots, rather than
-       dropping all the labels or letting the header overflow. */
-    @media (max-width: 1400px) {
-      .journey-step:not(.active) .jn-label {
-        display: none;
-      }
-
-      .journey-step:not(.active) {
-        padding: 4px 6px;
-      }
-    }
-
-    @media (max-width: 1040px) {
-      .journey .jn-label {
-        display: none;
-      }
-
-      .journey-step {
-        padding: 4px 6px;
-      }
-    }
-
     /* Optimize result card — what changed, and a way back. */
     .optimize-result {
       position: absolute;
@@ -6619,14 +6555,6 @@
       </div>
 
       <div class="ed-nav-center">
-        <!-- Where the manager is in the four-stage journey. Nothing in the
-             product used to say this, so it was easy to finish designing and
-             not realise Optimize and Finish were the next steps. -->
-        <ol class="journey" id="journey" aria-label="Progress">
-          <li class="journey-step" data-stage="design"><span class="jn-label">Design</span></li>
-          <li class="journey-step" data-stage="optimize"><span class="jn-label">Optimise</span></li>
-          <li class="journey-step" data-stage="finish"><span class="jn-label">Finish in 3D</span></li>
-        </ol>
         <div class="btn-group-pill">
           <button class="btn-tool-pill" id="ed-undo" title="Undo (Cmd/Ctrl+Z)">↩ Undo</button>
           <button class="btn-tool-pill" id="ed-redo" title="Redo (Cmd/Ctrl+Shift+Z)">↪ Redo</button>
@@ -15649,26 +15577,6 @@
       };
     }
 
-    // Journey state. "Design" is done once there's anything on the floor;
-    // "Optimise" once the manager has run it at least once on this site.
-    // Persisted on the site so it survives reloads and switching layouts.
-    function updateJourney(stage) {
-      const el = $("#journey");
-      if (!el || !site) return;
-      const hasContent = (site.zones && site.zones.length > 0) || (site.cells || []).some(v => v);
-      const optimised = !!site._optimisedAt;
-      const active = stage || (optimised ? "finish" : hasContent ? "optimize" : "design");
-      const order = ["design", "optimize", "finish"];
-      const activeIdx = order.indexOf(active);
-      el.querySelectorAll(".journey-step").forEach(step => {
-        const i = order.indexOf(step.dataset.stage);
-        step.classList.toggle("active", i === activeIdx);
-        step.classList.toggle("done", i < activeIdx);
-        if (i === activeIdx) step.setAttribute("aria-current", "step");
-        else step.removeAttribute("aria-current");
-      });
-    }
-
     let optimizeRevertState = null;
     function hideOptimizeResult() { $("#optimize-result")?.classList.remove("on"); }
     function showOptimizeResult(before, after, revertState) {
@@ -15924,7 +15832,6 @@
       queueSave();
 
       site._optimisedAt = Date.now();
-      updateJourney();
 
       // Optimize rewrites the manager's floor. Rather than asserting success
       // in a toast that vanishes, show exactly what changed and offer a
@@ -16357,7 +16264,6 @@
       if (!site) return;
       updateRightPanel();
       runLayoutValidation();
-      updateJourney();
     }
 
     /* =====================================================================
@@ -17271,7 +17177,6 @@
       isoSelected = null; hideIsoEditCard();
       hideBin(); hideZoneToolbar(); hideContextMenu(); hideOptimizeResult();
       showScreen("isoview");
-      updateJourney("finish");
       requestAnimationFrame(() => { sizeIsoCanvas(); fitIsoView(); renderIsoView(); });
     });
     $("#iso-back")?.addEventListener("click", () => {
