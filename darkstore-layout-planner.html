@@ -6612,38 +6612,59 @@
     }
 
     /* ================= SOUND TOGGLE & GUIDED TOUR ================= */
+    /* One shared pill — Guide's own bg/border move here so the two halves
+       read as a single control group. Both inner buttons go transparent
+       and flat; only the divider between them and per-half hover states
+       tell them apart. */
+    .guide-pill-group {
+      display: inline-flex;
+      align-items: stretch;
+      background: rgba(14, 165, 233, 0.12);
+      border: 1px solid rgba(14, 165, 233, 0.35);
+      border-radius: var(--r-pill);
+      overflow: hidden;
+    }
+
+    .guide-pill-divider {
+      width: 1px;
+      align-self: stretch;
+      margin: 5px 0;
+      background: rgba(14, 165, 233, 0.3);
+      flex-shrink: 0;
+    }
+
     .glw-sfx-btn {
-      background: rgba(245, 158, 11, 0.2);
-      border: 1px solid rgba(245, 158, 11, 0.4);
-      border-radius: 50%;
-      width: 22px;
-      height: 22px;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      width: auto;
+      height: auto;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 11px;
-      padding: 0;
-      color: var(--ink);
+      font-size: 12px;
+      padding: 5px 10px 5px 8px;
+      color: #0284C7;
       transition: all var(--dur-f) var(--ease);
       flex-shrink: 0;
     }
 
     .glw-sfx-btn:hover {
-      background: #F59E0B;
-      color: #000;
-      transform: scale(1.18);
-      box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+      background: rgba(14, 165, 233, 0.22);
+      color: #0284C7;
+      transform: none;
+      box-shadow: none;
     }
 
     .guide-launch-btn {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--r-pill);
-      padding: 5px 10px;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      padding: 5px 8px 5px 10px;
       font-size: 12px;
-      font-weight: 700;
-      color: var(--ink-soft);
+      font-weight: 800;
+      color: #0284C7;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
@@ -6651,18 +6672,9 @@
       transition: all var(--dur-f) var(--ease);
     }
 
-    .sfx-toggle-btn:hover,
     .guide-launch-btn:hover {
-      background: var(--bg-soft);
-      color: var(--ink);
-      border-color: var(--accent);
-    }
-
-    .guide-launch-btn {
-      background: rgba(14, 165, 233, 0.12);
-      border-color: rgba(14, 165, 233, 0.35);
+      background: rgba(14, 165, 233, 0.22);
       color: #0284C7;
-      font-weight: 800;
     }
 
     /* Onboarding Guided Academy Overlay */
@@ -7386,15 +7398,20 @@
       </div>
 
       <div class="ed-nav-center">
-        <!-- Guide Button moved towards center -->
-        <button class="guide-launch-btn" id="guide-launch-btn" title="Interactive Guided Academy">
-          <span>🎓 Guide</span>
-        </button>
-
-        <button class="glw-sfx-btn" id="sfx-toggle-btn" title="Toggle Sound Effects (🔊 / 🔇)"
-          aria-label="Toggle Sound Effects">
-          <span id="sfx-icon">🔊</span>
-        </button>
+        <!-- Guide + Sound live in one pill — the sound toggle used to float
+             as its own separate amber circle next to Guide; folding it into
+             the same pill (divider between the two halves) reads as one
+             control group instead of two unrelated buttons. -->
+        <div class="guide-pill-group" id="guide-pill-group">
+          <button class="guide-launch-btn" id="guide-launch-btn" title="Interactive Guided Academy">
+            <span>🎓 Guide</span>
+          </button>
+          <span class="guide-pill-divider"></span>
+          <button class="glw-sfx-btn" id="sfx-toggle-btn" title="Toggle Sound Effects (🔊 / 🔇)"
+            aria-label="Toggle Sound Effects">
+            <span id="sfx-icon">🔊</span>
+          </button>
+        </div>
       </div>
 
       <div class="ed-nav-right">
@@ -8977,6 +8994,19 @@
       "receiving", "bagging", "dispatchQueue",
       "chilled", "frozen", "riderPark"]);
 
+    /* Exactly the types the "Room" sidebar tool offers (its dimensions-form
+       dropdown) — an enclosed, walled space with a door, as opposed to a
+       "Zone" (the drag-to-draw picker: receiving/sorting/dispatchQueue,
+       plus the dock types), which is just an open floor area with an
+       operational label. Room and Zone used to be functionally identical —
+       both called mkZone() and rendered through the exact same drawZone()
+       path, so a Manager's Office and an Inbound Staging area looked and
+       behaved identically once placed. This set is what drawZone() checks
+       to give rooms a solid wall-style border instead of a zone's plain
+       soft-tinted one. */
+    const ROOM_ENCLOSED_TYPES = new Set(["office", "security", "medical", "conference", "store", "ups", "bathroom",
+      "inboundStage", "outboundLane", "staging", "charging"]);
+
     /* `short` is a palette-only display label — used exclusively in the narrow
        sidebar row so long names don't wrap to two lines and blow out the row
        height (the actual cause of the sidebar needing 3+ screens of scroll,
@@ -9286,6 +9316,11 @@
     let customGridColor = null;   // custom grid line color (e.g. '#e2e8f0', '#cbd5e1', '#94a3b8')
     let currentUnit = "ft";       // "ft" | "m"
     let measuring = false, measureStart = null, measureCurrent = null;
+    // Figma/Canva-style ad-hoc spacing: hold Option/Alt while something is
+    // selected and hover any other object or room to see the gap between
+    // them, without switching into the dedicated Measure tool. See
+    // drawAltSpacingOverlay() / the keydown/keyup listeners that flip this.
+    let altKeyDown = false;
     let detectedIssues = [];      // array of live issues [{type, level, title, desc, c, r, zoneId}]
     let smartGuides = [];         // dynamic alignment guides [{x0,y0,x1,y1,type,distanceText}]
     let layerVisibility = { building: true, storage: true, equipment: true, operations: true, flow: true, annotations: true };
@@ -12996,7 +13031,13 @@
       redraw();
       updateStats();
       if (typeof updateRightPanel === "function") updateRightPanel();
-      if (!localStorage.getItem("darkstore_onboarding_completed")) {
+      // TEMP: the guide was just rebuilt to cover the whole app — for now
+      // it auto-launches on every load (not just first-time) so it's easy
+      // to review without clearing localStorage each time. The normal
+      // "only for first-time users" gate is still right here, just
+      // short-circuited by ONBOARDING_FORCE_SHOW; flip that constant back
+      // to false to restore first-time-only behavior.
+      if (ONBOARDING_FORCE_SHOW || !localStorage.getItem("darkstore_onboarding_completed")) {
         setTimeout(() => startOnboardingTour(), 600);
       }
       refreshAiAvailability();
@@ -13803,34 +13844,72 @@
       }
     }
 
-    // Interactive Onboarding Academy (Chief Maya)
+    // Interactive Onboarding Academy (Chief Maya) — walks through every
+    // major tool and panel in the app, not just a few, per a direct ask to
+    // "go through everything." Kept intentionally short per step (one idea
+    // each) so it still reads fast even at 11 steps.
     const ONBOARDING_STEPS = [
       {
         title: "Welcome, Architect!",
-        text: "Let's build your fulfillment empire step-by-step. Start by placing an <strong>Inward Dock Door</strong> or <strong>Perimeter Wall</strong>.",
-        tool: "paint:wall"
+        text: "I'm Chief Maya — I'll walk you through building a cross-dock hub from an empty floor to a finished 3D layout. It only takes a couple of minutes, and you can reopen this guide anytime from the <strong>🎓 Guide</strong> button up top.",
+        tool: "select"
       },
       {
-        title: "Segregation & Sortation Boxes",
-        text: "Next, place <strong>Sorting Boxes</strong> — this is a cross-dock, not storage, so parcels get segregated by destination here, not picked from a rack.",
-        tool: "paint:sortbox"
+        title: "Start With Walls",
+        text: "Pick <strong>Wall</strong> (<strong>W</strong>) and drag along the floor to lay out your building's perimeter and any interior partitions.",
+        tool: "wall"
       },
       {
-        title: "Order Sortation & Staging Room",
-        text: "Click <strong>Room</strong> on the left palette to draw a dedicated sorting & packaging zone.",
+        title: "Rooms Are Walled Spaces",
+        text: "<strong>Room</strong> (<strong>R</strong>) creates an enclosed space with a door — an office, security room, IT room and the rest. Pick a type and size and it drops in centered, with a solid dark border so it reads as walled.",
         tool: "room"
       },
       {
-        title: "Direct Logistics Flow Spine",
-        text: "Select <strong>Flow</strong> and drag a connector arrow between your intake dock and sorting zone!",
+        title: "Zones Are Open Floor Areas",
+        text: "<strong>Zone</strong> (<strong>Z</strong>) is different — an open, unwalled area for an operational step: Inward, Sorting or Dispatch. Pick one, then click-drag on the floor to draw it at whatever size you need.",
+        tool: "zone"
+      },
+      {
+        title: "The Object Library",
+        text: "<strong>Objects</strong> (<strong>O</strong>) has every rack, table and piece of equipment your hub needs. Click a card then click the floor to place it — or just drag the card straight onto the canvas and drop it where you want.",
+        tool: "objects"
+      },
+      {
+        title: "Connect Zones With Flow",
+        text: "<strong>Flow</strong> (<strong>F</strong>) draws a directional connector between two zones or rooms, showing how parcels move through your hub — drag from one to the other.",
         tool: "flow"
       },
       {
+        title: "Draw & Erase",
+        text: "<strong>Draw</strong> (<strong>D</strong>) gives you a pen, shapes, text labels and image uploads for notes on the floor plan. <strong>Erase</strong> (<strong>E</strong>) removes anything you've placed — right-click is a shortcut for it too.",
+        tool: "draw"
+      },
+      {
+        title: "Select, Move & Inspect",
+        text: "<strong>Select</strong> (<strong>V</strong>) is your everyday tool: click anything to select it and its details open automatically in the <strong>Properties</strong> panel on the right. Shift-click to select a whole range at once, or hold <strong>Option/Alt</strong> while hovering to see the distance to whatever's under your cursor.",
+        tool: "select"
+      },
+      {
+        title: "1-Click Templates & Ask AI",
+        text: "Short on time? The <strong>1-Click Templates</strong> strip above the canvas generates a full Mother Hub or Sortation Matrix instantly. Or open <strong>✨ Ask AI</strong> to describe changes in plain English, or upload a blueprint photo for it to trace.",
+        tool: "select"
+      },
+      {
+        title: "Undo, History & Autosave",
+        text: "Everything autosaves as you go. <strong>↩ Undo</strong> / <strong>↪ Redo</strong> (or Cmd/Ctrl+Z) step back and forward, and <strong>🕒 History</strong> keeps named checkpoints you can preview and restore anytime.",
+        tool: "select"
+      },
+      {
         title: "Mastery Achieved! ⭐️⭐️⭐️",
-        text: "Outstanding work! Your facility is balanced and optimized. Use <strong>Ask AI</strong> or <strong>Finish 3D</strong> anytime to inspect your layout.",
+        text: "That's the whole toolkit. Hit <strong>✓ Finish</strong> anytime to inspect your layout in 3D, or keep building — I'll be waiting behind the <strong>🎓 Guide</strong> button if you want a refresher.",
         tool: "select"
       }
     ];
+
+    // TEMP: forces the tour to auto-launch on every load instead of only
+    // the first time — see the call site in loadSite() for the full note.
+    // Flip to false once the rebuilt guide has been reviewed.
+    const ONBOARDING_FORCE_SHOW = true;
 
     let currentOnboardingStep = 0;
 
@@ -13860,7 +13939,14 @@
       if (overlay) overlay.classList.add("on");
 
       if (step.tool) {
-        if (typeof handleSmartToolSelect === "function" && (step.tool === "room" || step.tool === "flow" || step.tool === "select")) {
+        // Every key handleSmartToolSelect understands (room/zone/objects/
+        // draw open their flyout drawer instead of just arming a raw tool
+        // id) — previously only room/flow/select were routed through it,
+        // so a step using "zone", "objects", "draw" or "wall" would set a
+        // bare tool string setTool() doesn't recognize and silently do
+        // nothing.
+        const smartToolKeys = ["select", "wall", "room", "objects", "zone", "flow", "draw", "erase"];
+        if (typeof handleSmartToolSelect === "function" && smartToolKeys.includes(step.tool)) {
           handleSmartToolSelect(step.tool);
         } else if (typeof setTool === "function") {
           setTool(step.tool);
@@ -14012,6 +14098,14 @@
             toast(`Armed: ${PAINT_DEFS[objKey].name}`);
           }
         };
+        // Also draggable straight onto the canvas — click-to-arm-then-click
+        // still works, but Figma/Canva users expect to just pick the card
+        // up and drop it where they want it in one motion.
+        card.draggable = true;
+        card.addEventListener("dragstart", e => {
+          e.dataTransfer.setData("application/x-planogram-obj", card.dataset.obj);
+          e.dataTransfer.effectAllowed = "copy";
+        });
       });
 
       // Quick Room Creator
@@ -14043,7 +14137,9 @@
       const zoneClose = $("#zone-drawer-close");
       if (zoneClose) zoneClose.onclick = () => closeDrawers();
 
-      // Zone-type picker cards — pick a zone, then drag on the floor.
+      // Zone-type picker cards — pick a zone, then drag on the floor. Also
+      // draggable directly onto the canvas (dropped at a default size,
+      // selected and ready to resize) as a one-motion alternative.
       document.querySelectorAll(".zone-pick-card").forEach(card => {
         card.onclick = () => {
           const zoneType = card.dataset.zone;
@@ -14052,7 +14148,14 @@
           setTool("zone:" + zoneType);
           toast(`${ZONE_DEFS[zoneType].name}: click and drag on the floor to draw it.`);
         };
+        card.draggable = true;
+        card.addEventListener("dragstart", e => {
+          e.dataTransfer.setData("application/x-planogram-zone", card.dataset.zone);
+          e.dataTransfer.effectAllowed = "copy";
+        });
       });
+
+      bindBoardDragDrop();
 
       const drawClose = $("#draw-drawer-close");
       if (drawClose) drawClose.onclick = () => closeDrawers();
@@ -14128,6 +14231,60 @@
       }
 
       refreshPaletteActive();
+    }
+
+    // Drop target for the drag-straight-from-the-sidebar cards above —
+    // bound once (buildPalette() runs more than once per session) since
+    // #board itself is never replaced.
+    let boardDragDropBound = false;
+    function bindBoardDragDrop() {
+      if (boardDragDropBound) return;
+      const boardEl = $("#board");
+      if (!boardEl) return;
+      boardDragDropBound = true;
+      boardEl.addEventListener("dragover", e => {
+        if (!site) return;
+        const dt = e.dataTransfer;
+        if (dt && (dt.types.includes("application/x-planogram-obj") || dt.types.includes("application/x-planogram-zone"))) {
+          e.preventDefault();
+          dt.dropEffect = "copy";
+        }
+      });
+      boardEl.addEventListener("drop", e => {
+        if (!site) return;
+        const objKey = e.dataTransfer.getData("application/x-planogram-obj");
+        const zoneType = e.dataTransfer.getData("application/x-planogram-zone");
+        if (!objKey && !zoneType) return;
+        e.preventDefault();
+
+        if (objKey && PAINT_DEFS[objKey]) {
+          const cell = cellFromClient(e.clientX, e.clientY);
+          if (!cell) return toast("Drop it on the floor plan");
+          if (cellLocked(cell)) return toast("Can't drop inside a room — resize the room or drop it on open floor");
+          if (site.cellLocks && site.cellLocks[cell.r * site.cols + cell.c]) return toast("Locked — right-click it to unlock");
+          snapshot();
+          setPaintCell(cell.c, cell.r, PAINT_DEFS[objKey].id);
+          setTool("select");
+          queueSave(); updateStats(); redraw();
+          toast(`Placed ${PAINT_DEFS[objKey].name}`);
+          return;
+        }
+
+        if (zoneType && ZONE_DEFS[zoneType]) {
+          const def = ZONE_DEFS[zoneType];
+          const { x, y } = ftFromClient(e.clientX, e.clientY);
+          const wFt = 15, hFt = 15;
+          const z = mkZone(zoneType, clamp(snap2(x - wFt / 2), 0, Math.max(0, site.L - wFt)),
+            clamp(snap2(y - hFt / 2), 0, Math.max(0, site.W - hFt)), wFt, hFt, def.name);
+          snapshot();
+          site.zones.push(z);
+          clearPaintUnderZone(z);
+          selectZone(z.id);
+          setTool("select");
+          queueSave(); updateStats(); redraw();
+          toast(`Placed ${def.name} — drag its handles to resize`);
+        }
+      });
     }
 
     function renderDrawAssetList() {
@@ -14413,30 +14570,46 @@
         g.setLineDash([]);
       }
 
-      // Group Dragging Ghost Preview (Multi-Object Move)
+      // Group Dragging Ghost Preview (Multi-Object Move) — the dragged
+      // items themselves glide smoothly with the raw cursor (continuous
+      // pixel offset), rather than visually hopping a full grid cell at a
+      // time; the dashed blue outline below stays grid-snapped, previewing
+      // exactly where the drop will land.
       if (dragGroup && dragGroup.currentCell && dragGroup.origCell) {
         const dc = dragGroup.currentCell.c - dragGroup.origCell.c;
         const dr = dragGroup.currentCell.r - dragGroup.origCell.r;
+        const pxDX = dragGroup.pxDX || 0, pxDY = dragGroup.pxDY || 0;
         g.save();
         g.globalAlpha = 0.7;
+        g.translate(pxDX, pxDY);
+        dragGroup.items.forEach(it => {
+          const def = PAINT_BY_ID[it.val];
+          if (def) drawPaintCell(g, it.c, it.r, def, it.rot, it.customDim);
+        });
+        g.restore();
+
+        g.save();
+        g.strokeStyle = "#2563EB";
+        g.lineWidth = 1.5;
+        g.setLineDash([3, 3]);
         dragGroup.items.forEach(it => {
           const nc = it.c + dc, nr = it.r + dr;
           if (nc >= 0 && nc < site.cols && nr >= 0 && nr < site.rows) {
-            const def = PAINT_BY_ID[it.val];
-            if (def) {
-              drawPaintCell(g, nc, nr, def, it.rot, it.customDim);
-            }
-            g.strokeStyle = "#2563EB";
-            g.lineWidth = 1.5;
             g.strokeRect(nc * cellPx + 1, nr * cellPx + 1, cellPx - 2, cellPx - 2);
           }
         });
+        g.setLineDash([]);
         g.restore();
       }
 
       // Smart Alignment Guides & Spacing Badges
       if (smartSnapEnabled && hoverCell && (tool === "select" || tool.startsWith("paint"))) {
         drawSmartGuides(g, hoverCell, W, H);
+      }
+
+      // Figma/Canva-style Option/Alt-hold spacing overlay
+      if (altKeyDown && tool === "select" && hoverCell) {
+        drawAltSpacingOverlay(g);
       }
 
       // Hover cell cursor
@@ -14524,6 +14697,80 @@
       roundRectPath(g, x - w / 2, y - 6, w, 14, 3); g.fill();
       g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle";
       g.fillText(text, x, y + 1);
+    }
+
+    // Figma/Canva "hold Option/Alt, hover any object" spacing overlay —
+    // shows the gap between the currently-selected object/room and whatever
+    // is under the cursor, without switching into the dedicated Measure
+    // tool. Uses full-grid-cell footprints for painted objects (matching
+    // how the rest of the app already treats them for spacing/snap
+    // purposes) and each zone's real ft rectangle for rooms/zones.
+    function drawAltSpacingOverlay(g) {
+      let selRect = null;
+      if (selectedZoneId) {
+        const z = site.zones.find(zz => zz.id === selectedZoneId);
+        if (z) selRect = { x: z.x, y: z.y, w: z.w, h: z.h };
+      } else if (selectedCell) {
+        selRect = { x: selectedCell.c * CELL_FT, y: selectedCell.r * CELL_FT, w: CELL_FT, h: CELL_FT };
+      }
+      if (!selRect) return;
+
+      let hovRect = null;
+      const hoverVal = site.cells[hoverCell.r * site.cols + hoverCell.c];
+      const isSelectedCell = selectedCell && hoverCell.c === selectedCell.c && hoverCell.r === selectedCell.r;
+      if (hoverVal && !isSelectedCell) {
+        hovRect = { x: hoverCell.c * CELL_FT, y: hoverCell.r * CELL_FT, w: CELL_FT, h: CELL_FT };
+      } else {
+        const midX = hoverCell.c * CELL_FT + CELL_FT / 2, midY = hoverCell.r * CELL_FT + CELL_FT / 2;
+        const z = zoneAt(midX, midY);
+        if (z && z.id !== selectedZoneId) hovRect = { x: z.x, y: z.y, w: z.w, h: z.h };
+      }
+      if (!hovRect) return;
+
+      const ax2 = selRect.x + selRect.w, ay2 = selRect.y + selRect.h;
+      const bx2 = hovRect.x + hovRect.w, by2 = hovRect.y + hovRect.h;
+      let dx = 0, dy = 0;
+      if (bx2 < selRect.x) dx = selRect.x - bx2;
+      else if (ax2 < hovRect.x) dx = hovRect.x - ax2;
+      if (by2 < selRect.y) dy = selRect.y - by2;
+      else if (ay2 < hovRect.y) dy = hovRect.y - by2;
+      if (dx <= 0 && dy <= 0) return; // touching/overlapping — nothing useful to show
+
+      const fmtDist = ft => currentUnit === "m" ? `${(ft * 0.3048).toFixed(1)}m` : `${ft.toFixed(1)}ft`;
+
+      g.save();
+      g.strokeStyle = "#F59E0B";
+      g.lineWidth = 2;
+      g.strokeRect(ftToLocalPx(selRect.x), ftToLocalPx(selRect.y), ftToLocalPx(selRect.w), ftToLocalPx(selRect.h));
+      g.strokeRect(ftToLocalPx(hovRect.x), ftToLocalPx(hovRect.y), ftToLocalPx(hovRect.w), ftToLocalPx(hovRect.h));
+
+      g.lineWidth = 1.5;
+      g.setLineDash([5, 3]);
+
+      if (dx > 0) {
+        const overlapY0 = Math.max(selRect.y, hovRect.y), overlapY1 = Math.min(ay2, by2);
+        const midY = overlapY1 > overlapY0 ? (overlapY0 + overlapY1) / 2 : ((selRect.y + selRect.h / 2) + (hovRect.y + hovRect.h / 2)) / 2;
+        const leftX = ax2 <= hovRect.x ? ax2 : bx2;
+        const rightX = leftX === ax2 ? hovRect.x : selRect.x;
+        const py = ftToLocalPx(midY);
+        g.beginPath(); g.moveTo(ftToLocalPx(leftX), py); g.lineTo(ftToLocalPx(rightX), py); g.stroke();
+        g.setLineDash([]);
+        drawBadge(g, ftToLocalPx((leftX + rightX) / 2), py, fmtDist(dx));
+        g.setLineDash([5, 3]);
+      }
+      if (dy > 0) {
+        const overlapX0 = Math.max(selRect.x, hovRect.x), overlapX1 = Math.min(ax2, bx2);
+        const midX = overlapX1 > overlapX0 ? (overlapX0 + overlapX1) / 2 : ((selRect.x + selRect.w / 2) + (hovRect.x + hovRect.w / 2)) / 2;
+        const topY = ay2 <= hovRect.y ? ay2 : by2;
+        const botY = topY === ay2 ? hovRect.y : selRect.y;
+        const px = ftToLocalPx(midX);
+        g.beginPath(); g.moveTo(px, ftToLocalPx(topY)); g.lineTo(px, ftToLocalPx(botY)); g.stroke();
+        g.setLineDash([]);
+        drawBadge(g, px, ftToLocalPx((topY + botY) / 2), fmtDist(dy));
+        g.setLineDash([5, 3]);
+      }
+      g.setLineDash([]);
+      g.restore();
     }
 
     /* ---------- Rack Label Computation ---------- */
@@ -14852,8 +15099,29 @@
         g.restore();
       }
 
-      g.strokeStyle = selected ? "#17171A" : "rgba(255,255,255,.5)";
-      g.lineWidth = selected ? 2.5 : 1.5;
+      // Rooms (office, security, medical, staging, etc.) read as an
+      // enclosed, walled space — a thick dark border plus a faint
+      // diagonal wall-hatch band just inside it, echoing the real wall
+      // cells drawn elsewhere in the app. Zones (receiving, sorting,
+      // dispatch, docks) stay the plain soft-tinted floor area they've
+      // always been — no border weight change, no hatch. This is the
+      // one visual difference between the two sidebar tools' output.
+      const isEnclosedRoom = ROOM_ENCLOSED_TYPES.has(z.type);
+      if (isEnclosedRoom) {
+        g.save();
+        g.beginPath(); getZonePath(g, z, x, y, w, h, 6); g.clip();
+        g.strokeStyle = "rgba(255,255,255,.28)";
+        g.lineWidth = Math.max(1, cellPx * 0.05);
+        const hatchStep = Math.max(6, cellPx * 0.4);
+        const bandW = Math.min(14, cellPx * 0.35);
+        for (let i = -h; i < w + h; i += hatchStep) {
+          g.beginPath(); g.moveTo(x + i, y); g.lineTo(x + i + bandW, y + bandW); g.stroke();
+          g.beginPath(); g.moveTo(x + i, y + h - bandW); g.lineTo(x + i + bandW, y + h); g.stroke();
+        }
+        g.restore();
+      }
+      g.strokeStyle = selected ? "#17171A" : (isEnclosedRoom ? "#292524" : "rgba(255,255,255,.5)");
+      g.lineWidth = selected ? 2.5 : (isEnclosedRoom ? 3.5 : 1.5);
       getZonePath(g, z, x, y, w, h, 6);
       g.stroke();
 
@@ -15854,6 +16122,7 @@
             selectedCell = null; selectedCells = [];
             selectedAnnotationId = null;
             selectedFlowId = fHit.id;
+            userCollapsedRightPanel = false;
             updateRightPanel();
             redraw();
             return;
@@ -15869,6 +16138,7 @@
             selectedCell = null; selectedCells = [];
             selectedFlowId = null;
             selectedAnnotationId = aHit.id;
+            userCollapsedRightPanel = false;
             updateRightPanel();
             redraw();
             return;
@@ -15880,15 +16150,30 @@
           deselectZone();
           selectedFlowId = null;
           selectedAnnotationId = null;
+          userCollapsedRightPanel = false;
           const isAlreadySelected = selectedCells.some(c => c.c === cell.c && c.r === cell.r);
           if (ev.shiftKey) {
-            if (isAlreadySelected) {
-              selectedCells = selectedCells.filter(c => !(c.c === cell.c && c.r === cell.r));
-              selectedCell = selectedCells.length ? selectedCells[0] : null;
-            } else {
-              selectedCells.push(cell);
-              selectedCell = cell;
+            // Range-select, Excel/Finder-style: shift-clicking an object to
+            // the right or left of the last-selected one selects every
+            // painted object in the rectangle between them (going in
+            // whichever direction was clicked), added to what's already
+            // selected — not just a single-cell toggle.
+            const anchor = selectedCell || (selectedCells.length ? selectedCells[selectedCells.length - 1] : cell);
+            const c0 = Math.min(anchor.c, cell.c), c1 = Math.max(anchor.c, cell.c);
+            const r0 = Math.min(anchor.r, cell.r), r1 = Math.max(anchor.r, cell.r);
+            const map = new Map(selectedCells.map(cc => [`${cc.c},${cc.r}`, cc]));
+            for (let r = r0; r <= r1; r++) {
+              for (let c = c0; c <= c1; c++) {
+                if (site.cells[r * site.cols + c]) map.set(`${c},${r}`, { c, r });
+              }
             }
+            if (isAlreadySelected && c0 === c1 && r0 === r1) {
+              // Shift-clicking the sole already-selected cell by itself
+              // still toggles it off, same as before.
+              map.delete(`${cell.c},${cell.r}`);
+            }
+            selectedCells = Array.from(map.values());
+            selectedCell = selectedCells.length ? cell : null;
           } else {
             if (!isAlreadySelected) {
               selectedCell = cell;
@@ -15907,6 +16192,10 @@
           dragGroup = {
             origCell: cell,
             currentCell: cell,
+            startClientX: ev.clientX,
+            startClientY: ev.clientY,
+            pxDX: 0,
+            pxDY: 0,
             items: selectedCells.map(c => ({
               c: c.c,
               r: c.r,
@@ -16159,10 +16448,17 @@
       }
 
       if (dragGroup && cell) {
+        // The dragged items glide with the raw cursor position (redrawn on
+        // every move, not just when a grid-cell boundary is crossed) instead
+        // of visually hopping a full 3ft cell at a time — the landing cell
+        // (still grid-snapped, used to commit the move on drop) only changes
+        // when the cursor actually crosses into a new one.
+        dragGroup.pxDX = ev.clientX - dragGroup.startClientX;
+        dragGroup.pxDY = ev.clientY - dragGroup.startClientY;
         if (!dragGroup.currentCell || cell.c !== dragGroup.currentCell.c || cell.r !== dragGroup.currentCell.r) {
           dragGroup.currentCell = cell;
-          redraw();
         }
+        redraw();
         return;
       }
       if (drawingZone) {
@@ -16398,15 +16694,23 @@
       if (!s) return;
       const c0 = Math.floor(z.x / CELL_FT), c1 = Math.ceil((z.x + z.w) / CELL_FT);
       const r0 = Math.floor(z.y / CELL_FT), r1 = Math.ceil((z.y + z.h) / CELL_FT);
+      const wallId = PAINT_DEFS.wall ? PAINT_DEFS.wall.id : -1;
       for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) {
         if (r < 0 || c < 0 || r >= s.rows || c >= s.cols) continue;
-        const i = r * s.cols + c; s.cells[i] = 0; s.rots[i] = 0;
+        const i = r * s.cols + c;
+        // Walls are structural — dropping or resizing a room/zone on top of
+        // one should overlap it (the zone's fill renders over the wall, same
+        // as it always has), not silently delete the wall. Every other
+        // painted object (racks, tables, etc.) is still cleared, keeping the
+        // existing "a room's interior stays free of furniture" behavior.
+        if (s.cells[i] === wallId) continue;
+        s.cells[i] = 0; s.rots[i] = 0;
       }
     }
     function colName(i) { let s = ""; i++; while (i > 0) { i--; s = String.fromCharCode(65 + i % 26) + s; i = Math.floor(i / 26); } return s; }
 
     /* ---------- Zone Selection & Overlays ---------- */
-    function selectZone(id) { selectedZoneId = id; selectedCell = null; selectedCells = []; showZoneToolbar(); updateRightPanel(); redraw(); }
+    function selectZone(id) { selectedZoneId = id; selectedCell = null; selectedCells = []; userCollapsedRightPanel = false; showZoneToolbar(); updateRightPanel(); redraw(); }
     function deselectZone() { selectedZoneId = null; hideZoneToolbar(); updateRightPanel(); redraw(); }
     function showZoneToolbar() {
       const z = site.zones.find(z => z.id === selectedZoneId); if (!z) return;
@@ -19738,6 +20042,20 @@
 
     window.addEventListener("resize", () => {
       if ($("#isoview")?.classList.contains("on")) { sizeIsoCanvas(); fitIsoView(); renderIsoView(); }
+    });
+
+    // Alt/Option-hold spacing overlay (Figma/Canva-style "distance to
+    // nearest object") — tracked at the window level so the overlay
+    // appears/disappears the instant the key is pressed or released, even
+    // if the cursor isn't moving. See drawAltSpacingOverlay() in redraw().
+    window.addEventListener("keydown", e => {
+      if (e.key === "Alt" && !altKeyDown) { altKeyDown = true; redraw(); }
+    });
+    window.addEventListener("keyup", e => {
+      if (e.key === "Alt" && altKeyDown) { altKeyDown = false; redraw(); }
+    });
+    window.addEventListener("blur", () => {
+      if (altKeyDown) { altKeyDown = false; redraw(); }
     });
 
     /* =====================================================================
