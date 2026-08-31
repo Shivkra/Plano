@@ -7373,7 +7373,6 @@
 
         <!-- Gamified Level & XP Widget with integrated Sound Toggle in Middle -->
         <div class="game-level-chip" id="game-level-widget" title="View Facility Progression & Quests">
-          <span class="quest-count-badge" id="quest-count-badge" style="display:none;">0</span>
           <span class="game-level-badge" id="glw-badge">⭐️ Lv. 1</span>
           <div class="xp-bar-wrap" title="Experience Points">
             <div class="xp-bar-fill" id="glw-xp-fill" style="width: 25%;"></div>
@@ -13466,7 +13465,7 @@
       // doesn't match how anyone actually builds a site here).
       { id: "q_racks", title: "Segregation Capacity", desc: "Build at least 2 Sortation Modules for destination segregation", xp: 80, check: (s) => s.zones && s.zones.filter(z => z.type === "sorting").length >= 2 },
       { id: "q_room", title: "Operational Zoning", desc: "Designate a Staging or Sortation Room", xp: 100, check: (s) => s.zones && s.zones.length >= 1 },
-      { id: "q_flow", title: "Connect the Logistics Spine", desc: "Draw a directional Flow Connector between zones", xp: 120, check: (s) => s.flows && s.flows.length >= 1 },
+      { id: "q_flow", title: "Connect the Logistics Spine", desc: "Draw a directional Flow Connector between zones", xp: 120, check: (s) => { const ids = s.zones ? new Set(s.zones.map(z => z.id)) : new Set(); return s.flows && s.flows.some(f => ids.has(f.fromId) && ids.has(f.toId)); } },
       { id: "q_stars", title: "3-Star Facility Rating", desc: "Maintain a clear, bottleneck-free flow structure", xp: 150, check: (s) => (typeof detectedIssues !== "undefined" ? detectedIssues.length : 0) === 0 && (s.cells && s.cells.some(Boolean)) }
     ];
 
@@ -13478,7 +13477,13 @@
       const rackCount = site.cells ? site.cells.filter(c => c === (PAINT_DEFS.rack ? PAINT_DEFS.rack.id : 1) || c === (PAINT_DEFS.doublerack ? PAINT_DEFS.doublerack.id : 12)).length : 0;
       const sortCount = site.zones ? site.zones.filter(z => z.type === "sorting").length : 0;
       const zoneCount = site.zones ? site.zones.length : 0;
-      const flowCount = site.flows ? site.flows.length : 0;
+      // Counts only flows whose both ends still exist — every zone-delete
+      // path now calls pruneDanglingFlows() too (see there), but this
+      // recomputes live on every call, so it shouldn't quietly trust
+      // site.flows.length to already be clean if some future edit path
+      // forgets to prune.
+      const liveZoneIds = site.zones ? new Set(site.zones.map(z => z.id)) : new Set();
+      const flowCount = site.flows ? site.flows.filter(f => liveZoneIds.has(f.fromId) && liveZoneIds.has(f.toId)).length : 0;
 
       // Weighted well below the original formula on purpose — zoneCount in
       // particular used to be worth 45 XP each, which made one single
@@ -13577,18 +13582,11 @@
 
     function renderQuests() {
       const listEl = $("#quest-list");
-      const badgeEl = $("#quest-count-badge");
       if (!listEl || !site) return;
 
-      // "Done" reads from the permanent claimed record (see
-      // claimNewlyCompletedQuests), not a live q.check — a reward already
-      // paid out shouldn't visually un-earn itself just because the
-      // layout changed since.
       const claimed = site._questsClaimed || [];
-      let completedCount = 0;
       listEl.innerHTML = CAMPAIGN_QUESTS.map(q => {
         const isDone = claimed.includes(q.id);
-        if (isDone) completedCount++;
         return `
           <div class="quest-item ${isDone ? 'done' : ''}">
             <div class="quest-chk">${isDone ? '✓' : '○'}</div>
@@ -13600,12 +13598,6 @@
           </div>
         `;
       }).join("");
-
-      const remaining = CAMPAIGN_QUESTS.length - completedCount;
-      if (badgeEl) {
-        badgeEl.textContent = remaining;
-        badgeEl.style.display = remaining > 0 ? "" : "none";
-      }
     }
 
     // Interactive Onboarding Academy (Chief Maya)
@@ -14996,6 +14988,27 @@
       redraw(); updateStats(); queueSave();
       toast("Flow connector deleted");
     }
+    // Every zone-delete path (erase tool, zone toolbar, Properties panel,
+    // multi-select delete, the 3D iso view's own delete) removes the zone
+    // from site.zones but none of them ever touched site.flows — a flow
+    // connector attached to the deleted zone was left behind with a
+    // fromId/toId pointing at nothing. getFlowCurvePx already guards
+    // against that at render time (returns null, so it never draws or
+    // crashes), which is exactly why this went unnoticed — but the
+    // dangling entry still sat in site.flows counting toward flowCount in
+    // calculateXpAndLevel and the "Connect the Logistics Spine" quest,
+    // rewarding XP for a connector that isn't visible anywhere on the
+    // canvas. Call this from every zone-delete path instead of touching
+    // site.zones directly.
+    function pruneDanglingFlows() {
+      if (!site || !site.flows || !site.flows.length) return;
+      const liveIds = new Set(site.zones.map(z => z.id));
+      const before = site.flows.length;
+      site.flows = site.flows.filter(f => liveIds.has(f.fromId) && liveIds.has(f.toId));
+      if (site.flows.length !== before && selectedFlowId && !site.flows.some(f => f.id === selectedFlowId)) {
+        selectedFlowId = null;
+      }
+    }
     function deleteSelectedAnnotation() {
       if (!selectedAnnotationId) return;
       snapshot();
@@ -15564,7 +15577,15 @@
             snapshot();
             site.flows = site.flows || [];
             site.flows.push({ id: uid(), fromId: flowDraft.fromId, fromSide: flowDraft.fromSide, toId: hitZone.id, toSide, label: null });
-            queueSave();
+            queueSave(); updateStats();
+            // Neither flow-creation path (this click-to-finish gesture, or
+            // the drag-to-connect one in onPointerUp) ever refreshed
+            // progression before — the "Connect the Logistics Spine" quest
+            // (+120 XP) and the 3-star hasFlow check both went unrewarded/
+            // unreflected until some unrelated action happened to trigger
+            // updateStats+updateGameProgressionUI afterward.
+            triggerFloatingXp(ev.clientX, ev.clientY, "+20 XP FLOW CONNECTED!");
+            updateGameProgressionUI();
             toast("Flow connector added");
           }
           flowDraft = null;
@@ -15825,6 +15846,7 @@
               toast("Locked — right-click it to unlock");
             } else {
               site.zones = site.zones.filter(zz => zz.id !== z.id);
+              pruneDanglingFlows();
               if (selectedZoneId === z.id) deselectZone();
               toast(`"${z.label || (ZONE_DEFS[z.type] && ZONE_DEFS[z.type].name) || "Room"}" erased`);
             }
@@ -16008,7 +16030,9 @@
           snapshot();
           site.flows = site.flows || [];
           site.flows.push({ id: uid(), fromId: flowDraft.fromId, fromSide: flowDraft.fromSide, toId: hitZone.id, toSide, label: null });
-          queueSave();
+          queueSave(); updateStats();
+          triggerFloatingXp(ev.clientX, ev.clientY, "+20 XP FLOW CONNECTED!");
+          updateGameProgressionUI();
           toast("Flow connector added");
           flowDraft = null;
         } else {
@@ -16125,7 +16149,10 @@
           clearPaintUnderZone(z);
           selectZone(z.id);
           queueSave(); updateStats();
-          triggerFloatingXp(ev.clientX, ev.clientY, "+45 XP ZONE CREATED!");
+          // Matches calculateXpAndLevel's zoneCount weight — was still
+          // "+45" here after that formula got rebalanced down to 8/zone,
+          // which made the toast lie about what a manager had just earned.
+          triggerFloatingXp(ev.clientX, ev.clientY, "+8 XP ZONE CREATED!");
           updateGameProgressionUI();
         }
         drawingZone = null;
@@ -16148,6 +16175,15 @@
         if (placedSomething) {
           playSfx("place");
           triggerFloatingXp(ev.clientX, ev.clientY, "+10 XP");
+          // updateStats() runs runLayoutValidation() — without it here,
+          // updateGameProgressionUI()'s star rating reads whatever
+          // detectedIssues was left at by the LAST action that happened to
+          // call updateStats, not this stroke's own result (the drawingZone
+          // branch above already gets this right; plain paint strokes never
+          // called updateStats() at all before this fix, so this exact
+          // staleness was latent and harmless until a progression check got
+          // added right after it).
+          updateStats();
           updateGameProgressionUI();
         }
       }
@@ -16365,6 +16401,7 @@
       if (zz && zz.locked) return toast("Locked — right-click it to unlock");
       snapshot();
       site.zones = site.zones.filter(z => z.id !== selectedZoneId);
+      pruneDanglingFlows();
       deselectZone(); updateStats(); queueSave();
     });
     $("#zt-rename").addEventListener("click", () => {
@@ -16755,6 +16792,7 @@
       if (selectedZoneId) {
         snapshot();
         site.zones = site.zones.filter(z => z.id !== selectedZoneId);
+        pruneDanglingFlows();
         deselectZone(); redraw(); updateStats(); queueSave();
       }
     });
@@ -16924,6 +16962,7 @@
       }
       if (hasZones) {
         site.zones = site.zones.filter(z => !unlockedZoneIds.includes(z.id));
+        pruneDanglingFlows();
         count += unlockedZoneIds.length;
         selectedZoneIds = selectedZoneIds.filter(id => !unlockedZoneIds.includes(id));
         selectedZoneId = selectedZoneIds.length === 1 ? selectedZoneIds[0] : null;
@@ -17042,6 +17081,55 @@
         }
       }
 
+      // 4. & 5. below are the checks that actually fire on a real
+      // generated site — checks 2 & 3 above only ever look at
+      // PAINT_DEFS.rack cells, which is picking-warehouse language for an
+      // app whose own domain framing is explicit elsewhere: this is a
+      // cross-dock, there's no bulk storage or picking to check. A
+      // freshly generated site has zero manually-painted racks, so those
+      // two checks were structurally unable to ever find anything on the
+      // content this app actually generates — "3-Star Facility Rating"
+      // (this list being empty) was trivially, meaninglessly true for
+      // almost every site, not a real signal of quality.
+
+      // 4. Zone-zone overlap — generation itself is now proven overlap-
+      // free (see the wall-inset and fillLeftoverAsWalkway work), but a
+      // manager can still drag or resize a zone by hand into another one
+      // after the fact; nothing at the interaction layer blocks that.
+      const EPS = 0.5; // ft — ignore merely-touching edges, not a real overlap
+      for (let i = 0; i < site.zones.length; i++) {
+        for (let j = i + 1; j < site.zones.length; j++) {
+          const a = site.zones[i], b = site.zones[j];
+          const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+          const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+          if (ox > EPS && oy > EPS) {
+            const aName = a.label || (ZONE_DEFS[a.type] && ZONE_DEFS[a.type].name) || "Room";
+            const bName = b.label || (ZONE_DEFS[b.type] && ZONE_DEFS[b.type].name) || "Room";
+            detectedIssues.push({
+              type: "overlap", level: "crit", title: "Overlapping Zones",
+              desc: `"${aName}" and "${bName}" overlap by ${Math.round(ox)}×${Math.round(oy)} ft.`,
+              zoneId: a.id,
+            });
+          }
+        }
+      }
+
+      // 5. Dangling flow connectors — every zone-delete path now calls
+      // pruneDanglingFlows() at the point of deletion (see there), so this
+      // should normally find nothing; kept as a visible check anyway so a
+      // site that reaches this state some other way (an older save, a
+      // future edit path that forgets to prune) surfaces as a real issue
+      // instead of just silently not-rendering a connector no one asked
+      // to remove.
+      if (site.flows && site.flows.length) {
+        const liveZoneIds = new Set(site.zones.map(z => z.id));
+        site.flows.forEach(f => {
+          if (!liveZoneIds.has(f.fromId) || !liveZoneIds.has(f.toId)) {
+            detectedIssues.push({ type: "flow", level: "warn", title: "Broken Flow Connector", desc: "A Flow connector points at a room that no longer exists — delete it or reconnect it." });
+          }
+        });
+      }
+
       updateIssuesBadge();
     }
 
@@ -17066,6 +17154,9 @@
             if (iss.c !== undefined && iss.r !== undefined) {
               selectedCell = { c: iss.c, r: iss.r };
               redraw(); updateRightPanel();
+              closeDrawers();
+            } else if (iss.zoneId && site.zones.some(z => z.id === iss.zoneId)) {
+              selectZone(iss.zoneId);
               closeDrawers();
             }
           };
@@ -19297,7 +19388,7 @@
     $("#iso-edit-del")?.addEventListener("click", () => {
       if (!isoSelected) return;
       snapshot();
-      if (isoSelected.kind === "zone") site.zones = site.zones.filter(z => z.id !== isoSelected.ref.id);
+      if (isoSelected.kind === "zone") { site.zones = site.zones.filter(z => z.id !== isoSelected.ref.id); pruneDanglingFlows(); }
       else setPaintCell(isoSelected.ref.c, isoSelected.ref.r, 0);
       queueSave(); updateStats();
       isoSelected = null; hideIsoEditCard(); renderIsoView();
