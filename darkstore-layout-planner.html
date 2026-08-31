@@ -625,7 +625,7 @@
     }
 
     /* No global `select` rule existed anywhere in the sheet — every select
-       (Room Type, the CAD Tools element picker, etc.) fell back to the
+       (Room Type and others) fell back to the
        browser default text color, which is opaque black regardless of
        theme. Fine on the light surfaces they were built against, unreadable
        on a dark one. `option` gets its own rule too since some browsers
@@ -6633,10 +6633,6 @@
           <div class="smart-tool-btn" data-smart-tool="objects" title="Store-specific object library (O)">
             <span class="st-icon">📦</span><span class="st-label">Objects</span><span class="st-kbd">O</span>
           </div>
-          <div class="smart-tool-btn" data-smart-tool="cadtools"
-            title="Smart AutoCAD Tools: Parallel, Array Matrix, Offset & Mirror (C)">
-            <span class="st-icon">📐</span><span class="st-label">CAD Tools</span><span class="st-kbd">C</span>
-          </div>
           <div class="smart-tool-btn" data-smart-tool="zone" title="Designate operational zones (Z)">
             <span class="st-icon">🏷️</span><span class="st-label">Zone</span><span class="st-kbd">Z</span>
           </div>
@@ -6821,116 +6817,6 @@
         <div style="margin-top:6px; border-top:1px solid var(--border); padding-top:10px;">
           <button class="btn sm ghost full" id="draw-clear-btn" style="color:#DC2626; font-weight:700;">🗑 Clear All
             Annotations</button>
-        </div>
-      </div>
-
-      <!-- Flyout Drawer: Smart AutoCAD Tools Suite -->
-      <div class="flyout-drawer" id="cadtools-drawer" style="width:360px;">
-        <div class="flyout-head">
-          <h3 style="display:flex; align-items:center; gap:6px;"><span>⚡</span> Smart CAD Tools</h3>
-          <button class="btn ghost icon sm" id="cadtools-drawer-close" aria-label="Close">✕</button>
-        </div>
-
-        <p style="font-size:12px; color:var(--ink-soft); margin-bottom:14px; line-height:1.4;">
-          AutoCAD-inspired acceleration tools for rapid warehouse spatial modeling.
-        </p>
-
-        <!-- Tool 1: Parallel & Multi-Line Run -->
-        <div
-          style="background:var(--surface-2); padding:12px; border-radius:10px; border:1px solid var(--border); margin-bottom:12px;">
-          <div
-            style="font-weight:800; font-size:12.5px; color:var(--ink); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-            <span>⫽</span> Parallel Runs &amp; Multi-Line (MLINE)
-          </div>
-          <div class="field" style="margin-bottom:8px;">
-            <label class="field-label" style="font-size:11px;">Element</label>
-            <select id="parallel-elem-type"
-              style="width:100%; padding:6px 8px; border-radius:6px; background:var(--surface); border:1px solid var(--border); font-size:12px; font-weight:700;">
-              <option value="wall" selected>🧱 Wall (2×2 ft)</option>
-              <option value="rack">🗄️ Rack (3×1.5 ft)</option>
-              <option value="palletrack">🧱 Pallet Rack (4×4 ft)</option>
-              <option value="conveyor">» Conveyor Belt Run</option>
-            </select>
-          </div>
-          <div class="field" style="margin-bottom:8px;">
-            <label class="field-label" style="font-size:11px;">Clear Aisle Clearance</label>
-            <div style="display:flex; flex-wrap:wrap; gap:4px;">
-              <button class="preset-chip" onclick="setParallelGap(4, this)" style="font-size:10.5px; padding:3px 6px;">4
-                ft (Pick)</button>
-              <button class="preset-chip" onclick="setParallelGap(5, this)" style="font-size:10.5px; padding:3px 6px;">5
-                ft (Cart)</button>
-              <button class="preset-chip active" onclick="setParallelGap(6, this)"
-                style="font-size:10.5px; padding:3px 6px;">6 ft (Pallet)</button>
-              <button class="preset-chip" onclick="setParallelGap(8, this)" style="font-size:10.5px; padding:3px 6px;">8
-                ft (MHE)</button>
-            </div>
-            <input type="hidden" id="parallel-gap-val" value="6">
-          </div>
-          <div style="display:flex; gap:6px;">
-            <button class="btn secondary sm full" onclick="placeParallelPresetRuns('h')"
-              style="font-weight:700; font-size:11px;">↔ Horiz Pair</button>
-            <button class="btn secondary sm full" onclick="placeParallelPresetRuns('v')"
-              style="font-weight:700; font-size:11px;">↕ Vert Pair</button>
-            <button class="btn primary sm full" onclick="activateParallelDragMode()"
-              style="font-weight:800; font-size:11px; background:linear-gradient(135deg, #0EA5E9, #6366F1); border:none;">✏️
-              Draw</button>
-          </div>
-        </div>
-
-        <!-- Tool 2: Array Matrix Generator -->
-        <div
-          style="background:var(--surface-2); padding:12px; border-radius:10px; border:1px solid var(--border); margin-bottom:12px;">
-          <div
-            style="font-weight:800; font-size:12.5px; color:var(--ink); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-            <span>▦</span> Racking Array Generator (ARRAY)
-          </div>
-          <div class="choice-input-row" style="display:flex; gap:8px; margin-bottom:8px;">
-            <div style="flex:1;">
-              <label class="field-label" style="font-size:10.5px;">Rows</label>
-              <input type="number" id="cad-array-rows" value="4" min="1" max="12"
-                style="font-size:12px; padding:4px 6px;">
-            </div>
-            <div style="flex:1;">
-              <label class="field-label" style="font-size:10.5px;">Bays/Row</label>
-              <input type="number" id="cad-array-bays" value="8" min="2" max="25"
-                style="font-size:12px; padding:4px 6px;">
-            </div>
-            <div style="flex:1;">
-              <label class="field-label" style="font-size:10.5px;">Aisle Gap</label>
-              <input type="number" id="cad-array-gap" value="4" min="2" max="16"
-                style="font-size:12px; padding:4px 6px;">
-            </div>
-          </div>
-          <button class="btn secondary sm full" onclick="generateCadRackArray()"
-            style="font-weight:800; width:100%; border:1px solid var(--border-strong);">
-            ⚡ Place Racking Matrix Block
-          </button>
-        </div>
-
-        <!-- Tool 3: Perimeter Offset & Mirror -->
-        <div style="background:var(--surface-2); padding:12px; border-radius:10px; border:1px solid var(--border);">
-          <div
-            style="font-weight:800; font-size:12.5px; color:var(--ink); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-            <span>🪞</span> Perimeter Inset &amp; Mirror
-          </div>
-          <div style="display:flex; gap:6px; margin-bottom:6px;">
-            <button class="btn secondary sm full" onclick="generateCadPerimeterInset()"
-              style="font-weight:700; font-size:11px;" title="Create 4ft inner perimeter boundary wall">
-              🏛️ 4ft Perimeter Inset
-            </button>
-            <button class="btn secondary sm full" onclick="cadPurgeClean()" style="font-weight:700; font-size:11px;"
-              title="Clean isolated marks and stray walls">
-              🧹 Purge / Clean
-            </button>
-          </div>
-          <div style="display:flex; gap:6px;">
-            <button class="btn ghost sm full" onclick="cadMirrorLayout('h')" style="font-weight:700; font-size:11px;">
-              ⇄ Mirror Horiz
-            </button>
-            <button class="btn ghost sm full" onclick="cadMirrorLayout('v')" style="font-weight:700; font-size:11px;">
-              ⇅ Mirror Vert
-            </button>
-          </div>
         </div>
       </div>
 
@@ -7262,31 +7148,27 @@
               <div id="stat-area-breakdown" style="margin-top:10px; font-size:12px; color:var(--ink-soft);"></div>
             </div>
 
-            <!-- Store Layers -->
+            <!-- Store Layers — 3 groups, not 7. Each eye/lock toggles every
+                 underlying key it covers together (data-layer is a
+                 comma-separated list — see the click handlers). The old
+                 "Safety & Exits" row never actually did anything on its
+                 own: fire exits/extinguishers/CCTV all render under
+                 category "infra", the same category "Building & Walls"
+                 already governed, so that toggle never touched what its
+                 label promised — folded in here instead of carried
+                 forward as a 4th group. -->
             <div class="stat-block">
               <h4>Store Layers</h4>
               <div class="layer-list">
-                <div class="layer-row"><span>🏛️ Building &amp; Walls</span><span class="layer-controls"><span
-                      class="layer-eye" data-layer="building">👁️</span> <span class="layer-lock"
-                      data-layer="building">🔓</span></span></div>
-                <div class="layer-row"><span>🗄️ Storage &amp; Racks</span><span class="layer-controls"><span
-                      class="layer-eye" data-layer="storage">👁️</span> <span class="layer-lock"
-                      data-layer="storage">🔓</span></span></div>
-                <div class="layer-row"><span>⚡ Equipment</span><span class="layer-controls"><span class="layer-eye"
-                      data-layer="equipment">👁️</span> <span class="layer-lock" data-layer="equipment">🔓</span></span>
-                </div>
-                <div class="layer-row"><span>📦 Operations &amp; Tables</span><span class="layer-controls"><span
-                      class="layer-eye" data-layer="operations">👁️</span> <span class="layer-lock"
-                      data-layer="operations">🔓</span></span></div>
-                <div class="layer-row"><span>🦺 Safety &amp; Exits</span><span class="layer-controls"><span
-                      class="layer-eye" data-layer="safety">👁️</span> <span class="layer-lock"
-                      data-layer="safety">🔓</span></span></div>
-                <div class="layer-row"><span>➡️ Flow Connectors</span><span class="layer-controls"><span
-                      class="layer-eye" data-layer="flow">👁️</span> <span class="layer-lock"
-                      data-layer="flow">🔓</span></span></div>
-                <div class="layer-row"><span>🖊️ Annotations</span><span class="layer-controls"><span class="layer-eye"
-                      data-layer="annotations">👁️</span> <span class="layer-lock"
-                      data-layer="annotations">🔓</span></span></div>
+                <div class="layer-row"><span>🏛️ Structure &amp; Storage</span><span class="layer-controls"><span
+                      class="layer-eye" data-layer="building,storage">👁️</span> <span class="layer-lock"
+                      data-layer="building,storage">🔓</span></span></div>
+                <div class="layer-row"><span>📦 Equipment &amp; Operations</span><span class="layer-controls"><span
+                      class="layer-eye" data-layer="equipment,operations">👁️</span> <span class="layer-lock"
+                      data-layer="equipment,operations">🔓</span></span></div>
+                <div class="layer-row"><span>➡️ Flow &amp; Notes</span><span class="layer-controls"><span
+                      class="layer-eye" data-layer="flow,annotations">👁️</span> <span class="layer-lock"
+                      data-layer="flow,annotations">🔓</span></span></div>
               </div>
             </div>
           </div>
@@ -7353,7 +7235,6 @@
             <div class="sc-row"><span>Zone</span><kbd>Z</kbd></div>
             <div class="sc-row"><span>Flow connector</span><kbd>F</kbd></div>
             <div class="sc-row"><span>Draw &amp; Annotate</span><kbd>D</kbd></div>
-            <div class="sc-row"><span>CAD Tools</span><kbd>C</kbd></div>
             <div class="sc-row"><span>Measure</span><kbd>M</kbd></div>
             <div class="sc-row"><span>Eraser</span><kbd>E</kbd></div>
           </div>
@@ -8378,8 +8259,8 @@
     let measuring = false, measureStart = null, measureCurrent = null;
     let detectedIssues = [];      // array of live issues [{type, level, title, desc, c, r, zoneId}]
     let smartGuides = [];         // dynamic alignment guides [{x0,y0,x1,y1,type,distanceText}]
-    let layerVisibility = { building: true, storage: true, equipment: true, operations: true, safety: true, flow: true, annotations: true };
-    let layerLocks = { building: false, storage: false, equipment: false, operations: false, safety: false, flow: false, annotations: false };
+    let layerVisibility = { building: true, storage: true, equipment: true, operations: true, flow: true, annotations: true };
+    let layerLocks = { building: false, storage: false, equipment: false, operations: false, flow: false, annotations: false };
 
     // Flow connectors (directional arrows between zones)
     let selectedFlowId = null;
@@ -11920,8 +11801,6 @@
       if (objClose) objClose.onclick = () => closeDrawers();
       const roomClose = $("#room-drawer-close");
       if (roomClose) roomClose.onclick = () => closeDrawers();
-      const cadClose = $("#cadtools-drawer-close");
-      if (cadClose) cadClose.onclick = () => closeDrawers();
       const zoneClose = $("#zone-drawer-close");
       if (zoneClose) zoneClose.onclick = () => closeDrawers();
 
@@ -12027,188 +11906,11 @@
       });
     }
 
-    let parallelActive = false;
-    let parallelStartCell = null;
-    let parallelCurrentCell = null;
-
-    function setParallelGap(gapFt, el) {
-      const input = $("#parallel-gap-val");
-      if (input) input.value = gapFt;
-      document.querySelectorAll("#cadtools-drawer .preset-chip").forEach(c => c.classList.remove("active"));
-      if (el) el.classList.add("active");
-    }
-    window.setParallelGap = setParallelGap;
-
-    function activateParallelDragMode() {
-      closeDrawers();
-      setTool("parallel");
-      const gapFt = +$("#parallel-gap-val")?.value || 6;
-      toast(`Parallel Run Active: Click & drag on canvas to draw 2 parallel runs with ${gapFt} ft clearance!`);
-    }
-    window.activateParallelDragMode = activateParallelDragMode;
-
-    function placeParallelPresetRuns(dir) {
-      if (!site) return;
-      snapshot();
-      const elemType = $("#parallel-elem-type")?.value || "wall";
-      const val = PAINT_DEFS[elemType] ? PAINT_DEFS[elemType].id : PAINT_DEFS.wall.id;
-      const gapFt = +$("#parallel-gap-val")?.value || 6;
-      const gapCells = Math.max(1, Math.round(gapFt / CELL_FT));
-      const midC = Math.floor(site.cols / 2), midR = Math.floor(site.rows / 2);
-      const len = 12;
-
-      if (dir === "h") {
-        const r1 = Math.max(2, midR - Math.floor(gapCells / 2));
-        const r2 = Math.min(site.rows - 3, r1 + gapCells + 1);
-        const startC = Math.max(2, midC - Math.floor(len / 2));
-        for (let c = startC; c < startC + len && c < site.cols - 2; c++) {
-          setPaintCell(c, r1, val);
-          setPaintCell(c, r2, val);
-        }
-      } else {
-        const c1 = Math.max(2, midC - Math.floor(gapCells / 2));
-        const c2 = Math.min(site.cols - 3, c1 + gapCells + 1);
-        const startR = Math.max(2, midR - Math.floor(len / 2));
-        for (let r = startR; r < startR + len && r < site.rows - 2; r++) {
-          setPaintCell(c1, r, val);
-          setPaintCell(c2, r, val);
-        }
-      }
-
-      closeDrawers();
-      redraw();
-      updateStats();
-      queueSave();
-      toast(`✓ Placed 2 parallel runs with ${gapFt} ft clear aisle gap!`);
-    }
-    window.placeParallelPresetRuns = placeParallelPresetRuns;
-
-    // Smart CAD Array Generator
-    function generateCadRackArray() {
-      if (!site) return;
-      const elemType = $("#parallel-elem-type")?.value || "rack";
-      const val = PAINT_DEFS[elemType] ? PAINT_DEFS[elemType].id : PAINT_DEFS.rack.id;
-      const rowsCount = Math.max(1, Math.min(12, +$("#cad-array-rows")?.value || 4));
-      const baysPerRow = Math.max(2, Math.min(25, +$("#cad-array-bays")?.value || 8));
-      const aisleGapFt = Math.max(2, Math.min(16, +$("#cad-array-gap")?.value || 4));
-      const gapCells = Math.max(1, Math.round(aisleGapFt / CELL_FT));
-
-      snapshot();
-      const totalWidthCells = baysPerRow;
-      const totalHeightCells = rowsCount + (rowsCount - 1) * gapCells;
-      const startC = Math.max(2, Math.floor((site.cols - totalWidthCells) / 2));
-      const startR = Math.max(2, Math.floor((site.rows - totalHeightCells) / 2));
-
-      for (let r = 0; r < rowsCount; r++) {
-        const curRow = startR + r * (1 + gapCells);
-        if (curRow >= site.rows - 2) break;
-        for (let c = 0; c < baysPerRow; c++) {
-          const curCol = startC + c;
-          if (curCol >= site.cols - 2) break;
-          setPaintCell(curCol, curRow, val);
-        }
-      }
-
-      closeDrawers();
-      redraw();
-      updateStats();
-      queueSave();
-      toast(`✓ Generated CAD Matrix: ${rowsCount} rows × ${baysPerRow} bays with ${aisleGapFt} ft aisles!`);
-    }
-    window.generateCadRackArray = generateCadRackArray;
-
-    // Smart CAD Perimeter Walkway Inset
-    function generateCadPerimeterInset() {
-      if (!site) return;
-      const insetCells = Math.max(1, Math.round(4 / CELL_FT)); // 4 ft inset — was a hardcoded 2 cells, correct only when CELL_FT was 2
-      snapshot();
-      const rTop = insetCells, rBottom = site.rows - 1 - insetCells;
-      const cLeft = insetCells, cRight = site.cols - 1 - insetCells;
-
-      for (let c = cLeft; c <= cRight; c++) {
-        setPaintCell(c, rTop, PAINT_DEFS.wall.id);
-        setPaintCell(c, rBottom, PAINT_DEFS.wall.id);
-      }
-      for (let r = rTop; r <= rBottom; r++) {
-        setPaintCell(cLeft, r, PAINT_DEFS.wall.id);
-        setPaintCell(cRight, r, PAINT_DEFS.wall.id);
-      }
-
-      closeDrawers();
-      redraw();
-      updateStats();
-      queueSave();
-      toast(`✓ Placed 4 ft perimeter wall boundary!`);
-    }
-    window.generateCadPerimeterInset = generateCadPerimeterInset;
-
-    // Smart CAD Mirror Layout
-    function cadMirrorLayout(axis) {
-      if (!site) return;
-      snapshot();
-      const { cols, rows, cells, rots } = site;
-      const newCells = cells.slice(), newRots = rots.slice();
-
-      if (axis === "h") {
-        for (let r = 0; r < rows; r++) {
-          for (let c = 0; c < cols; c++) {
-            const srcIdx = r * cols + c;
-            const targetIdx = r * cols + (cols - 1 - c);
-            newCells[targetIdx] = cells[srcIdx];
-            newRots[targetIdx] = rots[srcIdx];
-          }
-        }
-      } else {
-        for (let r = 0; r < rows; r++) {
-          for (let c = 0; c < cols; c++) {
-            const srcIdx = r * cols + c;
-            const targetIdx = (rows - 1 - r) * cols + c;
-            newCells[targetIdx] = cells[srcIdx];
-            newRots[targetIdx] = rots[srcIdx];
-          }
-        }
-      }
-
-      site.cells = newCells;
-      site.rots = newRots;
-      closeDrawers();
-      redraw();
-      updateStats();
-      queueSave();
-      toast(`✓ Mirrored layout along ${axis === 'h' ? 'horizontal' : 'vertical'} axis!`);
-    }
-    window.cadMirrorLayout = cadMirrorLayout;
-
-    // Smart CAD Purge / Clean Overlaps
-    function cadPurgeClean() {
-      if (!site) return;
-      snapshot();
-      let cleaned = 0;
-      for (let r = 1; r < site.rows - 1; r++) {
-        for (let c = 1; c < site.cols - 1; c++) {
-          const idx = r * site.cols + c;
-          const v = site.cells[idx];
-          if (v === PAINT_DEFS.wall.id) {
-            const hasNeighbor =
-              site.cells[(r - 1) * site.cols + c] === v ||
-              site.cells[(r + 1) * site.cols + c] === v ||
-              site.cells[r * site.cols + (c - 1)] === v ||
-              site.cells[r * site.cols + (c + 1)] === v;
-            if (!hasNeighbor) {
-              site.cells[idx] = 0;
-              site.rots[idx] = 0;
-              cleaned++;
-            }
-          }
-        }
-      }
-      closeDrawers();
-      redraw();
-      updateStats();
-      queueSave();
-      toast(`✓ Cleaned ${cleaned} stray object${cleaned === 1 ? '' : 's'} & aligned geometry!`);
-    }
-    window.cadPurgeClean = cadPurgeClean;
+    // CAD Tools (parallel runs, rack array generator, perimeter inset,
+    // mirror, purge/clean) removed — see git history for the prior
+    // implementation. The interactive "parallel" drag-tool's hooks in
+    // onPointerDown/onPointerMove/onPointerUp and the render loop's
+    // drawParallelOverlay call are removed alongside it.
 
     function handleSmartToolSelect(smartTool) {
       if (smartTool === "select") {
@@ -12224,11 +11926,6 @@
         if (d && !isOpen) d.classList.add("on");
       } else if (smartTool === "objects") {
         const d = $("#obj-drawer");
-        const isOpen = d && d.classList.contains("on");
-        closeDrawers();
-        if (d && !isOpen) d.classList.add("on");
-      } else if (smartTool === "cadtools" || smartTool === "parallel") {
-        const d = $("#cadtools-drawer");
         const isOpen = d && d.classList.contains("on");
         closeDrawers();
         if (d && !isOpen) d.classList.add("on");
@@ -12257,12 +11954,10 @@
     }
 
     function closeDrawers() {
-      const od = $("#obj-drawer"), rd = $("#room-drawer"), id = $("#issues-drawer"), cd = $("#cadtools-drawer"), pd = $("#parallel-drawer"), zd = $("#zone-drawer"), dd = $("#draw-drawer");
+      const od = $("#obj-drawer"), rd = $("#room-drawer"), id = $("#issues-drawer"), zd = $("#zone-drawer"), dd = $("#draw-drawer");
       if (od) od.classList.remove("on");
       if (rd) rd.classList.remove("on");
       if (id) id.classList.remove("on");
-      if (cd) cd.classList.remove("on");
-      if (pd) pd.classList.remove("on");
       if (zd) zd.classList.remove("on");
       if (dd) dd.classList.remove("on");
     }
@@ -12486,11 +12181,6 @@
         drawSmartGuides(g, hoverCell, W, H);
       }
 
-      // Live Parallel Multi-Line Drawing Overlay
-      if (tool === "parallel" && parallelActive && parallelStartCell && parallelCurrentCell) {
-        drawParallelOverlay(g);
-      }
-
       // Hover cell cursor
       if (hoverCell && !painting && tool.startsWith("paint")) {
         g.strokeStyle = "#17171A"; g.lineWidth = 2;
@@ -12576,64 +12266,6 @@
       roundRectPath(g, x - w / 2, y - 6, w, 14, 3); g.fill();
       g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle";
       g.fillText(text, x, y + 1);
-    }
-
-    /* ---------- Live Parallel Line Overlay ---------- */
-    function drawParallelOverlay(g) {
-      const c0 = parallelStartCell.c, r0 = parallelStartCell.r;
-      const c1 = parallelCurrentCell.c, r1 = parallelCurrentCell.r;
-      const gapFt = +$("#parallel-gap-val")?.value || 6;
-      const gapCells = Math.max(1, Math.round(gapFt / CELL_FT));
-      const isHorizontal = Math.abs(c1 - c0) >= Math.abs(r1 - r0);
-
-      const minC = Math.min(c0, c1), maxC = Math.max(c0, c1);
-      const minR = Math.min(r0, r1), maxR = Math.max(r0, r1);
-
-      g.save();
-      if (isHorizontal) {
-        const rTop = minR;
-        const rBot = Math.min(site.rows - 1, rTop + gapCells + 1);
-
-        // Line 1
-        g.fillStyle = "rgba(14, 165, 233, 0.4)";
-        for (let c = minC; c <= maxC; c++) {
-          g.fillRect(c * cellPx + 1, rTop * cellPx + 1, cellPx - 2, cellPx - 2);
-        }
-        // Line 2
-        for (let c = minC; c <= maxC; c++) {
-          g.fillRect(c * cellPx + 1, rBot * cellPx + 1, cellPx - 2, cellPx - 2);
-        }
-
-        // Aisle clearance dimension callout
-        const midX = ((minC + maxC) / 2) * cellPx + cellPx / 2;
-        const midY = ((rTop + rBot) / 2) * cellPx + cellPx / 2;
-        g.strokeStyle = "#EC4899"; g.lineWidth = 1.5; g.setLineDash([3, 2]);
-        g.beginPath(); g.moveTo(midX, (rTop + 1) * cellPx); g.lineTo(midX, rBot * cellPx); g.stroke();
-        g.setLineDash([]);
-        drawBadge(g, midX, midY, `↔ ${gapFt} ft Clear Aisle`);
-      } else {
-        const cLeft = minC;
-        const cRight = Math.min(site.cols - 1, cLeft + gapCells + 1);
-
-        // Line 1
-        g.fillStyle = "rgba(14, 165, 233, 0.4)";
-        for (let r = minR; r <= maxR; r++) {
-          g.fillRect(cLeft * cellPx + 1, r * cellPx + 1, cellPx - 2, cellPx - 2);
-        }
-        // Line 2
-        for (let r = minR; r <= maxR; r++) {
-          g.fillRect(cRight * cellPx + 1, r * cellPx + 1, cellPx - 2, cellPx - 2);
-        }
-
-        // Aisle clearance dimension callout
-        const midX = ((cLeft + cRight) / 2) * cellPx + cellPx / 2;
-        const midY = ((minR + maxR) / 2) * cellPx + cellPx / 2;
-        g.strokeStyle = "#EC4899"; g.lineWidth = 1.5; g.setLineDash([3, 2]);
-        g.beginPath(); g.moveTo((cLeft + 1) * cellPx, midY); g.lineTo(cRight * cellPx, midY); g.stroke();
-        g.setLineDash([]);
-        drawBadge(g, midX, midY, `↕ ${gapFt} ft Clear Aisle`);
-      }
-      g.restore();
     }
 
     /* ---------- Rack Label Computation ---------- */
@@ -13767,17 +13399,6 @@
 
     function onPointerDown(ev) {
       hideBin();
-      if (tool === "parallel") {
-        const cell = cellFromClient(ev.clientX, ev.clientY);
-        if (cell) {
-          safeSetPointerCapture(canvas(), ev.pointerId);
-          parallelActive = true;
-          parallelStartCell = cell;
-          parallelCurrentCell = cell;
-          redraw();
-        }
-        return;
-      }
       if (tool === "flow") {
         if (layerLocks.flow) return toast("Flow layer is locked");
         const rect = canvas().getBoundingClientRect();
@@ -14074,13 +13695,6 @@
       const coordFt = cell ? (currentUnit === "m" ? `${(cell.c * CELL_FT * 0.3048).toFixed(1)}m, ${(cell.r * CELL_FT * 0.3048).toFixed(1)}m` : `${cell.c * CELL_FT}ft, ${cell.r * CELL_FT}ft`) : "–";
       $("#cell-pos").textContent = cell ? `${colName(cell.c)}${cell.r + 1} · ${coordFt}` : "–";
 
-      if (tool === "parallel" && parallelActive && parallelStartCell && cell) {
-        if (!parallelCurrentCell || cell.c !== parallelCurrentCell.c || cell.r !== parallelCurrentCell.r) {
-          parallelCurrentCell = cell;
-          redraw();
-        }
-        return;
-      }
       if (measuring && measureStart) {
         const { x, y } = ftFromClient(ev.clientX, ev.clientY);
         measureCurrent = { x, y };
@@ -14232,45 +13846,6 @@
     }
 
     function onPointerUp(ev) {
-      if (tool === "parallel" && parallelActive && parallelStartCell && parallelCurrentCell) {
-        parallelActive = false;
-        snapshot();
-        const elemType = $("#parallel-elem-type")?.value || "wall";
-        const val = PAINT_DEFS[elemType] ? PAINT_DEFS[elemType].id : PAINT_DEFS.wall.id;
-        const gapFt = +$("#parallel-gap-val")?.value || 6;
-        const gapCells = Math.max(1, Math.round(gapFt / CELL_FT));
-
-        const dc = Math.abs(parallelCurrentCell.c - parallelStartCell.c);
-        const dr = Math.abs(parallelCurrentCell.r - parallelStartCell.r);
-
-        if (dc >= dr) {
-          const minC = Math.min(parallelStartCell.c, parallelCurrentCell.c);
-          const maxC = Math.max(parallelStartCell.c, parallelCurrentCell.c);
-          const r1 = parallelStartCell.r;
-          const r2 = clamp(r1 + gapCells + 1, 0, site.rows - 1);
-          for (let c = minC; c <= maxC; c++) {
-            setPaintCell(c, r1, val);
-            setPaintCell(c, r2, val);
-          }
-        } else {
-          const minR = Math.min(parallelStartCell.r, parallelCurrentCell.r);
-          const maxR = Math.max(parallelStartCell.r, parallelCurrentCell.r);
-          const c1 = parallelStartCell.c;
-          const c2 = clamp(c1 + gapCells + 1, 0, site.cols - 1);
-          for (let r = minR; r <= maxR; r++) {
-            setPaintCell(c1, r, val);
-            setPaintCell(c2, r, val);
-          }
-        }
-
-        parallelStartCell = null;
-        parallelCurrentCell = null;
-        redraw();
-        updateStats();
-        queueSave();
-        toast(`✓ Placed 2 parallel runs with ${gapFt} ft clear aisle!`);
-        return;
-      }
       if (measuring) {
         measuring = false;
         return;
@@ -14642,6 +14217,22 @@
        CONTEXTUAL RIGHT PROPERTIES PANEL
     ===================================================================== */
     function updateRightPanel() {
+      // The panel is a 48px collapsed strip that only widens on :hover/
+      // :focus-within (see aside.right-panel in the CSS) — great for
+      // glancing at stats, but it snapped straight back shut the instant
+      // the mouse left it to actually work with whatever was just
+      // clicked, which made it useless as a "here's what you selected"
+      // view. .force-expanded pins it open independent of hover; this is
+      // the one place that already runs on every selection change, so
+      // pin it exactly while something real is selected and let it go
+      // back to hover-only the moment nothing is.
+      const rp = $("#right-panel");
+      if (rp) {
+        const hasSelection = !!(selectedCell || (selectedCells && selectedCells.length) ||
+          selectedZoneId || (selectedZoneIds && selectedZoneIds.length) ||
+          selectedFlowId || selectedAnnotationId);
+        rp.classList.toggle("force-expanded", hasSelection);
+      }
       const objView = $("#prop-view-object");
       const roomView = $("#prop-view-room");
       const multiView = $("#prop-view-multi");
@@ -15182,20 +14773,26 @@
       toast("Distributed equal spacing");
     }
 
-    // Layer Visibility & Locks
+    // Layer Visibility & Locks — each row's data-layer is a comma-separated
+    // list of the underlying keys it covers (e.g. "building,storage" for
+    // the combined "Structure & Storage" row); every rendering check
+    // downstream still keys off the original 6 category flags, only the UI
+    // groups them 3-wide, so all listed keys move together as one toggle.
     document.querySelectorAll(".layer-eye").forEach(eye => {
       eye.onclick = () => {
-        const l = eye.dataset.layer;
-        layerVisibility[l] = !layerVisibility[l];
-        eye.textContent = layerVisibility[l] ? "👁️" : "🙈";
+        const keys = eye.dataset.layer.split(",");
+        const next = !layerVisibility[keys[0]];
+        keys.forEach(k => { layerVisibility[k] = next; });
+        eye.textContent = next ? "👁️" : "🙈";
         redraw();
       };
     });
     document.querySelectorAll(".layer-lock").forEach(lock => {
       lock.onclick = () => {
-        const l = lock.dataset.layer;
-        layerLocks[l] = !layerLocks[l];
-        lock.textContent = layerLocks[l] ? "🔒" : "🔓";
+        const keys = lock.dataset.layer.split(",");
+        const next = !layerLocks[keys[0]];
+        keys.forEach(k => { layerLocks[k] = next; });
+        lock.textContent = next ? "🔒" : "🔓";
       };
     });
 
@@ -16310,7 +15907,6 @@
       { group: "Tools", label: "Zone Tool", kbd: "Z", run: () => handleSmartToolSelect("zone") },
       { group: "Tools", label: "Flow Connector Tool", kbd: "F", run: () => handleSmartToolSelect("flow") },
       { group: "Tools", label: "Draw & Annotate", kbd: "D", run: () => handleSmartToolSelect("draw") },
-      { group: "Tools", label: "CAD Tools", kbd: "C", run: () => handleSmartToolSelect("cadtools") },
       { group: "Tools", label: "Eraser Tool", kbd: "E", run: () => setTool("erase") },
       { group: "Edit", label: "Undo", kbd: "⌘Z", run: () => undo() },
       { group: "Edit", label: "Redo", kbd: "⌘⇧Z", run: () => redo() },
@@ -16470,7 +16066,6 @@
       if (k === "w") { setTool("paint:wall"); return; }
       if (k === "r") { handleSmartToolSelect("room"); return; }
       if (k === "o") { handleSmartToolSelect("objects"); return; }
-      if (k === "c" || k === "p") { handleSmartToolSelect("cadtools"); return; }
       if (k === "m") { handleSmartToolSelect("measure"); return; }
       if (k === "z") { handleSmartToolSelect("zone"); return; }
       if (k === "f") { handleSmartToolSelect("flow"); return; }
