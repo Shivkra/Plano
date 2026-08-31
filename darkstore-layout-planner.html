@@ -6594,87 +6594,7 @@
       background: #f0f9ff;
     }
 
-    /* ================= GAMIFICATION & CLASH OF CLANS BUILDER SYSTEM ================= */
-    .xp-floating-toast {
-      position: fixed;
-      pointer-events: none;
-      z-index: 9999;
-      font-size: 14px;
-      font-weight: 900;
-      color: #F59E0B;
-      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 10px rgba(245, 158, 11, 0.4);
-      transform: translate(-50%, -50%);
-      animation: floatXpUp 1.1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-      will-change: transform, opacity;
-    }
-
-    @keyframes floatXpUp {
-      0% {
-        opacity: 0;
-        transform: translate(-50%, 0) scale(0.8);
-      }
-
-      20% {
-        opacity: 1;
-        transform: translate(-50%, -15px) scale(1.15);
-      }
-
-      100% {
-        opacity: 0;
-        transform: translate(-50%, -45px) scale(1);
-      }
-    }
-
-    .game-level-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.22));
-      border: 1.5px solid rgba(245, 158, 11, 0.4);
-      padding: 4px 10px;
-      border-radius: var(--r-pill);
-      cursor: pointer;
-      user-select: none;
-      transition: all var(--dur-f) var(--ease);
-      position: relative;
-    }
-
-    .game-level-chip:hover {
-      background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.35));
-      border-color: #F59E0B;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 14px rgba(245, 158, 11, 0.25);
-    }
-
-    .game-level-badge {
-      font-size: 11px;
-      font-weight: 900;
-      color: #F59E0B;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      letter-spacing: 0.02em;
-    }
-
-    .xp-bar-wrap {
-      width: 60px;
-      height: 6px;
-      background: rgba(0, 0, 0, 0.25);
-      border-radius: 4px;
-      overflow: hidden;
-      position: relative;
-      border: 1px solid rgba(245, 158, 11, 0.3);
-    }
-
-    .xp-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #F59E0B, #FBBF24);
-      border-radius: 4px;
-      width: 45%;
-      transition: width 0.4s ease-out;
-      box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
-    }
-
+    /* ================= SOUND TOGGLE & GUIDED TOUR ================= */
     .glw-sfx-btn {
       background: rgba(245, 158, 11, 0.2);
       border: 1px solid rgba(245, 158, 11, 0.4);
@@ -6697,28 +6617,6 @@
       color: #000;
       transform: scale(1.18);
       box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
-    }
-
-    /* Unclaimed-quest count — a small notification dot on the level chip's
-       corner, same convention as any app's "you have N things waiting"
-       badge. Hidden (see renderQuests) once every quest is claimed rather
-       than sitting at a stale "0" forever. */
-    .quest-count-badge {
-      position: absolute;
-      top: -6px;
-      right: -6px;
-      min-width: 16px;
-      height: 16px;
-      padding: 0 4px;
-      border-radius: 999px;
-      background: #DC2626;
-      color: #fff;
-      font-size: 10px;
-      font-weight: 800;
-      line-height: 16px;
-      text-align: center;
-      border: 1.5px solid var(--surface);
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
     }
 
     .guide-launch-btn {
@@ -6748,137 +6646,6 @@
       border-color: rgba(14, 165, 233, 0.35);
       color: #0284C7;
       font-weight: 800;
-    }
-
-    /* Floating Quests Pill & Drawer */
-    .quest-pill-btn {
-      position: absolute;
-      bottom: 48px;
-      right: 18px;
-      z-index: 100;
-      background: var(--surface);
-      border: 2px solid #F59E0B;
-      border-radius: var(--r-pill);
-      padding: 8px 16px;
-      box-shadow: 0 8px 26px rgba(245, 158, 11, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.08);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 12px;
-      font-weight: 800;
-      color: var(--ink);
-      transition: all 0.2s var(--ease);
-      animation: pulseGlow 3s infinite ease-in-out;
-    }
-
-    .quest-pill-btn:hover {
-      transform: translateY(-2px) scale(1.03);
-      box-shadow: 0 12px 34px rgba(245, 158, 11, 0.45);
-    }
-
-    @keyframes pulseGlow {
-
-      0%,
-      100% {
-        box-shadow: 0 8px 24px rgba(245, 158, 11, 0.25);
-      }
-
-      50% {
-        box-shadow: 0 8px 30px rgba(245, 158, 11, 0.5), 0 0 0 4px rgba(245, 158, 11, 0.18);
-      }
-    }
-
-    .quest-drawer {
-      display: none;
-      position: absolute;
-      bottom: 96px;
-      right: 18px;
-      width: 360px;
-      max-width: calc(100vw - 36px);
-      background: var(--surface);
-      border: 2px solid var(--border-strong);
-      border-radius: 18px;
-      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.25);
-      z-index: 120;
-      flex-direction: column;
-      overflow: hidden;
-      animation: flyinRight 0.18s ease-out;
-    }
-
-    [data-theme="dark"] .quest-drawer,
-    body.dark-mode .quest-drawer {
-      background: #171c26;
-      border-color: rgba(245, 158, 11, 0.4);
-    }
-
-    .quest-drawer.on {
-      display: flex;
-    }
-
-    .quest-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      background: var(--surface-2);
-      border: 1.5px solid var(--border);
-      transition: all var(--dur-f) var(--ease);
-      margin-bottom: 8px;
-    }
-
-    .quest-item.done {
-      border-color: rgba(16, 185, 129, 0.5);
-      background: rgba(16, 185, 129, 0.08);
-    }
-
-    .quest-chk {
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      border: 2px solid var(--border-strong);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      font-weight: 900;
-      color: #fff;
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-
-    .quest-item.done .quest-chk {
-      background: #10B981;
-      border-color: #10B981;
-    }
-
-    .quest-info {
-      flex: 1;
-    }
-
-    .quest-title {
-      font-size: 12.5px;
-      font-weight: 800;
-      color: var(--ink);
-    }
-
-    .quest-desc {
-      font-size: 11px;
-      color: var(--ink-faint);
-      margin-top: 2px;
-      line-height: 1.35;
-    }
-
-    .quest-reward {
-      font-size: 10px;
-      font-weight: 900;
-      color: #F59E0B;
-      background: rgba(245, 158, 11, 0.15);
-      padding: 1px 6px;
-      border-radius: 4px;
-      display: inline-block;
-      margin-top: 4px;
     }
 
     /* Onboarding Guided Academy Overlay */
@@ -6982,71 +6749,6 @@
       background: #0284C7;
       transform: scale(1.3);
       box-shadow: 0 0 6px rgba(2, 132, 199, 0.6);
-    }
-
-    /* Level Up Modal */
-    .levelup-modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 600;
-      background: rgba(0, 0, 0, 0.65);
-      backdrop-filter: blur(6px);
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-
-    .levelup-modal-overlay.on {
-      display: flex;
-    }
-
-    .levelup-card {
-      background: var(--surface);
-      border: 2.5px solid #F59E0B;
-      border-radius: 24px;
-      padding: 32px 28px;
-      max-width: 440px;
-      width: 100%;
-      text-align: center;
-      box-shadow: 0 30px 90px rgba(245, 158, 11, 0.4);
-      animation: floatIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      position: relative;
-    }
-
-    [data-theme="dark"] .levelup-card,
-    body.dark-mode .levelup-card {
-      background: #171c26;
-    }
-
-    .levelup-trophy {
-      font-size: 54px;
-      display: inline-block;
-      animation: spinGlow 3s infinite ease-in-out;
-      margin-bottom: 8px;
-    }
-
-    .levelup-heading {
-      font-size: 22px;
-      font-weight: 900;
-      color: #F59E0B;
-      letter-spacing: -0.02em;
-    }
-
-    .levelup-sub {
-      font-size: 15px;
-      font-weight: 800;
-      color: var(--ink);
-      margin: 4px 0 16px;
-    }
-
-    .levelup-perk-box {
-      background: var(--surface-2);
-      border: 1.5px solid var(--border);
-      border-radius: 14px;
-      padding: 12px 14px;
-      text-align: left;
-      font-size: 12px;
     }
 
     /* =====================================================================
@@ -7673,17 +7375,10 @@
           <span>🎓 Guide</span>
         </button>
 
-        <!-- Gamified Level & XP Widget with integrated Sound Toggle in Middle -->
-        <div class="game-level-chip" id="game-level-widget" title="View Facility Progression & Quests">
-          <span class="game-level-badge" id="glw-badge">⭐️ Lv. 1</span>
-          <div class="xp-bar-wrap" title="Experience Points">
-            <div class="xp-bar-fill" id="glw-xp-fill" style="width: 25%;"></div>
-          </div>
-          <button class="glw-sfx-btn" id="sfx-toggle-btn" title="Toggle Sound Effects (🔊 / 🔇)"
-            aria-label="Toggle Sound Effects">
-            <span id="sfx-icon">🔊</span>
-          </button>
-        </div>
+        <button class="glw-sfx-btn" id="sfx-toggle-btn" title="Toggle Sound Effects (🔊 / 🔇)"
+          aria-label="Toggle Sound Effects">
+          <span id="sfx-icon">🔊</span>
+        </button>
       </div>
 
       <div class="ed-nav-right">
@@ -7745,22 +7440,6 @@
         <button class="btn ghost icon sm" id="issues-close" aria-label="Close">✕</button>
       </div>
       <div id="issues-list"></div>
-    </div>
-
-    <!-- Quests Drawer (Triggered via Header Level Widget) -->
-    <div class="quest-drawer" id="quest-drawer">
-      <div class="flyout-head"
-        style="padding:14px 16px 12px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <h3 style="margin:0; font-size:14px; font-weight:800; display:flex; align-items:center; gap:6px;">
-            <span>🏆 Architect's Quests</span>
-          </h3>
-        </div>
-        <button class="btn ghost icon sm" id="quest-close-btn" aria-label="Close">✕</button>
-      </div>
-      <div id="quest-list" style="padding:14px 16px; overflow-y:auto; max-height:50vh;">
-        <!-- Injected via renderQuests() -->
-      </div>
     </div>
 
     <div class="ed-body" style="position:relative;">
@@ -9050,24 +8729,6 @@
           </div>
         </div>
       </div>
-    </div>
-  </div>
-
-  <!-- Level Up Celebration Modal -->
-  <div class="levelup-modal-overlay" id="levelup-modal-overlay">
-    <div class="levelup-card">
-      <div class="levelup-trophy">🏆</div>
-      <div class="levelup-heading">LEVEL UP!</div>
-      <div class="levelup-sub" id="lu-sub-title">Level 2: Urban Fulfillment Hub</div>
-      <div class="levelup-perk-box" id="lu-perks">
-        ✨ <strong>New Perks Unlocked:</strong><br>
-        • High-density sortation matrix modules<br>
-        • Unlocked automated conveyor flow paths<br>
-        • +250 XP bonus reward
-      </div>
-      <button class="btn primary full lg" id="lu-claim-btn"
-        style="font-weight:900; font-size:14px; background:#F59E0B; border:none; color:#000; cursor:pointer;">🎉 Claim
-        Reward &amp; Continue</button>
     </div>
   </div>
 
@@ -13321,7 +12982,6 @@
       redraw();
       updateStats();
       if (typeof updateRightPanel === "function") updateRightPanel();
-      updateGameProgressionUI();
       if (!localStorage.getItem("darkstore_onboarding_completed")) {
         setTimeout(() => startOnboardingTour(), 600);
       }
@@ -13431,29 +13091,11 @@
       expandRightPanel();
     });
 
-    // Gamification, SFX & Onboarding Event Listeners
+    // SFX & Onboarding Event Listeners
     $("#sfx-toggle-btn")?.addEventListener("click", toggleSfxMute);
     $("#guide-launch-btn")?.addEventListener("click", startOnboardingTour);
-    $("#game-level-widget")?.addEventListener("click", () => {
-      const qd = $("#quest-drawer");
-      if (qd) { qd.classList.toggle("on"); renderQuests(); }
-      playSfx("pop");
-    });
-    $("#quest-pill-btn")?.addEventListener("click", () => {
-      const qd = $("#quest-drawer");
-      if (qd) { qd.classList.toggle("on"); renderQuests(); }
-      playSfx("pop");
-    });
-    $("#quest-close-btn")?.addEventListener("click", () => {
-      $("#quest-drawer")?.classList.remove("on");
-      playSfx("pop");
-    });
     $("#ob-next-btn")?.addEventListener("click", advanceOnboarding);
     $("#ob-skip-btn")?.addEventListener("click", completeOnboarding);
-    $("#lu-claim-btn")?.addEventListener("click", () => {
-      $("#levelup-modal-overlay")?.classList.remove("on");
-      playSfx("pop");
-    });
 
     $("#ed-generate-next")?.addEventListener("click", async () => {
       if (!site) return;
@@ -14043,7 +13685,6 @@
     const FALLBACK_SOUNDS = {
       pop: generateWavDataUri(580, 0.08, 0.35),
       place: generateWavDataUri(160, 0.12, 0.4),
-      xp: generateWavDataUri(880, 0.14, 0.35),
       levelup: generateWavDataUri(659, 0.25, 0.4)
     };
 
@@ -14106,20 +13747,6 @@
           gain.connect(ctx.destination);
           osc.start(now);
           osc.stop(now + 0.1);
-        } else if (type === "xp" || type === "coin") {
-          [784, 1046.5].forEach((freq, i) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            const t = now + i * 0.07;
-            osc.type = "sine";
-            osc.frequency.setValueAtTime(freq, t);
-            gain.gain.setValueAtTime(0.22, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(t);
-            osc.stop(t + 0.17);
-          });
         } else if (type === "fanfare" || type === "levelup") {
           [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
             const osc = ctx.createOscillator();
@@ -14155,172 +13782,6 @@
       } else {
         toast("Sound Effects Muted 🔇");
       }
-    }
-
-    // Hardware Accelerated GPU Floating XP Toast
-    function triggerFloatingXp(clientX, clientY, text) {
-      playSfx("xp");
-      const el = document.createElement("div");
-      el.className = "xp-floating-toast";
-      el.textContent = text || "+25 XP";
-      el.style.left = (clientX || (window.innerWidth / 2)) + "px";
-      el.style.top = (clientY || (window.innerHeight / 2)) + "px";
-      document.body.appendChild(el);
-      setTimeout(() => el.remove(), 1150);
-    }
-
-    // Progression, Levels & Quests
-    const HUB_LEVELS = [
-      { level: 1, name: "Micro Quick-Pick Darkstore", minXp: 0, maxXp: 300, icon: "📦", throughput: "5k orders/day", perks: "Basic pallet racks, intake dock" },
-      { level: 2, name: "Urban Fulfillment Hub", minXp: 300, maxXp: 800, icon: "🏬", throughput: "15k orders/day", perks: "Conveyors, packaging matrix, staging lanes" },
-      { level: 3, name: "High-Throughput Sortation Node", minXp: 800, maxXp: 1600, icon: "🏢", throughput: "35k orders/day", perks: "Automated sortation, multi-dock spine" },
-      { level: 4, name: "Regional Fulfillment Center", minXp: 1600, maxXp: 3000, icon: "🏭", throughput: "75k orders/day", perks: "Cold chain rooms, automated robotics lanes" },
-      { level: 5, name: "Mega Mother Warehouse", minXp: 3000, maxXp: 99999, icon: "🚀", throughput: "150k+ orders/day", perks: "Full autonomous cross-dock dispatch" }
-    ];
-
-    const CAMPAIGN_QUESTS = [
-      { id: "q_dock", title: "Lay Intake Gates", desc: "Place at least 2 Inward / Outbound Dock Doors", xp: 50, check: (s) => s.cells && s.cells.filter(c => c === (PAINT_DEFS.entry ? PAINT_DEFS.entry.id : 6) || c === (PAINT_DEFS.exit ? PAINT_DEFS.exit.id : 7)).length >= 2 },
-      // Checks real "sorting" zones, not painted rack cells — a cross-dock
-      // segregates parcels by destination in generated sortation modules,
-      // it doesn't pick from racking, and a freshly-generated site has real
-      // sorting zones from the moment it's built, not zero (a rack-count
-      // quest would never complete without extra manual placement that
-      // doesn't match how anyone actually builds a site here).
-      { id: "q_racks", title: "Segregation Capacity", desc: "Build at least 2 Sortation Modules for destination segregation", xp: 80, check: (s) => s.zones && s.zones.filter(z => z.type === "sorting").length >= 2 },
-      { id: "q_room", title: "Operational Zoning", desc: "Designate a Staging or Sortation Room", xp: 100, check: (s) => s.zones && s.zones.length >= 1 },
-      { id: "q_flow", title: "Connect the Logistics Spine", desc: "Draw a directional Flow Connector between zones", xp: 120, check: (s) => { const ids = s.zones ? new Set(s.zones.map(z => z.id)) : new Set(); return s.flows && s.flows.some(f => ids.has(f.fromId) && ids.has(f.toId)); } },
-      { id: "q_stars", title: "3-Star Facility Rating", desc: "Maintain a clear, bottleneck-free flow structure", xp: 150, check: (s) => (typeof detectedIssues !== "undefined" ? detectedIssues.length : 0) === 0 && (s.cells && s.cells.some(Boolean)) }
-    ];
-
-    function calculateXpAndLevel() {
-      if (!site) return { level: 1, xp: 50, currentInfo: HUB_LEVELS[0], stars: 1 };
-      site._xp = site._xp || 0;
-
-      const dockCount = site.cells ? site.cells.filter(c => c === (PAINT_DEFS.entry ? PAINT_DEFS.entry.id : 6) || c === (PAINT_DEFS.exit ? PAINT_DEFS.exit.id : 7)).length : 0;
-      const rackCount = site.cells ? site.cells.filter(c => c === (PAINT_DEFS.rack ? PAINT_DEFS.rack.id : 1) || c === (PAINT_DEFS.doublerack ? PAINT_DEFS.doublerack.id : 12)).length : 0;
-      const sortCount = site.zones ? site.zones.filter(z => z.type === "sorting").length : 0;
-      const zoneCount = site.zones ? site.zones.length : 0;
-      // Counts only flows whose both ends still exist — every zone-delete
-      // path now calls pruneDanglingFlows() too (see there), but this
-      // recomputes live on every call, so it shouldn't quietly trust
-      // site.flows.length to already be clean if some future edit path
-      // forgets to prune.
-      const liveZoneIds = site.zones ? new Set(site.zones.map(z => z.id)) : new Set();
-      const flowCount = site.flows ? site.flows.filter(f => liveZoneIds.has(f.fromId) && liveZoneIds.has(f.toId)).length : 0;
-
-      // Weighted well below the original formula on purpose — zoneCount in
-      // particular used to be worth 45 XP each, which made one single
-      // generated site (which routinely has 20+ zones once walkway floor
-      // got its own explicit zones — see the walkway/fillLeftoverAsWalkway
-      // work) land at Level 3-4 before the manager had done anything
-      // themselves. Quest completions (claimed once, below) and the
-      // onboarding-complete bonus now carry most of the real climb, so
-      // leveling up tracks genuine actions taken rather than mostly
-      // reflecting how big the generator made the building.
-      let computedXp = 30 + dockCount * 6 + rackCount * 4 + zoneCount * 8 + flowCount * 20;
-      if (site._bonusXp) computedXp += site._bonusXp;
-
-      let currentInfo = HUB_LEVELS[0];
-      for (const lvl of HUB_LEVELS) {
-        if (computedXp >= lvl.minXp) currentInfo = lvl;
-      }
-
-      const hasIssues = typeof detectedIssues !== "undefined" && detectedIssues && detectedIssues.length > 0;
-      const hasFlow = flowCount > 0;
-      let stars = 1;
-      if (sortCount >= 2 && zoneCount >= 3) stars = 2;
-      if (stars === 2 && hasFlow && !hasIssues) stars = 3;
-
-      return { level: currentInfo.level, xp: computedXp, currentInfo, stars };
-    }
-
-    // Grants each quest's XP exactly once, the moment its condition first
-    // comes true — CAMPAIGN_QUESTS.xp was previously just label text next
-    // to a live-rechecked checkbox; completing a quest never actually paid
-    // out. site._questsClaimed is the permanent record of what's been
-    // earned, checked instead of re-running q.check for "done" everywhere
-    // else, so a reward already earned doesn't un-earn itself if the
-    // layout changes later (e.g. the manager deletes the flow connector
-    // that satisfied q_flow — that XP was already spent by leveling up).
-    function claimNewlyCompletedQuests() {
-      if (!site) return false;
-      site._questsClaimed = site._questsClaimed || [];
-      let grantedAny = false;
-      CAMPAIGN_QUESTS.forEach(q => {
-        if (site._questsClaimed.includes(q.id)) return;
-        if (!q.check(site)) return;
-        site._questsClaimed.push(q.id);
-        site._bonusXp = (site._bonusXp || 0) + q.xp;
-        grantedAny = true;
-        toast(`🏆 Quest Complete: ${q.title} — +${q.xp} XP`);
-      });
-      if (grantedAny) { playSfx("xp"); queueSave(); }
-      return grantedAny;
-    }
-
-    function updateGameProgressionUI() {
-      if (!site) return;
-      claimNewlyCompletedQuests();
-      const { level, xp, currentInfo, stars } = calculateXpAndLevel();
-
-      const badgeEl = $("#glw-badge");
-      if (badgeEl) badgeEl.textContent = `⭐️ Lv. ${level}`;
-
-      const fillEl = $("#glw-xp-fill");
-      if (fillEl) {
-        const range = Math.max(1, currentInfo.maxXp - currentInfo.minXp);
-        const pct = Math.min(100, Math.max(10, ((xp - currentInfo.minXp) / range) * 100));
-        fillEl.style.width = pct + "%";
-      }
-
-      const sfxIcon = $("#sfx-icon");
-      if (sfxIcon) sfxIcon.textContent = sfxMuted ? "🔇" : "🔊";
-
-      const prevLevel = site._lastLevel || 1;
-      if (level > prevLevel) {
-        site._lastLevel = level;
-        showLevelUpModal(currentInfo);
-      }
-      site._lastLevel = level;
-
-      renderQuests();
-    }
-
-    function showLevelUpModal(lvlInfo) {
-      playSfx("fanfare");
-      const overlay = $("#levelup-modal-overlay");
-      const titleEl = $("#lu-sub-title");
-      const perksEl = $("#lu-perks");
-      if (titleEl) titleEl.textContent = `Level ${lvlInfo.level}: ${lvlInfo.name}`;
-      if (perksEl) {
-        perksEl.innerHTML = `
-          ✨ <strong>New Perks Unlocked:</strong><br>
-          • Target Capacity: ${lvlInfo.throughput}<br>
-          • ${lvlInfo.perks}<br>
-          • +150 XP Architect Milestone
-        `;
-      }
-      if (overlay) overlay.classList.add("on");
-    }
-
-    function renderQuests() {
-      const listEl = $("#quest-list");
-      if (!listEl || !site) return;
-
-      const claimed = site._questsClaimed || [];
-      listEl.innerHTML = CAMPAIGN_QUESTS.map(q => {
-        const isDone = claimed.includes(q.id);
-        return `
-          <div class="quest-item ${isDone ? 'done' : ''}">
-            <div class="quest-chk">${isDone ? '✓' : '○'}</div>
-            <div class="quest-info">
-              <div class="quest-title">${q.title}</div>
-              <div class="quest-desc">${q.desc}</div>
-              <div class="quest-reward">+${q.xp} XP</div>
-            </div>
-          </div>
-        `;
-      }).join("");
     }
 
     // Interactive Onboarding Academy (Chief Maya)
@@ -14397,11 +13858,6 @@
       const overlay = $("#onboarding-overlay");
       if (overlay) overlay.classList.remove("on");
       localStorage.setItem("darkstore_onboarding_completed", "true");
-      if (site) {
-        site._bonusXp = (site._bonusXp || 0) + 150;
-        triggerFloatingXp(canvas().width / 4, canvas().height / 4, "+150 XP GRADUATE!");
-        updateGameProgressionUI();
-      }
       toast("🎓 Onboarding Complete! Welcome, Chief Architect.");
     }
 
@@ -15718,11 +15174,9 @@
     // fromId/toId pointing at nothing. getFlowCurvePx already guards
     // against that at render time (returns null, so it never draws or
     // crashes), which is exactly why this went unnoticed — but the
-    // dangling entry still sat in site.flows counting toward flowCount in
-    // calculateXpAndLevel and the "Connect the Logistics Spine" quest,
-    // rewarding XP for a connector that isn't visible anywhere on the
-    // canvas. Call this from every zone-delete path instead of touching
-    // site.zones directly.
+    // dangling entry sat in site.flows forever, invisible clutter that the
+    // Issues Engine below now also flags. Call this from every zone-delete
+    // path instead of touching site.zones directly.
     function pruneDanglingFlows() {
       if (!site || !site.flows || !site.flows.length) return;
       const liveIds = new Set(site.zones.map(z => z.id));
@@ -16301,14 +15755,6 @@
             site.flows = site.flows || [];
             site.flows.push({ id: uid(), fromId: flowDraft.fromId, fromSide: flowDraft.fromSide, toId: hitZone.id, toSide, label: null });
             queueSave(); updateStats();
-            // Neither flow-creation path (this click-to-finish gesture, or
-            // the drag-to-connect one in onPointerUp) ever refreshed
-            // progression before — the "Connect the Logistics Spine" quest
-            // (+120 XP) and the 3-star hasFlow check both went unrewarded/
-            // unreflected until some unrelated action happened to trigger
-            // updateStats+updateGameProgressionUI afterward.
-            triggerFloatingXp(ev.clientX, ev.clientY, "+20 XP FLOW CONNECTED!");
-            updateGameProgressionUI();
             toast("Flow connector added");
           }
           flowDraft = null;
@@ -16754,8 +16200,6 @@
           site.flows = site.flows || [];
           site.flows.push({ id: uid(), fromId: flowDraft.fromId, fromSide: flowDraft.fromSide, toId: hitZone.id, toSide, label: null });
           queueSave(); updateStats();
-          triggerFloatingXp(ev.clientX, ev.clientY, "+20 XP FLOW CONNECTED!");
-          updateGameProgressionUI();
           toast("Flow connector added");
           flowDraft = null;
         } else {
@@ -16872,11 +16316,6 @@
           clearPaintUnderZone(z);
           selectZone(z.id);
           queueSave(); updateStats();
-          // Matches calculateXpAndLevel's zoneCount weight — was still
-          // "+45" here after that formula got rebalanced down to 8/zone,
-          // which made the toast lie about what a manager had just earned.
-          triggerFloatingXp(ev.clientX, ev.clientY, "+8 XP ZONE CREATED!");
-          updateGameProgressionUI();
         }
         drawingZone = null;
         setTool("select");
@@ -16884,10 +16323,6 @@
         return;
       }
       if (painting) {
-        // The zone-draw and flow-connect paths already give a placement
-        // sound + floating XP the instant they commit (see drawingZone
-        // above) — a paint stroke (wall, door, rack, any object tool)
-        // never did, despite playSfx("place") existing purely for this.
         // Gate on lastCell so a stray click-release with nothing actually
         // touched this stroke stays silent, and on !strokeErase so
         // deleting something doesn't play the same happy "you built
@@ -16897,17 +16332,7 @@
         queueSave();
         if (placedSomething) {
           playSfx("place");
-          triggerFloatingXp(ev.clientX, ev.clientY, "+10 XP");
-          // updateStats() runs runLayoutValidation() — without it here,
-          // updateGameProgressionUI()'s star rating reads whatever
-          // detectedIssues was left at by the LAST action that happened to
-          // call updateStats, not this stroke's own result (the drawingZone
-          // branch above already gets this right; plain paint strokes never
-          // called updateStats() at all before this fix, so this exact
-          // staleness was latent and harmless until a progression check got
-          // added right after it).
           updateStats();
-          updateGameProgressionUI();
         }
       }
     }
