@@ -8772,7 +8772,7 @@
       try {
         let data = null;
         try {
-          const { image, mimeType } = await fileToVisionPayload(file, 1280, 0.85);
+          const { image, mimeType } = await fileToVisionPayload(file, VISION_IMAGE_MAX_DIM, VISION_IMAGE_QUALITY);
           if (statusTxt) statusTxt.textContent = "📐 AI Vision: Reading footprint & door positions…";
           data = await apiFetch("/api/vision-import", {
             method: "POST",
@@ -8826,6 +8826,10 @@
             cx: (st.x0 + (st.x1 !== undefined ? st.x1 : st.x0)) / 2,
             cy: (st.y0 + (st.y1 !== undefined ? st.y1 : st.y0)) / 2,
           })) : [];
+          // A blueprint's own structural column grid — a fixed obstruction,
+          // same "real fact, place it exactly" treatment as staircaseList
+          // above, painted post-generation by paintVisionColumns.
+          const columnList = Array.isArray(data.columns) ? data.columns.map(p => ({ x: p.x, y: p.y })) : [];
           const visionAnswered = inferVisionAnswers(data, dockLayout, roomList, sortStationCount, entries.length + exits.length > 0);
 
           const baseName = file.name.replace(/\.[^/.]+$/, "");
@@ -8844,6 +8848,7 @@
           newSite._businessContext = { destinationHubs: 0 };
           newSite._visionAnswered = visionAnswered;
           newSite._visionStaircases = staircaseList;
+          newSite._visionColumns = columnList;
 
           try {
             await saveSite(newSite);
@@ -8856,6 +8861,7 @@
           if (roomList.length) parts.push(`${roomList.length} rooms`);
           if (sortStationCount) parts.push(`${sortStationCount} sort stations`);
           if (staircaseList.length) parts.push(`${staircaseList.length} staircase${staircaseList.length > 1 ? "s" : ""}`);
+          if (columnList.length) parts.push(`${columnList.length} column${columnList.length > 1 ? "s" : ""}`);
           toast(`✓ Read from your photo: ${parts.join(", ")} — see what else was detected below.`, 5000);
         }
       } catch (err) {
@@ -9417,6 +9423,22 @@
       const assistantBtn = document.getElementById("wiz-open-assistant");
       if (assistantBtn) assistantBtn.style.display = visionAvailable ? "" : "none";
     }
+    // A photo of a physical space is forgiving at low resolution — walls and
+    // doors read fine even soft. A blueprint isn't: dimension strings, door
+    // tags (S1/S2), room labels and a scale/column grid are often only a
+    // few px tall in the source file, and JPEG's own artifacting eats thin
+    // line work first. 1280px/0.85 (the old defaults) was tuned for the
+    // photo case and quietly degraded blueprint uploads to the point where
+    // small text became unreadable to the model. Every image call site
+    // shares these two constants now instead of repeating magic numbers —
+    // still comfortably inside the server's 15MB /api/vision-import cap
+    // even at this size, since line-art JPEGs (mostly flat white) compress
+    // far below a photo of the same pixel count. PDFs are untouched by
+    // either of these — fileToVisionPayload sends them raw, already at
+    // full source fidelity, which is why PDF is the more reliable choice
+    // when a manager has one.
+    const VISION_IMAGE_MAX_DIM = 2048;
+    const VISION_IMAGE_QUALITY = 0.94;
     function resizeImageToBase64(file, maxDim, quality) {
       return new Promise((resolve, reject) => {
         if (!file.type || !/^image\//.test(file.type)) { reject(new Error("That's not an image file")); return; }
@@ -9464,6 +9486,14 @@
         const a = toCell(rk.x0, rk.y0), b = toCell(rk.x1, rk.y1);
         const toolDef = WIZ_CANVAS_TOOLS[rk.type] || WIZ_CANVAS_TOOLS.doublerack || WIZ_CANVAS_TOOLS.rack;
         if (toolDef) wizPaintLine(a, b, toolDef.id);
+      });
+      // Structural columns — the mini-canvas has no dedicated pillar tool,
+      // so these land as Restricted/Clearance marks (same fixed-obstruction
+      // meaning), which applyWizCanvasMarks already maps to a real wall
+      // cell when the manager moves on to the full site.
+      (data.columns || []).forEach(p => {
+        const c = toCell(p.x, p.y), idx = c.r * cols + c.c;
+        wizInput.canvasCells[idx] = WIZ_RESTRICTED_ID; wizInput.canvasRots[idx] = 0;
       });
       (data.entries || []).forEach(p => {
         const c = toCell(p.x, p.y), idx = c.r * cols + c.c;
@@ -9541,7 +9571,7 @@
       try {
         let data = null;
         try {
-          const { image, mimeType } = await fileToVisionPayload(file, 1280, 0.85);
+          const { image, mimeType } = await fileToVisionPayload(file, VISION_IMAGE_MAX_DIM, VISION_IMAGE_QUALITY);
           data = await apiFetch("/api/vision-import", {
             method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image, mimeType }),
           });
@@ -11322,7 +11352,17 @@
         }
       });
 
-      // 6. Dock Doors & Personnel Entries
+      // 6. Structural Columns — a real column is a fixed obstruction, not a
+      // movable furnishing, so it's placed even where it falls inside a
+      // room zone (a column standing in the corner of an office is normal
+      // architecture, not a placement mistake to route around like racks
+      // do via cellCoveredByZone).
+      (data.columns || []).forEach(p => {
+        const c = toCell(p.x, p.y), idx = c.r * targetSite.cols + c.c;
+        targetSite.cells[idx] = PAINT_DEFS.pillar.id; targetSite.rots[idx] = 0;
+      });
+
+      // 7. Dock Doors & Personnel Entries
       (data.entries || []).forEach(p => {
         const c = toCell(p.x, p.y), idx = c.r * targetSite.cols + c.c;
         targetSite.cells[idx] = PAINT_DEFS.entry.id; targetSite.rots[idx] = 0;
@@ -11354,7 +11394,7 @@
           const c = colStart + i;
           if (c < 0 || c >= s.cols) continue;
           const idx = r * s.cols + c;
-          if (cellCoveredByZone(s, c, r)) continue;
+          if (cellCoveredByRealZone(s, c, r)) continue;
           s.cells[idx] = PAINT_DEFS.conveyor.id;
           s.rots[idx] = 1; // pointing down the floor, from sortation toward staging
         }
@@ -11363,6 +11403,23 @@
     function cellCoveredByZone(s, c, r) {
       const cx = c * CELL_FT + CELL_FT / 2, cy = r * CELL_FT + CELL_FT / 2;
       return s.zones.some(z => cx >= z.x && cx <= z.x + z.w && cy >= z.y && cy <= z.y + z.h);
+    }
+    // Same test, but a walkway zone doesn't count as "covered" — walkway
+    // zones are open, walkable floor (the spine's own aisles, or whatever
+    // fillLeftoverAsWalkway claimed), not a room boundary a real fixture
+    // or belt would conflict with. Used by paintConveyorDefaults (a real
+    // conveyor is expected to cross straight through a cross-aisle, same
+    // as it would in an actual warehouse) and by
+    // paintVisionStaircases/paintVisionColumns, which place real
+    // structural facts from a photo and only need to dodge an actual ROOM
+    // the generator placed. All three used the plain cellCoveredByZone
+    // before walkway zones existed; once walkway zones started covering
+    // most of the floor, that check started treating open circulation
+    // floor as "already occupied" and silently dropped conveyor cells and
+    // real staircase/column points that landed there.
+    function cellCoveredByRealZone(s, c, r) {
+      const cx = c * CELL_FT + CELL_FT / 2, cy = r * CELL_FT + CELL_FT / 2;
+      return s.zones.some(z => z.type !== "walkway" && cx >= z.x && cx <= z.x + z.w && cy >= z.y && cy <= z.y + z.h);
     }
     /* Places real staircases at their actual photographed positions — a
        staircase is a fixed structural fact about the building (it goes to
@@ -11377,9 +11434,34 @@
       stairs.forEach(st => {
         const cx = clamp(Math.round((st.cx * s.L) / CELL_FT), 0, s.cols - 1);
         const cy = clamp(Math.round((st.cy * s.W) / CELL_FT), 0, s.rows - 1);
-        if (cellCoveredByZone(s, cx, cy)) return;
+        if (cellCoveredByRealZone(s, cx, cy)) return;
         const idx = cy * s.cols + cx;
         s.cells[idx] = PAINT_DEFS.stairs.id;
+        s.rots[idx] = 0;
+      });
+    }
+    /* Same reasoning as paintVisionStaircases, for a blueprint's structural
+       column grid — a column is a fixed obstruction real photographic
+       evidence attests to, not something the generator invented, so it's
+       placed at its real photographed position rather than left out. Skips
+       a cell already covered by a generated zone for the same reason
+       staircases do: the zone here is the GENERATOR's own placement, not a
+       trace of the real building, so a real column and an algorithmically-
+       placed room can legitimately disagree about that one cell — the
+       column loses rather than rendering a confusing overlap. (Contrast
+       applyFullVisionDataToSite's column handling, which paints regardless
+       of zone coverage — that function traces a blueprint directly, where
+       "this real column sits inside this real room" is simply an accurate
+       fact, not a conflict.) */
+    function paintVisionColumns(s) {
+      const cols = s._visionColumns;
+      if (!Array.isArray(cols) || !cols.length) return;
+      cols.forEach(p => {
+        const cx = clamp(Math.round((p.x * s.L) / CELL_FT), 0, s.cols - 1);
+        const cy = clamp(Math.round((p.y * s.W) / CELL_FT), 0, s.rows - 1);
+        if (cellCoveredByRealZone(s, cx, cy)) return;
+        const idx = cy * s.cols + cx;
+        s.cells[idx] = PAINT_DEFS.pillar.id;
         s.rots[idx] = 0;
       });
     }
@@ -11578,7 +11660,7 @@
       try {
         let data = null;
         try {
-          const { image, mimeType } = await fileToVisionPayload(file, 1280, 0.85);
+          const { image, mimeType } = await fileToVisionPayload(file, VISION_IMAGE_MAX_DIM, VISION_IMAGE_QUALITY);
           data = await apiFetch("/api/vision-import", {
             method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image, mimeType }),
           });
@@ -11599,6 +11681,7 @@
 
         if (data && site) {
           const nWalls = (data.walls || []).length, nRooms = (data.rooms || []).length, nRacks = (data.racks || []).length;
+          const nCols = (data.columns || []).length;
           let dimNote = "";
           if (data.dimensionsFt && data.dimensionsFt.length > 0 && data.dimensionsFt.width > 0) {
             dimNote = `, ${data.dimensionsFt.length}×${data.dimensionsFt.width} ft`;
@@ -11610,7 +11693,8 @@
           redraw();
           updateStats();
           queueSave();
-          toast(`✓ AI analyzed layout: ${nWalls} walls, ${nRooms} rooms & ${nRacks} racking runs${dimNote} rendered on canvas!`);
+          const colsNote = nCols ? ` & ${nCols} column${nCols === 1 ? "" : "s"}` : "";
+          toast(`✓ AI analyzed layout: ${nWalls} walls, ${nRooms} rooms & ${nRacks} racking runs${colsNote}${dimNote} rendered on canvas!`);
         }
       } catch (e) {
         toast(e.message || "Could not analyze layout image");
@@ -11752,6 +11836,7 @@
       s.zones = generateDefaultLayout(s, genInput);
       paintConveyorDefaults(s);
       paintVisionStaircases(s);
+      paintVisionColumns(s);
       /* No auto-fill of the open floor. In a cross-dock hub the middle of the
          building IS the sortation working area — people and cages move through
          it. Filling it with storage furniture (as the old dark-store flow did)

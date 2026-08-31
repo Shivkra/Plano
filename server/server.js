@@ -156,22 +156,25 @@ async function callGeminiVision(base64Image, mimeType) {
                   text:
                     "You are an expert cross-dock sortation hub architectural CAD spatial extraction model — a mother hub where already-packed boxes arrive, get sorted by destination, and ship onward the same day. This is NOT a storage warehouse: there is no bulk pallet storage or picking to look for. " +
                     "Analyze this uploaded architectural blueprint, CAD drawing, PDF floor plan, or facility photo in high detail. Read every text label on the drawing (room names, dimensions, door tags like S1/S2, UPS/network/switch labels) — they are the ground truth for what to extract, more reliable than shape alone. " +
+                    "This upload is very often a genuine technical blueprint, not a photo of a physical space — read it with real architectural-drawing conventions in mind, not general scene understanding: walls are usually a thick line, a filled/hatched band between two parallel lines, or a solid black band, not a thin single stroke; a door is a gap in that wall line paired with a quarter-circle swing arc (or a short diagonal leaf line) rather than an actual visible opening the way a photo would show one; a dimension is a thin line capped with arrowheads or tick marks running parallel to what it measures, with the number written above or beside it — trust that number over a visual guess of the same span. Ignore the title block, drawing border, revision/stamp box, and north-arrow/legend graphics as their OWN floor-plan content (a title block's own little rectangles are not rooms) — but DO read numbers and a scale notation out of them (e.g. a ratio like \"1:100\" or an architectural scale like 1/4\" = 1'-0\") when the floor plan itself is short on explicit dimension strings. If the sheet shows more than one view (a floor plan plus an elevation, a detail callout, or a second unrelated plan), extract only from the primary floor-plan view — the one showing walls and rooms in top-down layout, not a side profile or a zoomed detail. " +
                     "Extract EVERY door/shutter opening on EVERY wall exactly where it is drawn — doors are commonly on more than one wall (e.g. one long wall plus an adjacent wall), and there is no assumption that inbound and outbound sit on opposite walls. Classify each opening as an entry (inbound) or exit (outbound) only if the drawing marks it as such (arrows, labels); otherwise list it under whichever of entries/exits is a reasonable default and note the ambiguity in \"summary\". " +
                     "Extract every enclosed support room by its actual label and actual position/size — common ones are security room, conference/meeting room, manager's cabin/office, store room, medical/first-aid room, UPS/network/server room, battery room. Use the room's real name from the drawing even if it doesn't match the type enum exactly. " +
                     "Extract sortation/segregation stations separately from storage racking — these are open-fronted boxes or bays for staging parcels sorted by destination city or hub, typically labeled S1, S2, S3 and arranged in a row facing a wall or a conveyor. Also note any conveyor belt path. " +
                     "IMPORTANT — do not confuse a staircase with a sortation station: a staircase is drawn as a small enclosed box containing a ladder-like series of parallel tread lines, almost always labeled \"UP\" or \"DN\" (not a destination code), and usually appears alone or in a short vertical run of identical boxes evenly spaced along one wall (e.g. one every 25 ft) rather than as a contiguous row of open bays. If a box has tread lines and an UP/DN label, it is a staircase — extract it under \"staircases\", never under \"sortStations\", even if its label also happens to look like S1/S2/S3. " +
+                    "Extract structural columns separately from rooms and racking — a real blueprint usually marks each column as a small filled or hatched square/circle, often sitting on a lettered/numbered grid (column lines A, B, C… and 1, 2, 3… along the sheet edges) and spaced at a regular interval (commonly 20-40 ft). List each column's own point, not a run like a wall or rack — these matter because a real column is a fixed physical obstruction a manager cannot move a rack or sortation station onto. " +
                     "Express every coordinate as a normalized decimal (0.0 to 1.0) of total width (x) and total height (y) from the top-left (0,0). " +
-                    "Estimate total facility length and width in feet from the dimension strings on the drawing (e.g. 150 × 100 ft) — prefer explicit dimension labels over visually estimating. " +
+                    "Estimate total facility length and width in feet from the dimension strings or the scale notation on the drawing (e.g. 150 × 100 ft) — prefer explicit dimension labels over visually estimating. Check the unit first: a blueprint may be dimensioned in meters, millimeters, or another unit instead of feet (common outside the US) — read whatever unit the drawing actually uses and convert to feet in dimensionsFt rather than assuming the numbers are already feet. " +
                     "Reply with ONLY valid JSON (no markdown formatting, no code fences) with the exact structure:\n" +
                     "{\n" +
                     '  "dimensionsFt": { "length": number, "width": number },\n' +
-                    '  "summary": "Short architectural description of detected layout, including any ambiguity in entry/exit classification or which walls have doors",\n' +
+                    '  "summary": "Short architectural description of detected layout, including any ambiguity in entry/exit classification, which walls have doors, and the source unit if it wasn\'t already feet",\n' +
                     '  "walls": [ { "x0": number, "y0": number, "x1": number, "y1": number } ],\n' +
                     '  "rooms": [ { "name": string, "type": "office"|"security"|"conference"|"medical"|"store"|"ups"|"bathroom"|"inboundStage"|"outboundLane"|"charging", "x": number, "y": number, "w": number, "h": number } ],\n' +
                     '  "sortStations": [ { "label": string, "x0": number, "y0": number, "x1": number, "y1": number } ],\n' +
                     '  "staircases": [ { "label": string, "x0": number, "y0": number, "x1": number, "y1": number } ],\n' +
                     '  "racks": [ { "type": "rack"|"palletrack", "x0": number, "y0": number, "x1": number, "y1": number } ],\n' +
                     '  "equipment": [ { "type": "conveyor"|"packing"|"staging"|"dispatch"|"table", "x0": number, "y0": number, "x1": number, "y1": number } ],\n' +
+                    '  "columns": [ { "x": number, "y": number } ],\n' +
                     '  "entries": [ { "x": number, "y": number } ],\n' +
                     '  "exits": [ { "x": number, "y": number } ]\n' +
                     "}",
@@ -286,12 +289,18 @@ function parseVisionResult(text) {
     : [];
   const entries = Array.isArray(parsed.entries) ? parsed.entries.slice(0, 20).map((p) => ({ x: clamp01(p.x), y: clamp01(p.y) })) : [];
   const exits = Array.isArray(parsed.exits) ? parsed.exits.slice(0, 20).map((p) => ({ x: clamp01(p.x), y: clamp01(p.y) })) : [];
+  // Structural columns — blueprint-only content in practice (a photo rarely
+  // shows a column grid clearly enough to extract points from), but real
+  // and worth keeping: a column is a fixed obstruction, same reasoning as
+  // walls. Capped higher than entries/exits since a real column grid on a
+  // large facility can run into the hundreds.
+  const columns = Array.isArray(parsed.columns) ? parsed.columns.slice(0, 400).map((p) => ({ x: clamp01(p.x), y: clamp01(p.y) })) : [];
   let dimensionsFt = { length: 150, width: 100 };
   if (parsed.dimensionsFt && Number(parsed.dimensionsFt.length) > 0 && Number(parsed.dimensionsFt.width) > 0) {
     dimensionsFt = { length: Math.round(Number(parsed.dimensionsFt.length)), width: Math.round(Number(parsed.dimensionsFt.width)) };
   }
   const summary = parsed.summary || "AI Architectural Floor Plan & Space Modeling";
-  return { walls, rooms, racks, sortStations, staircases, equipment, entries, exits, dimensionsFt, summary };
+  return { walls, rooms, racks, sortStations, staircases, equipment, columns, entries, exits, dimensionsFt, summary };
 }
 
 /* ---------- generic Gemini text call (interview + AI tweak) ----------
