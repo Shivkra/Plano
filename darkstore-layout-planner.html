@@ -7097,7 +7097,7 @@
       left: -50%;
       width: 200%;
       height: 200%;
-      background: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, transparent 60%);
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.08) 0%, transparent 60%);
       pointer-events: none;
       animation: ambientGlowRotate 12s infinite linear;
     }
@@ -7107,14 +7107,20 @@
       100% { transform: rotate(360deg); }
     }
 
-    /* Holographic Viewport & Laser Scan */
+    /* Construction Viewport — a small warehouse assembling itself, phase by
+       phase, with a crane working continuously in the background. Replaces
+       the old sci-fi laser-scan visual: the metaphor here is literally
+       "building your hub," not "scanning a document," which is both closer
+       to what's actually happening (synthesizing a layout) and matches this
+       app's own gamification palette (amber/gold, same as the level widget
+       and level-up modal) instead of a colder, unrelated cyan. */
     .ai-scanner-viewport {
       position: relative;
       width: 100%;
       height: 190px;
-      background: #060911;
+      background: #0C0904;
       border-radius: 16px;
-      border: 1px solid rgba(56, 189, 248, 0.25);
+      border: 1px solid rgba(245, 158, 11, 0.25);
       margin: 16px 0 18px;
       overflow: hidden;
       display: flex;
@@ -7126,63 +7132,117 @@
     .ai-scanner-grid-bg {
       position: absolute;
       inset: 0;
-      background-image: 
-        linear-gradient(to right, rgba(56, 189, 248, 0.08) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(56, 189, 248, 0.08) 1px, transparent 1px);
+      background-image:
+        linear-gradient(to right, rgba(245, 158, 11, 0.07) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(245, 158, 11, 0.07) 1px, transparent 1px);
       background-size: 20px 20px;
       pointer-events: none;
     }
 
     .ai-scanner-preview-img {
-      max-width: 90%;
-      max-height: 85%;
-      object-fit: contain;
-      border-radius: 8px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-      filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.25));
-      transition: all 0.3s ease;
-    }
-
-    .ai-scanner-laser {
       position: absolute;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, transparent 0%, #38BDF8 25%, #818CF8 50%, #38BDF8 75%, transparent 100%);
-      box-shadow: 0 0 16px #38BDF8, 0 0 32px #818CF8, 0 0 4px #fff;
-      animation: laserSweep 2s ease-in-out infinite alternate;
-      z-index: 5;
+      right: 10px;
+      bottom: 10px;
+      width: 58px;
+      height: 58px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1.5px solid rgba(245, 158, 11, 0.4);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+      opacity: 0.85;
+      transform: rotate(3deg);
+      z-index: 7;
     }
 
-    .ai-scanner-laser::after {
-      content: "";
-      position: absolute;
-      top: -24px;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: linear-gradient(180deg, rgba(56, 189, 248, 0.15) 0%, transparent 100%);
-    }
+    /* The build scene — an SVG warehouse that assembles itself. Each part
+       starts "unbuilt" (flattened/faded) and gets a .built class from the
+       phase controller in showAiVisionScanner, which triggers its own
+       transition — walls and the roof rise up from the ground (scaleY off
+       a fill-box origin), doors/racks/flow settle in with a small drop +
+       fade, so each phase reads as a distinct construction step rather
+       than a generic progress-bar tick. */
+    .ai-build-svg { width: 84%; height: 84%; overflow: visible; }
 
-    @keyframes laserSweep {
-      0% { top: 6%; }
-      100% { top: 92%; }
-    }
+    .bld-ground { stroke: rgba(245, 158, 11, 0.3); stroke-width: 2; }
 
-    /* Target Corner Brackets */
-    .ai-scanner-bracket {
-      position: absolute;
-      width: 14px;
-      height: 14px;
-      border-color: #38BDF8;
-      border-style: solid;
-      pointer-events: none;
-      z-index: 6;
+    .bld-walls, .bld-roof {
+      fill: #B45309;
+      transform-box: fill-box;
+      transform-origin: 50% 100%;
+      transform: scaleY(0.04);
+      opacity: 0.35;
+      transition: transform 0.65s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
     }
-    .ai-scanner-bracket.tl { top: 8px; left: 8px; border-width: 2px 0 0 2px; }
-    .ai-scanner-bracket.tr { top: 8px; right: 8px; border-width: 2px 2px 0 0; }
-    .ai-scanner-bracket.bl { bottom: 8px; left: 8px; border-width: 0 0 2px 2px; }
-    .ai-scanner-bracket.br { bottom: 8px; right: 8px; border-width: 0 2px 2px 0; }
+    .bld-roof { fill: #92400E; }
+    .bld-walls.built, .bld-roof.built { transform: scaleY(1); opacity: 1; }
+
+    .bld-door {
+      fill: #292524;
+      stroke: #F59E0B;
+      stroke-width: 1.5;
+      transform-box: fill-box;
+      transform-origin: 50% 0%;
+      transform: translateY(-10px);
+      opacity: 0;
+      transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease;
+    }
+    .bld-door.built { transform: translateY(0); opacity: 1; }
+    .bld-door.built:nth-of-type(2) { transition-delay: 0.1s; }
+
+    .bld-racks rect {
+      fill: #FBBF24;
+      transform-box: fill-box;
+      transform-origin: 50% 100%;
+      transform: scaleY(0.1);
+      opacity: 0;
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+    }
+    .bld-racks.built rect { transform: scaleY(1); opacity: 1; }
+    .bld-racks.built rect:nth-child(2) { transition-delay: 0.08s; }
+    .bld-racks.built rect:nth-child(3) { transition-delay: 0.16s; }
+
+    .bld-flow {
+      fill: none;
+      stroke: #FBBF24;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-dasharray: 6 7;
+      stroke-dashoffset: 0;
+      opacity: 0.15;
+      transition: opacity 0.4s ease;
+      animation: bldFlowDash 1s linear infinite;
+    }
+    .bld-flow.built { opacity: 0.9; }
+    @keyframes bldFlowDash { to { stroke-dashoffset: -26; } }
+
+    .bld-flag {
+      opacity: 0;
+      transform: translateY(6px);
+      transform-box: fill-box;
+      transform-origin: 50% 100%;
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+    }
+    .bld-flag.built { opacity: 1; transform: translateY(0); }
+
+    /* Crane — animates continuously the entire time the overlay is open,
+       independent of phase state, so there's always visible motion even
+       while waiting on a real API call that outlasts the 5 defined
+       phases (a real vision call can take well over a minute; the old
+       laser/progress bar just sat frozen at "97%" for that whole stretch,
+       which read as stuck even though nothing had actually failed). */
+    .bld-crane-mast, .bld-crane-arm { stroke: #78716C; stroke-width: 3; stroke-linecap: round; }
+    /* Base position sits under the arm (which runs from the mast at x=246
+       to its far reach at x=140); the animation's own translate values
+       carry the trolley's full position — a plain CSS transform on an SVG
+       element replaces a transform="" attribute rather than combining
+       with it, so the position can't be split between the two. */
+    .bld-crane-trolley { animation: bldTrolleyMove 3.2s ease-in-out infinite; }
+    .bld-crane-cable { stroke: #78716C; stroke-width: 1.5; }
+    .bld-crane-hook { fill: #F59E0B; }
+    @keyframes bldTrolleyMove {
+      0%, 100% { transform: translate(214px, 29px); }
+      50% { transform: translate(156px, 29px); }
+    }
 
     /* Floating Status & Progress */
     .ai-scanner-tag {
@@ -7195,9 +7255,9 @@
       letter-spacing: 0.08em;
       padding: 4px 12px;
       border-radius: 999px;
-      background: rgba(56, 189, 248, 0.12);
-      border: 1px solid rgba(56, 189, 248, 0.35);
-      color: #38BDF8;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #F59E0B;
       margin-bottom: 8px;
     }
 
@@ -7205,8 +7265,8 @@
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #38BDF8;
-      box-shadow: 0 0 8px #38BDF8;
+      background: #F59E0B;
+      box-shadow: 0 0 8px #F59E0B;
       animation: pulseDot 1.2s infinite ease-in-out;
     }
 
@@ -7245,10 +7305,10 @@
     .ai-scanner-progress-bar {
       height: 100%;
       width: 0%;
-      background: linear-gradient(90deg, #38BDF8, #818CF8, #C084FC);
+      background: linear-gradient(90deg, #F59E0B, #FBBF24);
       border-radius: 999px;
       transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-      box-shadow: 0 0 14px rgba(56, 189, 248, 0.6);
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.6);
     }
 
     .ai-scanner-meta-row {
@@ -7288,9 +7348,9 @@
 
     .ai-scanner-chip.active {
       opacity: 1;
-      background: rgba(56, 189, 248, 0.15);
-      border-color: rgba(56, 189, 248, 0.4);
-      color: #38BDF8;
+      background: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.4);
+      color: #F59E0B;
       transform: translateY(-1px);
     }
 
@@ -9022,16 +9082,44 @@
       <h3 class="ai-scanner-title" id="ai-scanner-title">Analyzing Blueprint &amp; Layout</h3>
       <div class="ai-scanner-status-txt" id="ai-scanner-status-txt">Enhancing image resolution &amp; optical contrast…</div>
 
-      <!-- Holographic Scanning Viewport with Laser Beam -->
+      <!-- Construction Viewport — a small warehouse assembling itself,
+           phase by phase, with a crane working in the background the
+           entire time the overlay is open (see .bld-crane-trolley — its
+           motion never stops, so the scene never reads as "frozen" even
+           while waiting past the 5 defined phases for a real, possibly
+           much slower API response). -->
       <div class="ai-scanner-viewport">
         <div class="ai-scanner-grid-bg"></div>
-        <div class="ai-scanner-bracket tl"></div>
-        <div class="ai-scanner-bracket tr"></div>
-        <div class="ai-scanner-bracket bl"></div>
-        <div class="ai-scanner-bracket br"></div>
-        <div class="ai-scanner-laser" id="ai-scanner-laser"></div>
+        <div class="ai-build-scene">
+          <svg viewBox="0 0 300 160" class="ai-build-svg" preserveAspectRatio="xMidYMid meet">
+            <line x1="12" y1="140" x2="288" y2="140" class="bld-ground" />
+            <g class="bld-crane">
+              <line x1="246" y1="140" x2="246" y2="26" class="bld-crane-mast" />
+              <line x1="246" y1="26" x2="140" y2="32" class="bld-crane-arm" />
+              <line x1="246" y1="26" x2="272" y2="34" class="bld-crane-arm" />
+              <g class="bld-crane-trolley">
+                <line x1="0" y1="0" x2="0" y2="30" class="bld-crane-cable" />
+                <rect x="-7" y="30" width="14" height="9" rx="2" class="bld-crane-hook" />
+              </g>
+            </g>
+            <polygon points="42,78 112,40 182,78" class="bld-roof" id="bld-roof" />
+            <g class="bld-flag" id="bld-flag">
+              <line x1="112" y1="40" x2="112" y2="24" stroke="#78716C" stroke-width="2" />
+              <polygon points="112,24 130,29 112,34" fill="#22C55E" />
+            </g>
+            <rect x="52" y="78" width="120" height="62" class="bld-walls" id="bld-walls" />
+            <rect x="65" y="106" width="22" height="34" class="bld-door" id="bld-door1" />
+            <rect x="97" y="106" width="22" height="34" class="bld-door" id="bld-door2" />
+            <g id="bld-racks" class="bld-racks">
+              <rect x="132" y="88" width="8" height="50" />
+              <rect x="146" y="88" width="8" height="50" />
+              <rect x="160" y="88" width="8" height="50" />
+            </g>
+            <path d="M20,150 C90,150 140,150 210,150" id="bld-flow" class="bld-flow" />
+          </svg>
+        </div>
         <img src="" id="ai-scanner-preview-img" class="ai-scanner-preview-img" alt="Floor plan preview" style="display:none;">
-        <div id="ai-scanner-doc-icon" style="font-size:52px; opacity:0.85; filter:drop-shadow(0 0 16px rgba(56,189,248,0.5));">📐</div>
+        <div id="ai-scanner-doc-icon" style="display:none; position:absolute; right:10px; bottom:10px; font-size:26px; opacity:0.85; filter:drop-shadow(0 0 10px rgba(245,158,11,0.4));">📐</div>
       </div>
 
       <!-- Progress Track & Percentage Counter -->
@@ -9040,7 +9128,7 @@
       </div>
       <div class="ai-scanner-meta-row">
         <span id="ai-scanner-step-counter">Phase 1 of 5</span>
-        <span id="ai-scanner-pct-txt" style="color:#38BDF8; font-weight:800;">15%</span>
+        <span id="ai-scanner-pct-txt" style="color:#F59E0B; font-weight:800;">15%</span>
       </div>
 
       <!-- Live Detected Metrics Chips -->
@@ -10689,17 +10777,45 @@
       });
     }
     /* =====================================================================
-       AI VISION SCANNER CONTROLLER (Realistic Stages, Laser & Progress)
-    ===================================================================== */
+       AI VISION SCANNER CONTROLLER — a warehouse assembling itself, phase
+       by phase, that keeps building for as long as the real analysis
+       actually takes. Two bugs fixed here, both about the animation not
+       matching the real work underneath it:
+       1. showAiVisionScanner used to arm a fixed 3.5s auto-hide "safeguard"
+          that fired unconditionally — every real caller (handleChoiceBlue
+          printUpload, handleCanvasPhotoImport, handleWizPhotoImport)
+          already calls hideAiVisionScanner itself from its own try/catch/
+          finally the moment the real API call resolves, so that 3.5s timer
+          never protected anything — it just closed the overlay early and
+          claimed "Blueprint synthesized" while a real Gemini call (this
+          project's own history clocked one at ~18s) was still running in
+          the background. Replaced with a much longer (90s) last-resort
+          fallback that only exists for a future code path that forgets to
+          call hide — and it says so honestly rather than claiming success.
+       2. The 5 defined phases used to run through in 2.5s (500ms each)
+          then just sit frozen at "Phase 5 of 5 / 97%" for however much
+          longer the real call took — which reads as stuck. Once the
+          phases run out, a rotating set of "still working" messages keeps
+          the status line moving, and the crane's own CSS animation
+          (independent of anything here) never stops regardless. ===================================================================== */
     let aiScannerInterval = null;
     let aiScannerTimeout = null;
+    let aiScannerIdleIdx = 0;
 
     const SCANNER_PHASES = [
-      { pct: 22, phase: "Phase 1 of 5", msg: "Enhancing optical contrast & calibrating coordinate space…", chip: 1 },
-      { pct: 46, phase: "Phase 2 of 5", msg: "AI Vision vectorizing perimeter walls & load-bearing columns…", chip: 1 },
-      { pct: 70, phase: "Phase 3 of 5", msg: "Detecting inward dock doors, dispatch gates & roll shutters…", chip: 2 },
-      { pct: 88, phase: "Phase 4 of 5", msg: "Synthesizing picking aisles, sortation tables & storage bays…", chip: 3 },
-      { pct: 97, phase: "Phase 5 of 5", msg: "Computing clear forklift corridors & egress safety clearances…", chip: 4 }
+      { pct: 22, phase: "Phase 1 of 5", msg: "Pouring the foundation & raising perimeter walls…", chip: 1, parts: ["bld-walls"] },
+      { pct: 46, phase: "Phase 2 of 5", msg: "Framing the roof over the shell…", chip: 1, parts: ["bld-roof"] },
+      { pct: 70, phase: "Phase 3 of 5", msg: "Fitting inward dock doors & dispatch gates…", chip: 2, parts: ["bld-door1", "bld-door2"] },
+      { pct: 88, phase: "Phase 4 of 5", msg: "Installing sortation modules & storage bays…", chip: 3, parts: ["bld-racks"] },
+      { pct: 97, phase: "Phase 5 of 5", msg: "Marking flow aisles & egress clearances…", chip: 4, parts: ["bld-flow"] }
+    ];
+    // Once the real phases run out but the real API call hasn't returned
+    // yet, these rotate through the status line every 2.4s so the wait
+    // still feels alive instead of stalled at "97%".
+    const SCANNER_IDLE_MSGS = [
+      "Still synthesizing — cross-checking dimensions against the source…",
+      "Almost there — finalizing room adjacencies…",
+      "Wrapping up spatial validation…",
     ];
 
     function showAiVisionScanner(file, titleText) {
@@ -10731,28 +10847,39 @@
         }
       }
 
-      // Reset state & chips
+      // Reset state, chips & the build scene — every part starts unbuilt
+      // so a second run (e.g. importing a second file) doesn't open with
+      // last time's finished building already standing.
       const bar = $("#ai-scanner-progress-bar");
       const pctTxt = $("#ai-scanner-pct-txt");
       const statusTxt = $("#ai-scanner-status-txt");
       const stepCounter = $("#ai-scanner-step-counter");
       if (bar) bar.style.width = "14%";
       if (pctTxt) pctTxt.textContent = "14%";
-      if (statusTxt) statusTxt.textContent = "Loading file payload & initializing AI Spatial Vision…";
+      if (statusTxt) statusTxt.textContent = "Loading file payload & clearing the build site…";
       if (stepCounter) stepCounter.textContent = "Phase 1 of 5";
 
       for (let i = 1; i <= 4; i++) {
         const c = $(`#sc-chip-${i}`);
         if (c) c.classList.toggle("active", i === 1);
       }
+      ["bld-walls", "bld-roof", "bld-door1", "bld-door2", "bld-racks", "bld-flow", "bld-flag"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove("built");
+      });
 
       overlay.classList.add("on");
       playSfx("pop");
 
-      // Animate progress smoothly through the architectural detection phases
+      // Animate progress smoothly through the architectural detection
+      // phases (900ms each — enough to actually read each message), then
+      // keep the status line rotating slower (2.4s) instead of stopping.
+      // A recursive setTimeout rather than one fixed-interval setInterval
+      // since the delay needs to change once the real phases run out.
       let phaseIdx = 0;
-      clearInterval(aiScannerInterval);
-      aiScannerInterval = setInterval(() => {
+      aiScannerIdleIdx = 0;
+      clearTimeout(aiScannerInterval);
+      function scannerTick() {
         if (phaseIdx < SCANNER_PHASES.length) {
           const p = SCANNER_PHASES[phaseIdx];
           if (bar) bar.style.width = p.pct + "%";
@@ -10761,19 +10888,30 @@
           if (stepCounter) stepCounter.textContent = p.phase;
           const chipEl = $(`#sc-chip-${p.chip}`);
           if (chipEl) chipEl.classList.add("active");
+          (p.parts || []).forEach(id => { const el = document.getElementById(id); if (el) el.classList.add("built"); });
           phaseIdx++;
+        } else if (statusTxt) {
+          statusTxt.textContent = SCANNER_IDLE_MSGS[aiScannerIdleIdx % SCANNER_IDLE_MSGS.length];
+          aiScannerIdleIdx++;
         }
-      }, 500);
+        aiScannerInterval = setTimeout(scannerTick, phaseIdx < SCANNER_PHASES.length ? 900 : 2400);
+      }
+      aiScannerInterval = setTimeout(scannerTick, 900);
 
-      // Safeguard: auto-hide after 3.5s so user never gets stuck
+      // Last-resort safety net only — every real caller already closes
+      // this itself via hideAiVisionScanner as soon as its own API call
+      // resolves (success or failure). This exists purely so a future
+      // code path that forgets to do that can't leave a manager staring
+      // at a permanently-open overlay; it says so honestly rather than
+      // claiming the analysis actually finished.
       clearTimeout(aiScannerTimeout);
       aiScannerTimeout = setTimeout(() => {
-        hideAiVisionScanner("Blueprint synthesized");
-      }, 3500);
+        hideAiVisionScanner("Taking longer than expected — closed automatically. Your file may still be processing.");
+      }, 90000);
     }
 
     function hideAiVisionScanner(successMsg) {
-      clearInterval(aiScannerInterval);
+      clearTimeout(aiScannerInterval);
       clearTimeout(aiScannerTimeout);
       const overlay = $("#ai-vision-scanner-overlay");
       if (!overlay) return;
@@ -10787,7 +10925,7 @@
       if (bar) bar.style.width = "100%";
       if (pctTxt) pctTxt.textContent = "100%";
       if (statusTxt) statusTxt.innerHTML = `✨ <strong>Complete:</strong> ${escapeHtml(successMsg || "Layout generated successfully!")}`;
-      if (stepCounter) stepCounter.textContent = "Synthesized";
+      if (stepCounter) stepCounter.textContent = "Built";
       if (badge) {
         badge.textContent = "✓ Ready";
         badge.style.background = "rgba(16, 185, 129, 0.2)";
@@ -10798,6 +10936,13 @@
         const c = $(`#sc-chip-${i}`);
         if (c) c.classList.add("active");
       }
+      // Finish the building regardless of exactly which phase the real
+      // call raced ahead of — a completed analysis should always show a
+      // finished warehouse with its flag up, not one still mid-frame.
+      ["bld-walls", "bld-roof", "bld-door1", "bld-door2", "bld-racks", "bld-flow", "bld-flag"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add("built");
+      });
 
       playSfx("fanfare");
 
