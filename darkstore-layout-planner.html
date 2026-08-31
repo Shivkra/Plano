@@ -7238,9 +7238,6 @@
                   <button class="preset-chip" onclick="updateFacilityDimensions(180, 100)"
                     style="font-size:10.5px; padding:5px 6px; text-align:center; font-weight:700; width:100%; border-radius:6px;">180×100'
                     (18k)</button>
-                  <button class="preset-chip" onclick="updateFacilityDimensions(200, 100)"
-                    style="font-size:10.5px; padding:5px 6px; text-align:center; font-weight:700; width:100%; border-radius:6px;">200×100'
-                    (20k)</button>
                 </div>
               </div>
 
@@ -7508,8 +7505,8 @@
             onclick="switchSettingsTab('tab-profile', this)">👤 Profile &amp; Team</button>
           <button class="settings-tab-btn" data-tab="tab-design" onclick="switchSettingsTab('tab-design', this)">📐
             Industrial Design</button>
-          <button class="settings-tab-btn" data-tab="tab-ai" onclick="switchSettingsTab('tab-ai', this)">🤖 AI &amp;
-            Vision Engine</button>
+          <button class="settings-tab-btn" data-tab="tab-export" onclick="switchSettingsTab('tab-export', this)">📤
+            Export &amp; Branding</button>
           <button class="settings-tab-btn" data-tab="tab-storage" onclick="switchSettingsTab('tab-storage', this)">💾
             Cloud &amp; Storage</button>
         </nav>
@@ -7614,48 +7611,30 @@
             </div>
           </div>
 
-          <!-- TAB 3: AI Vision & Copilot Engine -->
-          <div class="settings-panel" id="tab-ai">
+          <!-- TAB 3: Export & Branding — what shows up on printed/exported
+               plans. Replaces the old "AI & Vision Engine" tab, which was
+               3 checkboxes permanently checked-and-disabled with no
+               downstream effect anywhere in the app (nothing ever read
+               builderSettings.aiVectorizer/aiOptimizer/aiRooms). -->
+          <div class="settings-panel" id="tab-export">
             <div class="setting-group">
-              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-                <h4 style="margin:0;">Gemini Industrial Vision</h4>
-                <span id="ai-access-tag" style="font-size:11px; font-weight:800; color:var(--ink-faint);">🔒 Enterprise
-                  Policy</span>
-              </div>
-              <div class="setting-card" style="background:var(--bg-soft);">
+              <h4>Title Block &amp; Sign-Off</h4>
+              <div class="setting-card">
                 <div class="info">
-                  <h5>Blueprint OCR & Vectorizer</h5>
-                  <p>Automatically extract walls, columns, and dock doors from uploaded blueprints.</p>
+                  <h5>Company / Organization Name</h5>
+                  <p>Shown above the site title on every exported and printed floor plan.</p>
                 </div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <span class="ai-lock-indicator" title="Locked" style="font-size:16px; user-select:none;">🔒</span>
-                  <input type="checkbox" id="set-ai-vectorizer" checked disabled
-                    style="width:18px; height:18px; cursor:not-allowed; opacity:0.65;">
-                </div>
+                <input type="text" id="set-org" class="setting-select" style="width:260px;"
+                  value="BlitzNow Logistics - Bangalore Hub 1">
               </div>
 
-              <div class="setting-card" style="background:var(--bg-soft);">
+              <div class="setting-card">
                 <div class="info">
-                  <h5>Live Floor Layout Optimizer</h5>
-                  <p>Calculates optimal shortest travel paths between in-dock and sorting boxes.</p>
+                  <h5>Show "Prepared By" on Exports</h5>
+                  <p>Stamps your Builder Display Name and Role (from Profile &amp; Team) onto the title block of every PDF/PNG export.</p>
                 </div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <span class="ai-lock-indicator" title="Locked" style="font-size:16px; user-select:none;">🔒</span>
-                  <input type="checkbox" id="set-ai-optimizer" checked disabled
-                    style="width:18px; height:18px; cursor:not-allowed; opacity:0.65;">
-                </div>
-              </div>
-
-              <div class="setting-card" style="background:var(--bg-soft);">
-                <div class="info">
-                  <h5>Auto-Generate Support Rooms</h5>
-                  <p>Auto-provision Battery Charging, Admin Office, QA Hold, Restrooms.</p>
-                </div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <span class="ai-lock-indicator" title="Locked" style="font-size:16px; user-select:none;">🔒</span>
-                  <input type="checkbox" id="set-ai-rooms" checked disabled
-                    style="width:18px; height:18px; cursor:not-allowed; opacity:0.65;">
-                </div>
+                <input type="checkbox" id="set-show-prepared" checked
+                  style="width:18px; height:18px; cursor:pointer; accent-color:var(--ink);">
               </div>
             </div>
           </div>
@@ -7982,12 +7961,16 @@
       role: "Lead Industrial Architect",
       org: "BlitzNow Logistics - Bangalore Hub 1",
       units: "imperial",
-      cellSize: 3,
-      aisleMin: 4.0,
+      // Both of these must match one of their <select>'s option VALUES
+      // exactly (strings, e.g. "4x6"/"4.0") — openSettingsModal sets the
+      // select's .value to these on every open, and a value that doesn't
+      // match any option renders as nothing selected. They used to be
+      // numbers (3 and 4.0), which never matched "4x6"/"3x3" or
+      // "4.0"/"5.0" as strings, so both selects opened blank every time.
+      cellSize: "4x6",
+      aisleMin: "4.0",
       prefixTag: "H",
-      aiVectorizer: true,
-      aiOptimizer: true,
-      aiRooms: true
+      showPreparedBy: true,
     };
     try {
       const savedSettings = localStorage.getItem(SETTINGS_KEY);
@@ -14024,23 +14007,51 @@
       }
       // Paint / Erase
       const cell = cellFromClient(ev.clientX, ev.clientY); if (!cell) return;
-      if (cellLocked(cell)) { flashLockedNote(cell); return; }
+      const isErasing = (ev.button === 2) || tool === "erase";
+      // A zone's interior is normally off-limits to painting — it's kept
+      // clear once a room is placed (see clearPaintUnderZone) and
+      // cellLocked() enforces that going forward. Erasing is the one
+      // action allowed to reach in there anyway, since erasing an empty
+      // cell inside a zone is how the zone itself gets removed (see the
+      // zone fallback a few lines down).
+      if (!isErasing && cellLocked(cell)) { flashLockedNote(cell); return; }
       if (site.cellLocks && site.cellLocks[cell.r * site.cols + cell.c]) { toast("Locked — right-click it to unlock"); return; }
       safeSetPointerCapture(canvas(), ev.pointerId);
       painting = true; strokeAnchor = cell; lastCell = cell;
-      strokeErase = (ev.button === 2) || tool === "erase";
+      strokeErase = isErasing;
       const objKey = tool.startsWith("paint:") ? tool.slice(6) : "";
       const val = strokeErase ? 0 : (PAINT_DEFS[objKey] ? PAINT_DEFS[objKey].id : 0);
 
+      const hadPaint = site.cells[cell.r * site.cols + cell.c] !== 0;
       snapshot();
       setPaintCell(cell.c, cell.r, val);
       // Erase (dedicated tool or right-click) also sweeps the annotation
       // layer at the actual click point, not just the grid cell underneath
       // — a pen line or shape sitting on the same cell used to be
-      // untouchable by this tool entirely.
+      // untouchable by this tool entirely. Erases the TOPMOST thing at the
+      // click, most-specific first: an annotation, then a painted cell
+      // (already handled above), and only when there was truly neither —
+      // an empty cell with nothing drawn on it — does a room underneath
+      // get erased too. That order matters: erasing a misplaced rack
+      // inside a room must never take the whole room with it just because
+      // the click point happened to fall inside its bounds.
       if (strokeErase) {
         const rect = canvas().getBoundingClientRect();
-        eraseAnnotationAt(ev.clientX - rect.left - MARGIN, ev.clientY - rect.top - MARGIN);
+        const localX = ev.clientX - rect.left - MARGIN, localY = ev.clientY - rect.top - MARGIN;
+        const erasedAnno = eraseAnnotationAt(localX, localY);
+        if (!hadPaint && !erasedAnno) {
+          const { x: xFt, y: yFt } = ftFromClient(ev.clientX, ev.clientY);
+          const z = zoneAt(xFt, yFt);
+          if (z) {
+            if (z.locked) {
+              toast("Locked — right-click it to unlock");
+            } else {
+              site.zones = site.zones.filter(zz => zz.id !== z.id);
+              if (selectedZoneId === z.id) deselectZone();
+              toast(`"${z.label || (ZONE_DEFS[z.type] && ZONE_DEFS[z.type].name) || "Room"}" erased`);
+            }
+          }
+        }
       }
       redraw(); updateStats();
     }
@@ -14183,7 +14194,9 @@
         if ((cell && (!hoverCell || cell.c !== hoverCell.c || cell.r !== hoverCell.r)) || (!cell && hoverCell)) { hoverCell = cell; redraw(); }
         return;
       }
-      if (!cell || cellLocked(cell)) return;
+      // Same erase exception as onPointerDown — a drag stroke shouldn't stop
+      // dead the moment it crosses into a zone's interior while erasing.
+      if (!cell || (!strokeErase && cellLocked(cell))) return;
       const objKey = tool.startsWith("paint:") ? tool.slice(6) : "";
       const val = strokeErase ? 0 : (PAINT_DEFS[objKey] ? PAINT_DEFS[objKey].id : 0);
 
@@ -16640,6 +16653,7 @@
     <div class="sheet-inner">
       <div class="sheet-titleblock">
         <div>
+          ${builderSettings.org ? `<div class="meta-line" style="font-weight:800; color:var(--ink); margin-top:0; margin-bottom:3px;">${escapeHtml(builderSettings.org)}</div>` : ""}
           <h1>${escapeHtml(site.name)}</h1>
           <div class="meta-line">Cross-dock sortation hub · floor layout plan · ${site.L} ft × ${site.W} ft · ${fmtNum(totalArea)} sq ft</div>
         </div>
@@ -16649,6 +16663,7 @@
           <div class="tb-field"><span class="k">Issued</span><span class="v">${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span></div>
           <div class="tb-field"><span class="k">Rev</span><span class="v">A</span></div>
           <div class="tb-field"><span class="k">Sheet</span><span class="v">1 / 1</span></div>
+          ${builderSettings.showPreparedBy !== false && builderSettings.name ? `<div class="tb-field"><span class="k">Prepared</span><span class="v">${escapeHtml(builderSettings.name)}${builderSettings.role ? " · " + escapeHtml(builderSettings.role) : ""}</span></div>` : ""}
         </div>
       </div>
       <div class="sheet-rule-thin"></div>
@@ -17708,45 +17723,12 @@
       const inName = $("#set-input-name"); if (inName) inName.value = builderSettings.name;
       const inRole = $("#set-input-role"); if (inRole) inRole.value = builderSettings.role || "Lead Industrial Architect";
       const inUnits = $("#set-units"); if (inUnits) inUnits.value = builderSettings.units;
-      const inCell = $("#set-cell-size"); if (inCell) inCell.value = String(builderSettings.cellSize);
-      const inAisle = $("#set-aisle-min"); if (inAisle) inAisle.value = String(builderSettings.aisleMin);
+      const inCell = $("#set-cell-size"); if (inCell) inCell.value = builderSettings.cellSize;
+      const inAisle = $("#set-aisle-min"); if (inAisle) inAisle.value = builderSettings.aisleMin;
       const inGridColor = $("#set-grid-color"); if (inGridColor) inGridColor.value = customGridColor || "default";
       const inPrefix = $("#set-prefix-tag"); if (inPrefix) inPrefix.value = builderSettings.prefixTag;
-
-      // Handle AI Vision locked states: Only siva.k@blitznow.in has master access to check/uncheck
-      const inVec = $("#set-ai-vectorizer");
-      const inOpt = $("#set-ai-optimizer");
-      const inRooms = $("#set-ai-rooms");
-
-      if (inVec) {
-        inVec.checked = !!builderSettings.aiVectorizer;
-        inVec.disabled = !isMasterAdmin;
-        inVec.style.cursor = isMasterAdmin ? "pointer" : "not-allowed";
-        inVec.style.opacity = isMasterAdmin ? "1" : "0.65";
-      }
-      if (inOpt) {
-        inOpt.checked = !!builderSettings.aiOptimizer;
-        inOpt.disabled = !isMasterAdmin;
-        inOpt.style.cursor = isMasterAdmin ? "pointer" : "not-allowed";
-        inOpt.style.opacity = isMasterAdmin ? "1" : "0.65";
-      }
-      if (inRooms) {
-        inRooms.checked = !!builderSettings.aiRooms;
-        inRooms.disabled = !isMasterAdmin;
-        inRooms.style.cursor = isMasterAdmin ? "pointer" : "not-allowed";
-        inRooms.style.opacity = isMasterAdmin ? "1" : "0.65";
-      }
-
-      const accessTag = $("#ai-access-tag");
-      if (accessTag) {
-        accessTag.textContent = isMasterAdmin ? "👑 Master Override Active" : "🔒 Enterprise Policy Enforced";
-        accessTag.style.color = isMasterAdmin ? "#F59E0B" : "var(--ink-faint)";
-      }
-
-      document.querySelectorAll(".ai-lock-indicator").forEach(el => {
-        el.textContent = isMasterAdmin ? "👑" : "🔒";
-        el.title = isMasterAdmin ? "Master Admin Access (Editable)" : "Locked by Policy";
-      });
+      const inOrg = $("#set-org"); if (inOrg) inOrg.value = builderSettings.org || "";
+      const inShowPrepared = $("#set-show-prepared"); if (inShowPrepared) inShowPrepared.checked = builderSettings.showPreparedBy !== false;
 
       modal.classList.add("on");
       modal.style.display = "flex";
@@ -17771,15 +17753,14 @@
         builderSettings.name = ($("#set-input-name")?.value || "").trim() || "Siva Kumar";
         builderSettings.role = ($("#set-input-role")?.value || "").trim() || "Lead Industrial Architect";
         builderSettings.units = $("#set-units")?.value || "imperial";
-        builderSettings.cellSize = Number($("#set-cell-size")?.value || 3);
-        builderSettings.aisleMin = Number($("#set-aisle-min")?.value || 4.0);
+        builderSettings.cellSize = $("#set-cell-size")?.value || "4x6";
+        builderSettings.aisleMin = $("#set-aisle-min")?.value || "4.0";
         builderSettings.prefixTag = ($("#set-prefix-tag")?.value || "H").trim();
         const chosenColor = $("#set-grid-color")?.value;
         customGridColor = (chosenColor && chosenColor !== "default") ? chosenColor : null;
         redraw();
-        builderSettings.aiVectorizer = $("#set-ai-vectorizer")?.checked ?? true;
-        builderSettings.aiOptimizer = $("#set-ai-optimizer")?.checked ?? true;
-        builderSettings.aiRooms = $("#set-ai-rooms")?.checked ?? true;
+        builderSettings.org = ($("#set-org")?.value || "").trim() || "BlitzNow Logistics - Bangalore Hub 1";
+        builderSettings.showPreparedBy = $("#set-show-prepared")?.checked ?? true;
 
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(builderSettings));
       } catch (err) {
