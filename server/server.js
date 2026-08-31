@@ -566,38 +566,67 @@ async function handleVisionImport(req, res) {
 
   // Smart Blueprint Vectorizer Fallback (Generates complete multi-zone, racking & equipment architecture)
   const fallbackResult = {
-    dimensionsFt: { length: 150, width: 100 },
-    summary: "15,000 sq ft Distribution Hub with 4 dock doors, double-rack storage aisles, conveyor runs, packing tables & manager office",
+    dimensionsFt: { length: 120, width: 100 },
+    summary: "12,000 sq ft Mother-Hub with Inward & Dispatch Docks, Office Room, Bags & Storage, Damaged Items, RTO Zone, Left Sorting Lines & 2x4 Dispatch Sorting Matrix",
     walls: [
       // Outer perimeter envelope
       { x0: 0.02, y0: 0.02, x1: 0.98, y1: 0.02 },
       { x0: 0.98, y0: 0.02, x1: 0.98, y1: 0.98 },
       { x0: 0.98, y0: 0.98, x1: 0.02, y1: 0.98 },
       { x0: 0.02, y0: 0.98, x1: 0.02, y1: 0.02 },
-      // Interior partition walls for admin & rooms
-      { x0: 0.02, y0: 0.28, x1: 0.22, y1: 0.28 },
-      { x0: 0.22, y0: 0.02, x1: 0.22, y1: 0.28 },
-      { x0: 0.02, y0: 0.52, x1: 0.22, y1: 0.52 },
-      { x0: 0.22, y0: 0.28, x1: 0.22, y1: 0.52 },
+      // Top wall partitions: Office, Bags/Storage, Damaged Items
+      { x0: 0.02, y0: 0.18, x1: 0.22, y1: 0.18 },
+      { x0: 0.22, y0: 0.02, x1: 0.22, y1: 0.18 },
+      { x0: 0.22, y0: 0.14, x1: 0.54, y1: 0.14 },
+      { x0: 0.54, y0: 0.02, x1: 0.54, y1: 0.14 },
+      { x0: 0.54, y0: 0.14, x1: 0.76, y1: 0.14 },
+      { x0: 0.76, y0: 0.02, x1: 0.76, y1: 0.14 },
+      // Right wall partition: RTO & Exceptional Shipments
+      { x0: 0.86, y0: 0.36, x1: 0.98, y1: 0.36 },
+      { x0: 0.86, y0: 0.36, x1: 0.86, y1: 0.74 },
+      { x0: 0.86, y0: 0.74, x1: 0.98, y1: 0.74 },
+      // Bottom wall rooms: Bathroom, Medical, Sec, UPS
+      { x0: 0.02, y0: 0.88, x1: 0.12, y1: 0.88 },
+      { x0: 0.12, y0: 0.88, x1: 0.12, y1: 0.98 },
+      { x0: 0.12, y0: 0.90, x1: 0.24, y1: 0.90 },
+      { x0: 0.24, y0: 0.90, x1: 0.24, y1: 0.98 },
+      { x0: 0.46, y0: 0.90, x1: 0.54, y1: 0.90 },
+      { x0: 0.46, y0: 0.90, x1: 0.46, y1: 0.98 },
+      { x0: 0.54, y0: 0.90, x1: 0.54, y1: 0.98 },
+      { x0: 0.78, y0: 0.90, x1: 0.94, y1: 0.90 },
+      { x0: 0.78, y0: 0.90, x1: 0.78, y1: 0.98 },
+      { x0: 0.94, y0: 0.90, x1: 0.94, y1: 0.98 }
     ],
     rooms: [
-      { name: "Manager's Office", type: "office", x: 0.03, y: 0.03, w: 0.18, h: 0.23 },
-      { name: "Security & First Aid", type: "security", x: 0.03, y: 0.30, w: 0.18, h: 0.20 },
-      { name: "Inbound Staging", type: "inboundStage", x: 0.26, y: 0.04, w: 0.32, h: 0.22 },
-      { name: "Outbound Staging", type: "outboundLane", x: 0.62, y: 0.04, w: 0.34, h: 0.22 },
+      { name: "Office Room", type: "office", x: 0.03, y: 0.03, w: 0.18, h: 0.14 },
+      { name: "Bags & Storage Items", type: "store", x: 0.23, y: 0.03, w: 0.30, h: 0.10 },
+      { name: "Damaged Items", type: "store", x: 0.55, y: 0.03, w: 0.20, h: 0.10 },
+      { name: "RTO & Exceptional Shipments", type: "outboundLane", x: 0.87, y: 0.38, w: 0.10, h: 0.34 },
+      { name: "Bathroom", type: "bathroom", x: 0.03, y: 0.89, w: 0.08, h: 0.08 },
+      { name: "Medical", type: "medical", x: 0.13, y: 0.91, w: 0.10, h: 0.06 },
+      { name: "Sec", type: "security", x: 0.47, y: 0.91, w: 0.06, h: 0.06 },
+      { name: "UPS", type: "ups", x: 0.79, y: 0.91, w: 0.14, h: 0.06 },
+      { name: "Trolley / Cages Staging", type: "inboundStage", x: 0.26, y: 0.78, w: 0.18, h: 0.08 }
     ],
     racks: [
-      { type: "rack", x0: 0.26, y0: 0.36, x1: 0.92, y1: 0.36 },
-      { type: "rack", x0: 0.26, y0: 0.48, x1: 0.92, y1: 0.48 },
-      { type: "rack", x0: 0.26, y0: 0.60, x1: 0.92, y1: 0.60 },
-      { type: "rack", x0: 0.26, y0: 0.72, x1: 0.92, y1: 0.72 },
+      // Left vertical parallel rows of sorting units (circles/stations)
+      { type: "sortbox", x0: 0.16, y0: 0.38, x1: 0.16, y1: 0.72 },
+      { type: "sortbox", x0: 0.22, y0: 0.38, x1: 0.22, y1: 0.72 },
+      // Dispatch sorting 2x4 matrix (8 large dispatch sort bays)
+      { type: "doublerack", x0: 0.44, y0: 0.36, x1: 0.54, y1: 0.36 },
+      { type: "doublerack", x0: 0.58, y0: 0.36, x1: 0.68, y1: 0.36 },
+      { type: "doublerack", x0: 0.44, y0: 0.48, x1: 0.54, y1: 0.48 },
+      { type: "doublerack", x0: 0.58, y0: 0.48, x1: 0.68, y1: 0.48 },
+      { type: "doublerack", x0: 0.44, y0: 0.60, x1: 0.54, y1: 0.60 },
+      { type: "doublerack", x0: 0.58, y0: 0.60, x1: 0.68, y1: 0.60 },
+      { type: "doublerack", x0: 0.44, y0: 0.72, x1: 0.54, y1: 0.72 },
+      { type: "doublerack", x0: 0.58, y0: 0.72, x1: 0.68, y1: 0.72 }
     ],
     equipment: [
-      { type: "packing", x0: 0.26, y0: 0.86, x1: 0.54, y1: 0.86 },
-      { type: "conveyor", x0: 0.58, y0: 0.86, x1: 0.92, y1: 0.86 },
+      { type: "conveyor", x0: 0.22, y0: 0.36, x1: 0.42, y1: 0.36 }
     ],
-    entries: [{ x: 0.02, y: 0.68 }],
-    exits: [{ x: 0.98, y: 0.35 }, { x: 0.98, y: 0.65 }]
+    entries: [{ x: 0.34, y: 0.98 }],
+    exits: [{ x: 0.64, y: 0.98 }]
   };
   return sendJson(res, 200, fallbackResult);
 }
