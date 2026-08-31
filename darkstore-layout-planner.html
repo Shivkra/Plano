@@ -4729,22 +4729,6 @@
       color: var(--primary, #0284C7);
     }
 
-    .right-panel-collapsed-badge:hover .rpc-chevron {
-      transform: translateX(-2px);
-    }
-
-    /* The expand affordance — a left-pointing chevron, matching the
-       collapse button's right-pointing one so both directions read as
-       one consistent "slide the panel this way" control instead of a ✕
-       (close) icon being reused to mean "collapse" in one direction and
-       an unrelated gear+text badge meaning "expand" in the other. */
-    .right-panel-collapsed-badge .rpc-chevron {
-      font-size: 13px;
-      font-weight: 900;
-      color: var(--ink-faint);
-      transition: transform var(--dur-f) var(--ease);
-    }
-
     .right-panel-collapsed-badge .rpc-icon {
       font-size: 18px;
     }
@@ -4780,25 +4764,41 @@
       gap: 5px;
     }
 
-    .rph-collapse-btn {
-      width: 24px;
-      height: 24px;
-      border-radius: 6px;
-      padding: 0;
+    /* Edge toggle — a single sticky control glued to the top-left of the
+       panel, present in BOTH the expanded and collapsed states (unlike
+       the old header-corner button, which only existed while expanded).
+       Sticky (not absolute) so it can't scroll out of view, and left-
+       aligned + high-contrast so it reads as the panel's primary
+       "slide this way" affordance instead of a small icon buried in a
+       header's far corner. */
+    .rp-edge-toggle {
+      position: sticky;
+      top: 0;
+      left: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
+      width: 28px;
+      height: 28px;
+      margin-bottom: 8px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      padding: 0;
+      font-size: 16px;
       font-weight: 900;
       color: var(--ink-soft);
       cursor: pointer;
+      z-index: 5;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
       transition: all var(--dur-f) var(--ease);
     }
 
-    .rph-collapse-btn:hover {
-      background: var(--surface-2);
-      color: var(--ink);
-      transform: translateX(2px);
+    .rp-edge-toggle:hover {
+      background: var(--primary, #0284C7);
+      border-color: var(--primary, #0284C7);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,.16);
     }
 
     .right-panel-content {
@@ -7729,9 +7729,10 @@
 
       <!-- Context-Sensitive Properties Right Panel -->
       <aside class="right-panel" id="right-panel">
+        <button class="rp-edge-toggle" id="rp-collapse-btn" title="Minimize sidebar (Collapse)"
+          aria-label="Minimize sidebar">❯</button>
         <div class="right-panel-collapsed-badge" id="rp-collapsed-badge"
           title="Click to expand Inspector &amp; Properties">
-          <span class="rpc-chevron">❮</span>
           <span class="rpc-icon">⚙️</span>
           <span class="rpc-text">PROPERTIES</span>
         </div>
@@ -7740,10 +7741,6 @@
             <div class="rph-title">
               <span>⚙️ Properties</span>
             </div>
-            <button class="btn ghost icon sm rph-collapse-btn" id="rp-collapse-btn" title="Minimize sidebar (Collapse)"
-              aria-label="Minimize sidebar">
-              ❯
-            </button>
           </div>
 
           <!-- Object Selected View -->
@@ -13102,7 +13099,12 @@
     // Right Properties Panel Collapse & Expand Listeners
     $("#rp-collapse-btn")?.addEventListener("click", (e) => {
       e.stopPropagation();
-      collapseRightPanel();
+      const rp = $("#right-panel");
+      if (rp && rp.classList.contains("is-collapsed")) {
+        expandRightPanel();
+      } else {
+        collapseRightPanel();
+      }
     });
     $("#rp-collapsed-badge")?.addEventListener("click", () => {
       expandRightPanel();
@@ -16581,6 +16583,16 @@
     ===================================================================== */
     let userCollapsedRightPanel = false;
 
+    function syncRightPanelToggleGlyph() {
+      const btn = $("#rp-collapse-btn");
+      const rp = $("#right-panel");
+      if (!btn || !rp) return;
+      const collapsed = rp.classList.contains("is-collapsed");
+      btn.textContent = collapsed ? "❮" : "❯";
+      btn.title = collapsed ? "Expand Properties panel" : "Minimize sidebar (Collapse)";
+      btn.setAttribute("aria-label", collapsed ? "Expand Properties panel" : "Minimize sidebar");
+    }
+
     function collapseRightPanel() {
       userCollapsedRightPanel = true;
       const rp = $("#right-panel");
@@ -16588,6 +16600,7 @@
         rp.classList.add("is-collapsed");
         rp.classList.remove("force-expanded");
       }
+      syncRightPanelToggleGlyph();
       playSfx("pop");
     }
 
@@ -16598,6 +16611,7 @@
         rp.classList.remove("is-collapsed");
         updateRightPanel();
       }
+      syncRightPanelToggleGlyph();
       playSfx("pop");
     }
 
@@ -16616,6 +16630,7 @@
             rp.classList.remove("is-collapsed");
             rp.classList.toggle("force-expanded", hasSelection);
           }
+          syncRightPanelToggleGlyph();
         }
         const objView = $("#prop-view-object");
         const roomView = $("#prop-view-room");
