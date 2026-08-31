@@ -2949,6 +2949,12 @@
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
     }
 
+    .btn-tool-pill.active {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+
     .finish-split-btn {
       position: relative;
       display: inline-flex;
@@ -5547,17 +5553,21 @@
       }
 
       #present,
-      #present * {
+      #present *,
+      #isoview,
+      #isoview * {
         visibility: visible;
       }
 
-      #present {
+      #present,
+      #isoview {
         position: absolute;
         inset: 0;
         background: #fff !important;
       }
 
-      header.pr-header {
+      header.pr-header,
+      header.iso-header {
         display: none !important;
       }
 
@@ -5570,6 +5580,32 @@
       #present-sheet {
         box-shadow: none;
         width: 100%;
+      }
+
+      /* The 3D canvas is the whole printed page — same title-block-baked-in
+         image the "Present" toggle shows on screen and bakes into the PNG
+         export, just handed to the printer instead of downloaded. Scaled
+         by max-width/height rather than forced to 100% — the canvas's own
+         pixel buffer is sized to the on-screen viewport's aspect ratio
+         (see sizeIsoCanvas), not the print page's, so stretching it to
+         fill the page exactly would distort the render. */
+      .iso-body {
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #iso-canvas {
+        width: auto !important;
+        height: auto !important;
+        max-width: 100%;
+        max-height: 100%;
+      }
+
+      .iso-edit-card,
+      .iso-empty-hint {
+        display: none !important;
       }
 
       @page {
@@ -7599,6 +7635,14 @@
       <strong>3D Warehouse View</strong>
       <div class="spacer"></div>
       <div class="btn-group-pill">
+        <button class="btn-tool-pill" id="iso-layer-structure"
+          title="Show/hide Structure & Storage (walls, columns, doors, racks…)">🏛️</button>
+        <button class="btn-tool-pill" id="iso-layer-equipment"
+          title="Show/hide Equipment & Operations (tables, conveyors, trolleys…)">📦</button>
+      </div>
+      <button class="btn-tool-pill" id="iso-measure-toggle"
+        title="Measure the distance between two points — click twice on the floor, Esc to cancel">📐 Measure</button>
+      <div class="btn-group-pill">
         <button class="btn-tool-pill" id="iso-zoom-out" title="Zoom out">−</button>
         <button class="btn-tool-pill" id="iso-zoom-reset" title="Fit to view">Fit</button>
         <button class="btn-tool-pill" id="iso-zoom-in" title="Zoom in">+</button>
@@ -7606,6 +7650,12 @@
       <label class="iso-toggle" title="Show room and zone names">
         <input type="checkbox" id="iso-show-labels" checked> Labels
       </label>
+      <label class="iso-toggle"
+        title="Add a title block — site name, dimensions, org & prepared-by — for presenting on screen or exporting">
+        <input type="checkbox" id="iso-present-toggle"> Present
+      </label>
+      <button class="btn ghost icon sm" id="iso-fullscreen" title="Fullscreen">⛶</button>
+      <button class="btn ghost sm" id="iso-export-pdf" title="Export as PDF (print)">🖨️ PDF</button>
       <button class="btn ghost sm" id="iso-export-png">⬇ Export PNG</button>
     </header>
     <div class="iso-body" id="iso-body">
@@ -16573,15 +16623,28 @@
        ISOMETRIC "FINISH" VIEW — a 2.5D render of the current floor plan.
        Click a room or object to select it — the small edit card reuses the
        same underlying zone/cell edit functions as the 2D editor (color,
-       name, duplicate, delete). There's no drag-to-move here by design —
-       repositioning still happens back in the 2D editor; this view is
-       for reviewing and light touch-ups once the layout is basically done.
+       name, duplicate, delete). Drag an item to move it (see isoApplyItemDrag
+       below) — repositioning works here too, not just back in the 2D editor.
     ===================================================================== */
     let isoScale = 10, isoOffsetX = 0, isoOffsetY = 0;
     let isoHitList = [];   // [{ kind:'zone'|'cell', ref, faces:[[{x,y}...], ...] }] in draw order
     let isoSelected = null; // { kind:'zone'|'cell', ref }
     let isoShowLabels = true;
     let isoDrag = null;    // { startX, startY, ox, oy, moved }
+    // Presentation mode — bakes a title block (org, site name, dimensions,
+    // date, prepared-by) into the canvas itself, so the same toggle covers
+    // the live view, the PNG export (a straight canvas snapshot), and the
+    // print/PDF export (which shows the DOM as-is) with one code path.
+    let isoPresentMode = false;
+    // Distance-measure tool — click a point on the floor to start, click a
+    // second to finish; the line + distance track the cursor in between so
+    // the measurement previews before it's placed. Independent of
+    // isoDrag/isoSelected so an armed measurement doesn't fight with
+    // selecting or dragging an object.
+    let isoMeasureActive = false;
+    let isoMeasureStart = null;   // {x,y} in feet, floor plane (z=0)
+    let isoMeasureCurrent = null; // {x,y} in feet — live cursor position while armed
+    let isoMeasureDone = false;   // true once both points are placed — next click starts over
 
     // Support rooms are real enclosed rooms — they get wall height. Operational
     // areas (apron, sortation, lanes, staging) are floor regions, not rooms, so
@@ -16678,6 +16741,16 @@
     function isoScreenDeltaToFt(dsx, dsy) {
       const du = dsx / isoScale, dv = dsy / isoScale;
       return { dx: (du + 2 * dv) / 2, dy: (2 * dv - du) / 2 };
+    }
+
+    // Inverts a canvas-local screen point to a floor-plane (z=0) point in
+    // feet — same u/v math as isoScreenDeltaToFt, just against the
+    // absolute point (offset subtracted first) instead of a delta. Used by
+    // the measure tool, which needs "where on the floor was this click",
+    // not "how far did the pointer move".
+    function isoScreenPointToFt(sx, sy) {
+      const u = (sx - isoOffsetX) / isoScale, v = (sy - isoOffsetY) / isoScale;
+      return { x: v + u / 2, y: v - u / 2 };
     }
 
     // Zoom about a screen point, keeping whatever is under the cursor fixed.
@@ -16800,6 +16873,14 @@
         const idx = cell.r * site.cols + cell.c;
         const v = site.cells[idx], def = PAINT_BY_ID[v];
         if (!def) return;
+        // Same 4 layer flags the 2D board's redraw() already gates on —
+        // this view never read them at all before, so hiding a layer back
+        // in the 2D editor (or the quick toggles in this view's own
+        // header) had zero effect once you clicked Finish.
+        if (def.category === "infra" && !layerVisibility.building) return;
+        if (def.category === "storage" && !layerVisibility.storage) return;
+        if (def.category === "equip" && !layerVisibility.equipment) return;
+        if (def.category === "ops" && !layerVisibility.operations) return;
         const customDim = site.cellDims && site.cellDims[idx];
         const w = (customDim && customDim.w != null) ? customDim.w : (def.w || CELL_FT);
         const d = (customDim && customDim.d != null) ? customDim.d : (def.d || CELL_FT);
@@ -16921,6 +17002,80 @@
       g.font = "600 11px -apple-system,Segoe UI,Roboto,sans-serif";
       g.textAlign = "left"; g.textBaseline = "bottom";
       g.fillText(`${site.L} × ${site.W} ft · ${fmtNum(site.L * site.W)} sq ft`, 14, ch - 12);
+
+      // Presentation title block — drawn straight onto the canvas (not an
+      // HTML overlay) so one code path covers the live view, the PNG
+      // export (a plain canvas snapshot), and the print/PDF export (which
+      // shows this same canvas at whatever it currently holds) all at
+      // once. Same org/prepared-by fields as the 2D presentation sheet's
+      // title block, for a consistent "who built this" story across both.
+      if (isoPresentMode) {
+        const pad = 16, innerPad = 14;
+        const orgLine = (builderSettings && builderSettings.org) || "";
+        const title = site.name || "Untitled Site";
+        const dateStr = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+        const preparedLine = (builderSettings && builderSettings.showPreparedBy !== false && builderSettings.name)
+          ? `Prepared by ${builderSettings.name}${builderSettings.role ? " · " + builderSettings.role : ""}`
+          : "";
+        const metaLine = `${site.L} × ${site.W} ft · ${fmtNum(site.L * site.W)} sq ft · ${dateStr}${preparedLine ? " · " + preparedLine : ""}`;
+
+        g.save();
+        g.font = "800 20px -apple-system,Segoe UI,Roboto,sans-serif";
+        const titleW = g.measureText(title).width;
+        g.font = "700 12px -apple-system,Segoe UI,Roboto,sans-serif";
+        const orgW = orgLine ? g.measureText(orgLine).width : 0;
+        g.font = "600 12px -apple-system,Segoe UI,Roboto,sans-serif";
+        const metaW = g.measureText(metaLine).width;
+        const blockW = Math.min(cw - pad * 2, Math.max(orgW, titleW, metaW) + innerPad * 2);
+        const blockH = (orgLine ? 20 : 0) + 30 + 20 + 14;
+
+        g.fillStyle = currentTheme === "dark" ? "rgba(23,28,38,0.85)" : "rgba(255,255,255,0.9)";
+        roundRectPath(g, pad, pad, blockW, blockH, 8); g.fill();
+        g.strokeStyle = currentTheme === "dark" ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.1)";
+        g.lineWidth = 1;
+        roundRectPath(g, pad, pad, blockW, blockH, 8); g.stroke();
+
+        let ty = pad + 10;
+        g.textAlign = "left"; g.textBaseline = "top";
+        if (orgLine) {
+          g.font = "700 12px -apple-system,Segoe UI,Roboto,sans-serif";
+          g.fillStyle = currentTheme === "dark" ? "#94A3B8" : "#6B6558";
+          g.fillText(orgLine, pad + innerPad, ty);
+          ty += 20;
+        }
+        g.font = "800 20px -apple-system,Segoe UI,Roboto,sans-serif";
+        g.fillStyle = currentTheme === "dark" ? "#F1F5F9" : "#1D1B17";
+        g.fillText(title, pad + innerPad, ty);
+        ty += 30;
+        g.font = "600 12px -apple-system,Segoe UI,Roboto,sans-serif";
+        g.fillStyle = currentTheme === "dark" ? "#94A3B8" : "#6B6558";
+        g.fillText(metaLine, pad + innerPad, ty);
+        g.restore();
+      }
+
+      // Distance-measure overlay — a dashed line between the two clicked
+      // floor points (or the first point and the live cursor, before the
+      // second click), with the distance at the midpoint. Drawn last, on
+      // top of everything else it's measuring across.
+      if (isoMeasureStart) {
+        const endPt = isoMeasureCurrent || isoMeasureStart;
+        const p1 = isoProject(isoMeasureStart.x, isoMeasureStart.y, 0);
+        const p2 = isoProject(endPt.x, endPt.y, 0);
+        const distFt = Math.hypot(endPt.x - isoMeasureStart.x, endPt.y - isoMeasureStart.y);
+        g.save();
+        g.strokeStyle = "#EC4899"; g.lineWidth = 2; g.setLineDash([6, 4]);
+        g.beginPath(); g.moveTo(p1.x, p1.y); g.lineTo(p2.x, p2.y); g.stroke();
+        g.setLineDash([]);
+        [p1, p2].forEach(p => {
+          g.beginPath(); g.arc(p.x, p.y, 4, 0, Math.PI * 2);
+          g.fillStyle = "#EC4899"; g.fill();
+          g.strokeStyle = "#fff"; g.lineWidth = 1.5; g.stroke();
+        });
+        const midX = (p1.x + p2.x) / 2, midY = (p1.y + p2.y) / 2;
+        const label = currentUnit === "m" ? `${(distFt * 0.3048).toFixed(1)} m` : `${distFt.toFixed(1)} ft`;
+        drawBadge(g, midX, midY - 14, label);
+        g.restore();
+      }
     }
 
     function isoFindHit(px, py) {
@@ -17013,6 +17168,49 @@
       a.download = slug(site.name) + "-3d-view.png";
       document.body.appendChild(a); a.click(); a.remove();
     });
+    // Print/PDF export — same #isoview print styling used for the "Present"
+    // title block, so what comes out matches what "Present" showed on
+    // screen (or the plain render if it was never turned on).
+    $("#iso-export-pdf")?.addEventListener("click", () => window.print());
+    // Bakes a title block into the canvas itself (see renderIsoView) —
+    // covers the live view, PNG export and print/PDF export in one toggle.
+    $("#iso-present-toggle")?.addEventListener("change", e => {
+      isoPresentMode = e.target.checked;
+      renderIsoView();
+    });
+    // Quick layer visibility from inside the 3D view — same two grouped
+    // flags the 2D Store Layers panel's first two rows drive (Flow & Notes
+    // doesn't apply here; connectors/annotations have no 3D representation
+    // to hide). .active marks a layer that's currently HIDDEN, so the
+    // header stays quiet until something actually is.
+    $("#iso-layer-structure")?.addEventListener("click", e => {
+      const next = !layerVisibility.building;
+      layerVisibility.building = next; layerVisibility.storage = next;
+      e.currentTarget.classList.toggle("active", !next);
+      renderIsoView();
+    });
+    $("#iso-layer-equipment")?.addEventListener("click", e => {
+      const next = !layerVisibility.equipment;
+      layerVisibility.equipment = next; layerVisibility.operations = next;
+      e.currentTarget.classList.toggle("active", !next);
+      renderIsoView();
+    });
+    // Distance-measure tool — armed independently of select/drag (see the
+    // pointerdown/pointermove handlers below, which check this first).
+    $("#iso-measure-toggle")?.addEventListener("click", e => {
+      isoMeasureActive = !isoMeasureActive;
+      isoMeasureStart = null; isoMeasureCurrent = null;
+      e.currentTarget.classList.toggle("active", isoMeasureActive);
+      isoCanvasEl().style.cursor = isoMeasureActive ? "crosshair" : "";
+      renderIsoView();
+    });
+    $("#iso-fullscreen")?.addEventListener("click", () => {
+      if (!document.fullscreenElement) {
+        $("#isoview")?.requestFullscreen?.().catch(() => toast("Fullscreen isn't available here"));
+      } else {
+        document.exitFullscreen?.();
+      }
+    });
     $("#ed-finish")?.addEventListener("click", () => {
       hideFinishDropdown();
       isoSelected = null; hideIsoEditCard();
@@ -17062,6 +17260,19 @@
     if (isoC) {
       isoC.addEventListener("pointerdown", ev => {
         const rect = isoC.getBoundingClientRect();
+        // Measure tool takes over the canvas entirely while armed — no
+        // select/drag/pan underneath it, same as how the flow-connector
+        // tool owns the 2D canvas while it's active.
+        if (isoMeasureActive) {
+          const pt = isoScreenPointToFt(ev.clientX - rect.left, ev.clientY - rect.top);
+          if (!isoMeasureStart || isoMeasureDone) {
+            isoMeasureStart = pt; isoMeasureCurrent = pt; isoMeasureDone = false;
+          } else {
+            isoMeasureCurrent = pt; isoMeasureDone = true;
+          }
+          renderIsoView();
+          return;
+        }
         const hit = isoFindHit(ev.clientX - rect.left, ev.clientY - rect.top);
         safeSetPointerCapture(isoC, ev.pointerId);
         if (hit) {
@@ -17091,9 +17302,18 @@
         }
       });
       isoC.addEventListener("pointermove", ev => {
+        // Live preview line while the first measure point is placed and
+        // waiting on the second click.
+        if (isoMeasureActive && isoMeasureStart && !isoMeasureDone) {
+          const rect = isoC.getBoundingClientRect();
+          isoMeasureCurrent = isoScreenPointToFt(ev.clientX - rect.left, ev.clientY - rect.top);
+          renderIsoView();
+          return;
+        }
         if (!isoDrag) {
           // Hover affordance: show a move cursor over anything draggable.
           const rect = isoC.getBoundingClientRect();
+          if (isoMeasureActive) return; // crosshair cursor already set; don't fight it with move/grab
           const hit = isoFindHit(ev.clientX - rect.left, ev.clientY - rect.top);
           isoC.style.cursor = hit ? "move" : "grab";
           return;
