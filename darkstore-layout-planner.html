@@ -6487,18 +6487,6 @@
             </div>
           </div>
 
-          <div class="choice-input-row" style="margin-top:12px;">
-            <div>
-              <label class="choice-field-label" for="choice-vision-orders">Boxes handled / day</label>
-              <input type="number" class="choice-input" id="choice-vision-orders" min="0" max="500000"
-                step="100" placeholder="e.g. 3000">
-            </div>
-            <div>
-              <label class="choice-field-label" for="choice-vision-dests">Destination hubs shipped to</label>
-              <input type="number" class="choice-input" id="choice-vision-dests" min="0" max="200" placeholder="e.g. 5">
-            </div>
-          </div>
-
           <div id="choice-ai-status"
             style="display:none; margin-top:14px; padding:12px; background:var(--surface-2); border-radius:var(--r-md); border:1px solid #10B981;">
             <div style="display:flex; align-items:center; gap:8px; font-weight:700; font-size:13px; color:#059669;">
@@ -6542,18 +6530,6 @@
                   <input type="number" class="choice-input" id="choice-dim-w" min="20" max="1000" step="2"
                     placeholder="e.g. 100">
                 </div>
-              </div>
-            </div>
-
-            <div class="choice-input-row" style="margin-top:12px;">
-              <div>
-                <label class="choice-field-label" for="choice-orders">Boxes handled / day</label>
-                <input type="number" class="choice-input" id="choice-orders" min="0" max="500000"
-                  step="100" placeholder="e.g. 3000">
-              </div>
-              <div>
-                <label class="choice-field-label" for="choice-dests">Destination hubs shipped to</label>
-                <input type="number" class="choice-input" id="choice-dests" min="0" max="200" placeholder="e.g. 5">
               </div>
             </div>
 
@@ -7634,12 +7610,21 @@
       <button class="btn ghost icon" id="iso-back" title="Back to editor">←</button>
       <strong>3D Warehouse View</strong>
       <div class="spacer"></div>
+
+      <!-- View: what's visible right now -->
       <div class="btn-group-pill">
         <button class="btn-tool-pill" id="iso-layer-structure"
-          title="Show/hide Structure & Storage (walls, columns, doors, racks…)">🏛️</button>
+          title="Show/hide Structure & Storage — walls, columns, doors, racks…">🏛️ Structure</button>
         <button class="btn-tool-pill" id="iso-layer-equipment"
-          title="Show/hide Equipment & Operations (tables, conveyors, trolleys…)">📦</button>
+          title="Show/hide Equipment & Operations — tables, conveyors, trolleys…">📦 Equipment</button>
       </div>
+      <label class="iso-toggle" title="Show room and zone names">
+        <input type="checkbox" id="iso-show-labels" checked> Labels
+      </label>
+
+      <div class="ed-nav-sep"></div>
+
+      <!-- Tools: interact with the model -->
       <button class="btn-tool-pill" id="iso-measure-toggle"
         title="Measure the distance between two points — click twice on the floor, Esc to cancel">📐 Measure</button>
       <div class="btn-group-pill">
@@ -7647,16 +7632,18 @@
         <button class="btn-tool-pill" id="iso-zoom-reset" title="Fit to view">Fit</button>
         <button class="btn-tool-pill" id="iso-zoom-in" title="Zoom in">+</button>
       </div>
-      <label class="iso-toggle" title="Show room and zone names">
-        <input type="checkbox" id="iso-show-labels" checked> Labels
-      </label>
-      <label class="iso-toggle"
-        title="Add a title block — site name, dimensions, org & prepared-by — for presenting on screen or exporting">
-        <input type="checkbox" id="iso-present-toggle"> Present
-      </label>
+
+      <div class="ed-nav-sep"></div>
+
+      <!-- Output: leave the view -->
       <button class="btn ghost icon sm" id="iso-fullscreen" title="Fullscreen">⛶</button>
-      <button class="btn ghost sm" id="iso-export-pdf" title="Export as PDF (print)">🖨️ PDF</button>
-      <button class="btn ghost sm" id="iso-export-png">⬇ Export PNG</button>
+      <div class="finish-split-btn" id="iso-export-split-btn">
+        <button class="btn ghost sm" id="iso-export-btn" title="Export this view">⬇ Export ▾</button>
+        <div class="finish-dropdown" id="iso-export-dropdown">
+          <button id="iso-export-pdf-item">🖨️ Export as PDF</button>
+          <button id="iso-export-png-item">⬇ Export as PNG</button>
+        </div>
+      </div>
     </header>
     <div class="iso-body" id="iso-body">
       <canvas id="iso-canvas"></canvas>
@@ -7964,6 +7951,15 @@
       bagging: { name: "Bagging", color: "#16A34A", group: "room" },
       dispatchQueue: { name: "Dispatch Zone", color: "#9333EA", group: "room" },
       sorting: { name: "Sorting Zone", color: "#0891B2", group: "room" },
+      // Circulation the generator deliberately leaves clear for people and
+      // carts to move through — the spine access/return aisle, cross
+      // aisles, etc. Previously left unzoned (truly blank grid), which
+      // read as leftover/wasted space rather than the intentional walking
+      // room it actually is. A pale, low-saturation color (plus a darker
+      // label color in drawZone — the usual white zone-label text has poor
+      // contrast on a fill this light) keeps it visually "floor you walk
+      // on," not mistakable for an empty room pocket.
+      walkway: { name: "Walking Area", color: "#E7E2D6", group: "room" },
       security: { name: "Security Room", color: "#1E293B", group: "room" },
       medical: { name: "Medical / First-Aid", color: "#E11D48", group: "room" },
       conference: { name: "Conference Room", color: "#7C3AED", group: "room" },
@@ -8503,12 +8499,14 @@
        DESIGN CHOICE SCREEN LOGIC (Upload Blueprint vs Start Drawing)
     ===================================================================== */
     // Every field on both cards starts genuinely blank on every visit — no
-    // example name, no example dimensions, no example volume. A manager
-    // should never be able to launch a site purely on numbers they never
-    // actually looked at; see validateChoiceFields() below for the other
-    // half of that (blocking launch until they're filled in).
-    const CHOICE_FIELD_IDS = ["#choice-store-name", "#choice-dim-l", "#choice-dim-w", "#choice-orders", "#choice-dests",
-      "#choice-vision-orders", "#choice-vision-dests"];
+    // example name, no example dimensions. A manager should never be able
+    // to launch a site purely on numbers they never actually looked at;
+    // see validateChoiceFields() below for the other half of that
+    // (blocking launch until they're filled in). No volume/destination
+    // fields here by design — every layout is sized to use its building's
+    // full floor efficiently regardless of current order volume, so
+    // there's nothing volume-related to ask at this gate.
+    const CHOICE_FIELD_IDS = ["#choice-store-name", "#choice-dim-l", "#choice-dim-w"];
     function openDesignChoice() {
       showScreen("design-choice");
       CHOICE_FIELD_IDS.forEach(sel => {
@@ -8568,17 +8566,15 @@
     // prompt, since every one of those decisions has a real, checkable
     // consequence on THIS site's own dimensions.
     $("#choice-launch-canvas-btn")?.addEventListener("click", async () => {
-      if (!validateChoiceFields(["#choice-store-name", "#choice-dim-l", "#choice-dim-w", "#choice-orders", "#choice-dests"])) return;
+      if (!validateChoiceFields(["#choice-store-name", "#choice-dim-l", "#choice-dim-w"])) return;
       const name = ($("#choice-store-name")?.value || "New Warehouse Layout").trim();
       const l = clamp(parseInt($("#choice-dim-l")?.value) || 120, 20, 1000);
       const w = clamp(parseInt($("#choice-dim-w")?.value) || 90, 20, 1000);
-      const ordersPerDay = clamp(parseInt($("#choice-orders")?.value) || 0, 0, 500000);
-      const destinationHubs = clamp(parseInt($("#choice-dests")?.value) || 0, 0, 200);
 
       const s = newSiteObject(name, l, w);
       ensureCellsArray(s);
-      s._genParams = Object.assign(defaultGenParams(), { ordersPerDay, destinationHubs, outboundLanes: destinationHubs > 0 });
-      s._businessContext = { ordersPerDay, destinationHubs };
+      s._genParams = defaultGenParams();
+      s._businessContext = { destinationHubs: 0 };
       try {
         await saveSite(s);
       } catch (e) {
@@ -8591,10 +8587,8 @@
     // Option 1: AI Blueprint Upload
     const choiceDropzone = $("#choice-blueprint-dropzone");
     const choiceFileInput = $("#choice-blueprint-file");
-    const CHOICE_VISION_FIELDS = ["#choice-vision-orders", "#choice-vision-dests"];
 
     choiceDropzone?.addEventListener("click", () => {
-      if (!validateChoiceFields(CHOICE_VISION_FIELDS)) return;
       choiceFileInput?.click();
     });
 
@@ -8608,16 +8602,11 @@
     choiceDropzone?.addEventListener("drop", e => {
       e.preventDefault();
       choiceDropzone.classList.remove("dragover");
-      if (!validateChoiceFields(CHOICE_VISION_FIELDS)) return;
       const file = e.dataTransfer?.files?.[0];
       if (file) handleChoiceBlueprintUpload(file);
     });
 
     choiceFileInput?.addEventListener("change", e => {
-      // Belt-and-suspenders: the picker only opens past the click-gate
-      // above, but a file can also land here from a stale/back-navigated
-      // input, so this re-checks rather than trusting that gate alone.
-      if (!validateChoiceFields(CHOICE_VISION_FIELDS)) return;
       const file = e.target.files?.[0];
       if (file) handleChoiceBlueprintUpload(file);
     });
@@ -8841,8 +8830,6 @@
 
           const baseName = file.name.replace(/\.[^/.]+$/, "");
           const siteName = baseName ? `Blueprint - ${baseName}` : "AI Extracted Layout";
-          const ordersPerDay = clamp(parseInt($("#choice-vision-orders")?.value) || 0, 0, 500000);
-          const destinationHubs = clamp(parseInt($("#choice-vision-dests")?.value) || 0, 0, 200);
 
           const newSite = newSiteObject(siteName, l, w);
           ensureCellsArray(newSite);
@@ -8850,12 +8837,11 @@
             defaultGenParams(),
             {
               dockInBays, dockOutBays, dockBays: dockInBays + dockOutBays, dockSeparate: true,
-              ordersPerDay, destinationHubs, outboundLanes: destinationHubs > 0,
               visionRooms: roomList, sortCount: sortStationCount || undefined
             },
             ...Object.values(visionAnswered).map(a => a.patch)
           );
-          newSite._businessContext = { ordersPerDay, destinationHubs };
+          newSite._businessContext = { destinationHubs: 0 };
           newSite._visionAnswered = visionAnswered;
           newSite._visionStaircases = staircaseList;
 
@@ -10523,7 +10509,25 @@
        footprint, not the goods themselves.
     ===================================================================== */
     function generateDefaultLayout(s, input) {
-      const L = s.L, W = s.W;
+      // Perimeter wall — every generated building gets a real wall on its
+      // own outer edge by default, not just whatever a manager happens to
+      // draw manually (previously only ever added on-demand, by
+      // optimizeCurrentLayout's own boundary-synthesis step). Carved out
+      // BEFORE anything else is placed: everything below works against
+      // this smaller interior envelope (L/W here are already net of the
+      // wall on 3 sides), then gets shifted back out to true building
+      // coordinates afterward — so nothing placed can ever land on top of
+      // the wall; there's no overlap to check for. The south (W-facing)
+      // edge is deliberately NOT inset, on all 3 flow shapes alike,
+      // because that's the one edge every shape's gate/apron zone
+      // legitimately needs to reach — an inset there would wall off the
+      // gate opening itself. GFA and every %-of-GFA budget inside the
+      // flow-shape builders are computed from these same interior L/W, so
+      // the wall's own footprint is never counted as "used floor" in any
+      // efficiency figure — it's structural, accounted for separately
+      // (as its own painted-cell line in the area summary), not floor.
+      const WALL_T = CELL_FT;
+      const L = Math.max(CELL_FT * 2, s.L - WALL_T * 2), W = Math.max(CELL_FT * 2, s.W - WALL_T);
       const bayW = input.doorSpacingFt || 12;
       const MIN_BAND = 8;
 
@@ -10565,15 +10569,18 @@
       // asked for (by toggle, or by being a real photographed room).
       const dropOrder = ["growth", "charging", "staging", "returns", "inboundStage", "exception", "conference", "ups", "store", "office", "bathroom", "medical"];
 
-      const tier = throughputTier(input.ordersPerDay);
       // A blueprint upload can show the real number of sortation/segregation
-      // stations (one per destination, e.g. S1-S5) — use that directly.
-      // Absent that, a real mother hub runs one segregation box per
-      // destination hub/city it dispatches to, which is the next-best
-      // default — only falling back to a throughput-tier guess when neither
-      // the photo nor a destination count is known.
-      const sortCount = clamp(input.sortCount || input.destinationHubs || { low: 1, med: 2, high: 3 }[tier], 1, 24);
-      const sortAreaEach = { low: 300, med: 450, high: 600 }[tier];
+      // stations (one per destination, e.g. S1-S5) — kept as a hard
+      // override, since it's photographic evidence of the actual building,
+      // not a target to size toward. Absent that, buildCornerFlow/
+      // buildLoopFlow size their grid off whatever floor area is actually
+      // available (see estimateGridCapacity), not assumed order volume or
+      // destination count — every hub is built to use its space fully
+      // regardless of current load. sortAreaEach is a real module's
+      // physical footprint; it doesn't shrink just because a site expects
+      // fewer orders through it.
+      const sortCount = input.sortCount ? clamp(Math.round(input.sortCount), 1, 24) : 0;
+      const sortAreaEach = 600;
       let sortDepth = snap2(clamp(Math.round(W * 0.2), MIN_BAND, 32));
 
       // One shared gate — total physical door count (from the doors decision,
@@ -10604,15 +10611,57 @@
         : shape === "loop" ? buildLoopFlow(ctx)
           : buildSpineFlow(ctx);
 
+      // Claim whatever floor the shape itself didn't (see
+      // fillLeftoverAsWalkway) — run once here, centrally, against every
+      // shape's own interior L/W, rather than inside each builder.
+      built.zones.push(...fillLeftoverAsWalkway(built.zones, L, W));
+
+      // Shift everything from the interior-local coordinates the flow
+      // builders worked in out to true building coordinates (north/west/
+      // east walls inset by WALL_T; south stays put — see WALL_T comment
+      // above). Every absolute position the builders handed back needs
+      // the same shift, not just the zones.
+      built.zones.forEach(z => { z.x = snap2(z.x + WALL_T); z.y = snap2(z.y + WALL_T); });
+
       s._conveyorPlan = {
         method: input.sortationMethod || "manual",
-        fromX: built.sortX, spanW: built.sortW,
-        top: Math.min(built.convA, built.convB), bottom: Math.max(built.convA, built.convB),
+        fromX: built.sortX + WALL_T, spanW: built.sortW,
+        top: Math.min(built.convA, built.convB) + WALL_T, bottom: Math.max(built.convA, built.convB) + WALL_T,
       };
       s._pedestrianEntry = input.pedestrianEntry;
       s._laneNote = built.laneNote || "";
 
+      paintPerimeterWall(s, WALL_T, built.zones);
+
       return built.zones;
+    }
+
+    // Paints a WALL_T-thick wall band around the building's true outer
+    // edge. North/west/east are always clear at this point (the interior
+    // envelope fed to the flow builders was already inset on those 3
+    // sides, so no zone can reach them) — painted unconditionally there.
+    // South is NOT inset upstream, specifically so every flow shape's
+    // gate/apron can reach the true edge for a real dock-door opening;
+    // the wall on that side is only painted where no zone already covers
+    // the cell, which naturally leaves the gate (and anything else built
+    // flush to the south wall, e.g. Security) open.
+    function paintPerimeterWall(s, wallT, zones) {
+      ensureCellsArray(s);
+      const band = Math.max(1, Math.round(wallT / CELL_FT));
+      for (let r = 0; r < s.rows; r++) {
+        for (let c = 0; c < s.cols; c++) {
+          const onNorth = r < band, onWest = c < band, onEast = c >= s.cols - band, onSouth = r >= s.rows - band;
+          if (!(onNorth || onWest || onEast || onSouth)) continue;
+          const idx = r * s.cols + c;
+          if (s.cells[idx]) continue;
+          if (onSouth && !(onNorth || onWest || onEast)) {
+            const cx = c * CELL_FT + CELL_FT / 2, cy = r * CELL_FT + CELL_FT / 2;
+            const openHere = zones.some(z => cx >= z.x && cx <= z.x + z.w && cy >= z.y && cy <= z.y + z.h);
+            if (openHere) continue;
+          }
+          s.cells[idx] = PAINT_DEFS.wall.id;
+        }
+      }
     }
     /* Splits leftover roomTypes round-robin into two side groups for a
        margin-column placement, moving everything to one side if the other
@@ -10644,6 +10693,73 @@
       left = fitColumnRooms(left, Math.max(8, leftMarginW), marginH, dropOrder);
       right = fitColumnRooms(right, Math.max(8, rightMarginW), marginH, dropOrder);
       return { left, right };
+    }
+    // How many sortAreaEach-sized boxes an area-driven grid fills a
+    // maxW × maxH rectangle with, at rowDepth per row — mirrors
+    // layoutSortGrid's own perRow/row derivation exactly (natural box width
+    // = area / row depth, floored at the same MIN_BOX_W), so the count
+    // handed back actually fills the space layoutSortGrid lays out instead
+    // of leaving it to a raw area/sortAreaEach division, which ignores row
+    // quantization and the width floor and can come out too low (visible
+    // gap) or, if padded to compensate, wildly too high (layoutSortGrid
+    // would then compress eachW well below a legible module width to force
+    // the inflated count to fit).
+    function estimateGridCapacity(sortAreaEach, maxW, rowDepth, maxH) {
+      const MIN_BOX_W = 10;
+      const depth = Math.max(CELL_FT, rowDepth);
+      const naturalEachW = Math.max(MIN_BOX_W, sortAreaEach / depth);
+      const perRow = Math.max(1, Math.floor(maxW / naturalEachW));
+      const maxRows = Math.max(1, Math.floor(Math.max(CELL_FT, maxH) / depth));
+      return perRow * maxRows;
+    }
+    // Corner and Loop place a gate column, a sortation arm, and a room
+    // band — each sized off its own content, not stretched to the
+    // building's actual edges — which can leave real floor past the last
+    // room or below the arm that no zone ever claims. Rather than reworking
+    // either shape's placement math to stretch precisely into whatever's
+    // left (a much larger, riskier change per shape), this runs once,
+    // centrally, after any shape has finished placing its own zones: scan
+    // the interior grid for cells no zone covers, and turn them into
+    // explicit, labeled floor instead of a silent gap — exactly the
+    // "highlight the walking area" the rest of the walkway work already
+    // does for Spine's own aisles. Unclaimed cells are merged column by
+    // column (a run merges rightward while every column in its row range
+    // is also fully unclaimed) rather than a full maximal-rectangle solve
+    // — simpler, and sufficient for the mostly-rectangular leftovers these
+    // shapes produce; a genuinely irregular remainder just comes back as a
+    // few adjacent rectangles instead of one, which is still fully
+    // accounted for, just not maximally tidy about it.
+    function fillLeftoverAsWalkway(zones, L, W) {
+      const cols = Math.max(1, Math.round(L / CELL_FT)), rows = Math.max(1, Math.round(W / CELL_FT));
+      const claimed = new Array(cols * rows).fill(false);
+      zones.forEach(z => {
+        const c0 = clamp(Math.floor(z.x / CELL_FT), 0, cols), c1 = clamp(Math.ceil((z.x + z.w) / CELL_FT), 0, cols);
+        const r0 = clamp(Math.floor(z.y / CELL_FT), 0, rows), r1 = clamp(Math.ceil((z.y + z.h) / CELL_FT), 0, rows);
+        for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) claimed[r * cols + c] = true;
+      });
+      const MIN_STRIP_SQFT = 60; // below this, it's rounding noise, not a real pocket of floor
+      const out = [];
+      for (let c = 0; c < cols; c++) {
+        let r = 0;
+        while (r < rows) {
+          if (claimed[r * cols + c]) { r++; continue; }
+          let r1 = r + 1;
+          while (r1 < rows && !claimed[r1 * cols + c]) r1++;
+          let c1 = c + 1;
+          extend:
+          while (c1 < cols) {
+            for (let rr = r; rr < r1; rr++) if (claimed[rr * cols + c1]) break extend;
+            c1++;
+          }
+          const w = (c1 - c) * CELL_FT, h = (r1 - r) * CELL_FT;
+          if (w * h >= MIN_STRIP_SQFT) {
+            out.push(mkZone("walkway", c * CELL_FT, r * CELL_FT, w, h, "Open Floor"));
+          }
+          for (let rr = r; rr < r1; rr++) for (let cc = c; cc < c1; cc++) claimed[rr * cols + cc] = true;
+          r = r1;
+        }
+      }
+      return out;
     }
     /* Lays out sortCount boxes as a grid within a fixed max width, wrapping
        to additional rows once a single row would run past maxW — the same
@@ -10837,6 +10953,16 @@
           `Module ${i + 1} — ${positionsPerModule} pos`));
       }
 
+      // ---- Cross aisle — the full-width gap sortDepth leaves between the
+      // sortation modules and the Flex Apron (§8.3's crossAisleArea budget
+      // line). Security's own depth is clamped to gateDepth, and apronDepth
+      // is always >= gateDepth by construction (both floor/ceiling off the
+      // same W-derived value), so apronY <= secY always — this band never
+      // reaches down into Security's footprint. ----
+      if (crossAisleDepth >= CELL_FT) {
+        zones.push(mkZone("walkway", 0, sortBottomY, L, crossAisleDepth, "Cross Aisle"));
+      }
+
       // ---- Bagging & consolidation (§3, 13% target) — subdivided into
       // per-destination lanes within its OWN footprint when a destination
       // count is known, rather than an extra zone claiming more space. ----
@@ -10860,10 +10986,16 @@
 
       // ---- Service spine (§2.1, §6) — the whole room list in ONE band
       // alongside the sortation+bagging run, with the dual-purpose access/
-      // return aisle left open (unzoned) between them (§2.6). ----
+      // return aisle left open between them (§2.6). "Open" means open to
+      // walk on, not unaccounted-for floor — marked as its own zone so it
+      // reads as the intentional circulation it is rather than a gap. ----
       const marginH = Math.max(CELL_FT, spineLength);
       const roomList = fitColumnRooms(roomTypes, roomBandDepth, marginH, dropOrder);
       if (roomList.length) zones.push(...packColumn(roomList, roomBandDepth, 0, baggingTopY, marginH).zones);
+      const aisleW = sortX0 - roomBandDepth;
+      if (aisleW >= CELL_FT && sortBottomY - baggingTopY >= CELL_FT) {
+        zones.push(mkZone("walkway", roomBandDepth, baggingTopY, aisleW, sortBottomY - baggingTopY, "Access / Return Aisle"));
+      }
 
       // ---- Rear band (§8.3): Exceptions + Equipment park, full width,
       // whatever depth is actually left (should match rearDepthTarget by
@@ -10905,7 +11037,14 @@
       // gate+security pair, not an arbitrary fraction of L, so a wide gate
       // on a modest building still gets the width it actually needs.
       const neededColW = snap2(gateW + secW + CELL_FT * 3);
-      const colW = snap2(Math.max(neededColW, Math.min(L * 0.34, neededColW * 1.2)));
+      // Capped against L itself, leaving real room for the arm — on a
+      // small building, gate+security sized off their own formulas (not
+      // L) can approach or exceed L by themselves, which otherwise pushed
+      // the arm (and everything in it) past the building's own far edge
+      // rather than just being a tight fit within it.
+      const MIN_ARM_W = 24;
+      const colW = snap2(clamp(Math.max(neededColW, Math.min(L * 0.34, neededColW * 1.2)),
+        CELL_FT * 6, Math.max(CELL_FT * 6, L - MIN_ARM_W - CELL_FT * 2)));
       const gateY = snap2(W - gateDepth);
       const gateX = snap2((colW - gateW - secW - CELL_FT) / 2);
       zones.push(mkZone("dock", gateX, gateY, gateW, gateDepth, "Shared Gate"));
@@ -10931,12 +11070,15 @@
       const sortAvailW = Math.max(CELL_FT, armAvailW - baggingW - CELL_FT * 2);
       const sortTopY = topMargin;
       // Wraps into more grid rows rather than one increasingly thin row once
-      // a large destination count would otherwise squeeze each box below a
-      // legible width (see layoutSortGrid) — capped in height so a high
-      // destination count with a narrow arm widens the row instead of
-      // stacking rows straight through the bottom wall.
+      // a large box count would otherwise squeeze each one below a legible
+      // width (see layoutSortGrid) — capped in height so that widens the
+      // row instead of stacking rows straight through the bottom wall.
+      // Box count itself fills the arm's available floor (see
+      // estimateGridCapacity) unless a blueprint upload evidenced a real
+      // station count, which wins as an actual fact about the building.
       const armMaxH = Math.max(sortDepth, W - sortTopY - CELL_FT * 4);
-      const grid = layoutSortGrid(sortCount, sortAreaEach, sortAvailW, sortDepth, armX, sortTopY, armMaxH);
+      const fillCount = estimateGridCapacity(sortAreaEach, sortAvailW, sortDepth, armMaxH);
+      const grid = layoutSortGrid(sortCount > 0 ? sortCount : fillCount, sortAreaEach, sortAvailW, sortDepth, armX, sortTopY, armMaxH);
       zones.push(...grid.zones);
       const sortTotalW = grid.totalW;
 
@@ -11033,12 +11175,16 @@
 
       // Sortation runs along the back (top) wall, capped short of the full
       // width so both side columns keep a real margin for support rooms —
-      // a large destination count wraps into more grid rows instead (see
-      // layoutSortGrid).
+      // a large box count wraps into more grid rows instead (see
+      // layoutSortGrid). The count itself fills that capped band's floor
+      // (see estimateGridCapacity) unless a blueprint upload evidenced a
+      // real station count, which wins as an actual fact about the
+      // building.
       const sortTopY = snap2(clamp(Math.round(W * 0.06), CELL_FT, 14));
       const sortMaxW = snap2(clamp(L * 0.65, 30, L * 0.85));
       const gridMaxH = Math.max(sortDepth, Math.min(receivingY, secY, dispY) - sortTopY - CELL_FT * 2);
-      const grid = layoutSortGrid(sortCount, sortAreaEach, sortMaxW, sortDepth, 0, 0, gridMaxH);
+      const fillCount = estimateGridCapacity(sortAreaEach, sortMaxW, sortDepth, gridMaxH);
+      const grid = layoutSortGrid(sortCount > 0 ? sortCount : fillCount, sortAreaEach, sortMaxW, sortDepth, 0, 0, gridMaxH);
       // Re-center the grid's actual width in the full building width L, not
       // in the (narrower) maxW slot the helper laid it out against.
       const sx = snap2((L - grid.totalW) / 2);
@@ -12576,7 +12722,10 @@
       g.stroke();
 
       if (w > 28 && h > 16) {
-        g.fillStyle = "#fff"; g.textAlign = "left"; g.textBaseline = "top";
+        // Walkway's pale fill (near-white at render alpha) can't carry white
+        // label text the way every other, darker-saturated zone color can.
+        g.fillStyle = z.type === "walkway" ? "#78716C" : "#fff";
+        g.textAlign = "left"; g.textBaseline = "top";
         const titleFontSize = Math.max(8, Math.min(12, Math.floor(h * 0.35)));
         g.font = `700 ${titleFontSize}px -apple-system,Segoe UI,Roboto,sans-serif`;
         g.fillText(z.label || def.name, x + 5, y + 4, w - 10);
@@ -16441,7 +16590,8 @@
         roundRectPath(g, x, y, w, h, 4); g.fill();
         g.strokeStyle = "rgba(255,255,255,.7)"; g.lineWidth = 1.2; roundRectPath(g, x, y, w, h, 4); g.stroke();
         if (w > 44 && h > 24) {
-          g.fillStyle = "#fff"; g.textAlign = "left"; g.textBaseline = "top";
+          g.fillStyle = z.type === "walkway" ? "#78716C" : "#fff";
+          g.textAlign = "left"; g.textBaseline = "top";
           g.font = `700 ${Math.max(9, Math.min(12, w * 0.05))}px -apple-system,Segoe UI,Roboto,sans-serif`;
           g.fillText(z.label || def.name, x + 6, y + 5, w - 12);
           g.font = `600 ${Math.max(8, Math.min(10, w * 0.04))}px -apple-system,Segoe UI,Roboto,sans-serif`; g.globalAlpha = .85;
@@ -16590,7 +16740,8 @@
         g.fillStyle = hexAlpha(def.color, .85); roundRectPath(g, x, y, w, h, 4); g.fill();
         g.strokeStyle = "rgba(255,255,255,.7)"; g.lineWidth = 1.2; roundRectPath(g, x, y, w, h, 4); g.stroke();
         if (w > 50 && h > 26) {
-          g.fillStyle = "#fff"; g.textAlign = "left"; g.textBaseline = "top";
+          g.fillStyle = z.type === "walkway" ? "#78716C" : "#fff";
+          g.textAlign = "left"; g.textBaseline = "top";
           g.font = `700 ${Math.max(10, Math.min(13, w * 0.045))}px -apple-system,Segoe UI,Roboto,sans-serif`;
           g.fillText(z.label || def.name, x + 7, y + 6, w - 14);
           g.font = `600 ${Math.max(9, Math.min(11, w * 0.035))}px -apple-system,Segoe UI,Roboto,sans-serif`; g.globalAlpha = .85;
@@ -16631,11 +16782,6 @@
     let isoSelected = null; // { kind:'zone'|'cell', ref }
     let isoShowLabels = true;
     let isoDrag = null;    // { startX, startY, ox, oy, moved }
-    // Presentation mode — bakes a title block (org, site name, dimensions,
-    // date, prepared-by) into the canvas itself, so the same toggle covers
-    // the live view, the PNG export (a straight canvas snapshot), and the
-    // print/PDF export (which shows the DOM as-is) with one code path.
-    let isoPresentMode = false;
     // Distance-measure tool — click a point on the floor to start, click a
     // second to finish; the line + distance track the cursor in between so
     // the measurement previews before it's placed. Independent of
@@ -17003,56 +17149,6 @@
       g.textAlign = "left"; g.textBaseline = "bottom";
       g.fillText(`${site.L} × ${site.W} ft · ${fmtNum(site.L * site.W)} sq ft`, 14, ch - 12);
 
-      // Presentation title block — drawn straight onto the canvas (not an
-      // HTML overlay) so one code path covers the live view, the PNG
-      // export (a plain canvas snapshot), and the print/PDF export (which
-      // shows this same canvas at whatever it currently holds) all at
-      // once. Same org/prepared-by fields as the 2D presentation sheet's
-      // title block, for a consistent "who built this" story across both.
-      if (isoPresentMode) {
-        const pad = 16, innerPad = 14;
-        const orgLine = (builderSettings && builderSettings.org) || "";
-        const title = site.name || "Untitled Site";
-        const dateStr = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-        const preparedLine = (builderSettings && builderSettings.showPreparedBy !== false && builderSettings.name)
-          ? `Prepared by ${builderSettings.name}${builderSettings.role ? " · " + builderSettings.role : ""}`
-          : "";
-        const metaLine = `${site.L} × ${site.W} ft · ${fmtNum(site.L * site.W)} sq ft · ${dateStr}${preparedLine ? " · " + preparedLine : ""}`;
-
-        g.save();
-        g.font = "800 20px -apple-system,Segoe UI,Roboto,sans-serif";
-        const titleW = g.measureText(title).width;
-        g.font = "700 12px -apple-system,Segoe UI,Roboto,sans-serif";
-        const orgW = orgLine ? g.measureText(orgLine).width : 0;
-        g.font = "600 12px -apple-system,Segoe UI,Roboto,sans-serif";
-        const metaW = g.measureText(metaLine).width;
-        const blockW = Math.min(cw - pad * 2, Math.max(orgW, titleW, metaW) + innerPad * 2);
-        const blockH = (orgLine ? 20 : 0) + 30 + 20 + 14;
-
-        g.fillStyle = currentTheme === "dark" ? "rgba(23,28,38,0.85)" : "rgba(255,255,255,0.9)";
-        roundRectPath(g, pad, pad, blockW, blockH, 8); g.fill();
-        g.strokeStyle = currentTheme === "dark" ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.1)";
-        g.lineWidth = 1;
-        roundRectPath(g, pad, pad, blockW, blockH, 8); g.stroke();
-
-        let ty = pad + 10;
-        g.textAlign = "left"; g.textBaseline = "top";
-        if (orgLine) {
-          g.font = "700 12px -apple-system,Segoe UI,Roboto,sans-serif";
-          g.fillStyle = currentTheme === "dark" ? "#94A3B8" : "#6B6558";
-          g.fillText(orgLine, pad + innerPad, ty);
-          ty += 20;
-        }
-        g.font = "800 20px -apple-system,Segoe UI,Roboto,sans-serif";
-        g.fillStyle = currentTheme === "dark" ? "#F1F5F9" : "#1D1B17";
-        g.fillText(title, pad + innerPad, ty);
-        ty += 30;
-        g.font = "600 12px -apple-system,Segoe UI,Roboto,sans-serif";
-        g.fillStyle = currentTheme === "dark" ? "#94A3B8" : "#6B6558";
-        g.fillText(metaLine, pad + innerPad, ty);
-        g.restore();
-      }
-
       // Distance-measure overlay — a dashed line between the two clicked
       // floor points (or the first point and the live cursor, before the
       // second click), with the distance at the midpoint. Drawn last, on
@@ -17162,22 +17258,23 @@
       queueSave(); updateStats();
       isoSelected = null; hideIsoEditCard(); renderIsoView();
     });
-    $("#iso-export-png")?.addEventListener("click", () => {
+    // Export ▾ — one button, two formats tucked in its dropdown (mirrors
+    // the 2D editor's Finish split-button pattern).
+    function hideIsoExportDropdown() { $("#iso-export-dropdown")?.classList.remove("on"); }
+    function toggleIsoExportDropdown() { $("#iso-export-dropdown")?.classList.toggle("on"); }
+    $("#iso-export-btn")?.addEventListener("click", ev => { ev.stopPropagation(); toggleIsoExportDropdown(); });
+    document.addEventListener("pointerdown", ev => {
+      const grp = $("#iso-export-split-btn");
+      if (grp && !grp.contains(ev.target)) hideIsoExportDropdown();
+    });
+    $("#iso-export-png-item")?.addEventListener("click", () => {
+      hideIsoExportDropdown();
       const a = document.createElement("a");
       a.href = isoCanvasEl().toDataURL("image/png");
       a.download = slug(site.name) + "-3d-view.png";
       document.body.appendChild(a); a.click(); a.remove();
     });
-    // Print/PDF export — same #isoview print styling used for the "Present"
-    // title block, so what comes out matches what "Present" showed on
-    // screen (or the plain render if it was never turned on).
-    $("#iso-export-pdf")?.addEventListener("click", () => window.print());
-    // Bakes a title block into the canvas itself (see renderIsoView) —
-    // covers the live view, PNG export and print/PDF export in one toggle.
-    $("#iso-present-toggle")?.addEventListener("change", e => {
-      isoPresentMode = e.target.checked;
-      renderIsoView();
-    });
+    $("#iso-export-pdf-item")?.addEventListener("click", () => { hideIsoExportDropdown(); window.print(); });
     // Quick layer visibility from inside the 3D view — same two grouped
     // flags the 2D Store Layers panel's first two rows drive (Flow & Notes
     // doesn't apply here; connectors/annotations have no 3D representation
