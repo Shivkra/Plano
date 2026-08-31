@@ -2827,6 +2827,24 @@
       gap: 10px;
     }
 
+    /* header.ed-header's justify-content:space-between only truly centers
+       .ed-nav-center when the left and right groups happen to be the same
+       width — they aren't (undo/redo/history vs. Ask AI/Finish/theme/
+       avatar), so Guide sat visibly off-center. Making both side groups
+       grow to fill equal leftover space (flex:1, same flex-basis) pins the
+       un-grown center group exactly at the midpoint regardless of how wide
+       either side's content is. */
+    .ed-nav-left {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    .ed-nav-right {
+      flex: 1 1 0;
+      min-width: 0;
+      justify-content: flex-end;
+    }
+
     .ed-brand-pill {
       display: inline-flex;
       align-items: center;
@@ -3383,6 +3401,12 @@
       .ed-nav-center,
       .ed-nav-right {
         flex-shrink: 0;
+        /* Undo the equal-fill centering trick here — on a narrow header
+           that scrolls horizontally, each group should size to its own
+           content and sit in normal document order, not stretch to fill
+           space that isn't there. */
+        flex-grow: 0;
+        flex-basis: auto;
       }
     }
 
@@ -6612,69 +6636,57 @@
     }
 
     /* ================= SOUND TOGGLE & GUIDED TOUR ================= */
-    /* One shared pill — Guide's own bg/border move here so the two halves
-       read as a single control group. Both inner buttons go transparent
-       and flat; only the divider between them and per-half hover states
-       tell them apart. */
-    .guide-pill-group {
-      display: inline-flex;
-      align-items: stretch;
-      background: rgba(14, 165, 233, 0.12);
-      border: 1px solid rgba(14, 165, 233, 0.35);
-      border-radius: var(--r-pill);
-      overflow: hidden;
-    }
-
-    .guide-pill-divider {
-      width: 1px;
-      align-self: stretch;
-      margin: 5px 0;
-      background: rgba(14, 165, 233, 0.3);
-      flex-shrink: 0;
-    }
-
-    .glw-sfx-btn {
-      background: transparent;
-      border: none;
-      border-radius: 0;
-      width: auto;
-      height: auto;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      font-size: 12px;
-      padding: 5px 10px 5px 8px;
-      color: #0284C7;
-      transition: all var(--dur-f) var(--ease);
-      flex-shrink: 0;
-    }
-
-    .glw-sfx-btn:hover {
-      background: rgba(14, 165, 233, 0.22);
-      color: #0284C7;
-      transform: none;
-      box-shadow: none;
-    }
-
+    /* Guide stands alone in the header's true center now (sound moved to
+       the footer, see .footer-sfx-btn below) — back to its own pill
+       chrome, with a slightly stronger look than the plain-outline default
+       so a lone centered button still reads as an intentional focal point
+       rather than a leftover scrap. */
     .guide-launch-btn {
-      background: transparent;
-      border: none;
-      border-radius: 0;
-      padding: 5px 8px 5px 10px;
-      font-size: 12px;
+      background: rgba(14, 165, 233, 0.12);
+      border: 1px solid rgba(14, 165, 233, 0.4);
+      border-radius: var(--r-pill);
+      padding: 7px 16px;
+      font-size: 12.5px;
       font-weight: 800;
       color: #0284C7;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
       transition: all var(--dur-f) var(--ease);
     }
 
     .guide-launch-btn:hover {
-      background: rgba(14, 165, 233, 0.22);
-      color: #0284C7;
+      background: #0284C7;
+      border-color: #0284C7;
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+      transform: translateY(-1px);
+    }
+
+    /* Sound toggle, now living in the footer's bottom-left cluster next to
+       Smart Snap / Grid / units instead of floating in the header. */
+    .footer-sfx-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--ink-soft);
+      font-size: 12px;
+      padding: 0;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all var(--dur-f) var(--ease);
+    }
+
+    .footer-sfx-btn:hover {
+      background: var(--bg-soft);
+      color: var(--ink);
+      border-color: var(--border-strong);
     }
 
     /* Onboarding Guided Academy Overlay */
@@ -6703,6 +6715,13 @@
       padding: 18px 22px;
       width: 480px;
       max-width: calc(100vw - 32px);
+      /* Nothing capped this before — a longer step's text just grew the box
+         upward from its bottom-anchored position with no limit, pushing it
+         off the top of short/small viewports. Capping height and letting
+         the text column itself scroll keeps the box on-screen no matter
+         how long a step's copy runs. */
+      max-height: calc(100vh - 96px);
+      box-sizing: border-box;
       display: flex;
       gap: 16px;
       align-items: flex-start;
@@ -6731,6 +6750,15 @@
 
     .onboarding-content {
       flex: 1;
+      /* min-width:0 lets long unbroken text (a URL, a run of kbd tags)
+         actually wrap inside a flex child instead of forcing the box
+         wider than its 480px cap; min-height:0 is what lets .onboarding-text
+         become the scrolling element below instead of the whole flex
+         child refusing to shrink past its content's natural height. */
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
     }
 
     .onboarding-speaker {
@@ -6751,8 +6779,10 @@
     .onboarding-text {
       font-size: 12.5px;
       color: var(--ink-soft);
-      line-height: 1.45;
+      line-height: 1.5;
       margin-bottom: 12px;
+      overflow-y: auto;
+      max-height: calc(100vh - 260px);
     }
 
     .onboarding-footer {
@@ -6778,6 +6808,24 @@
       background: #0284C7;
       transform: scale(1.3);
       box-shadow: 0 0 6px rgba(2, 132, 199, 0.6);
+    }
+
+    /* Spotlight for a step whose content isn't a left-sidebar tool (Ask AI,
+       1-Click Templates, Undo/History, Finish) — those steps used to force
+       `tool: "select"` just to get SOME highlight, which lit up the Select
+       icon on the left as if it were relevant, even though the step was
+       actually talking about the top toolbar. This targets the real
+       element instead, wherever it is on screen. */
+    .ob-spotlight {
+      position: relative;
+      z-index: 501;
+      border-radius: 10px;
+      animation: obSpotlightPulse 1.6s ease-in-out infinite;
+    }
+
+    @keyframes obSpotlightPulse {
+      0%, 100% { box-shadow: 0 0 0 3px rgba(2, 132, 199, .9), 0 0 0 7px rgba(2, 132, 199, .22); }
+      50% { box-shadow: 0 0 0 3px rgba(2, 132, 199, 1), 0 0 0 11px rgba(2, 132, 199, .1); }
     }
 
     /* =====================================================================
@@ -7398,20 +7446,13 @@
       </div>
 
       <div class="ed-nav-center">
-        <!-- Guide + Sound live in one pill — the sound toggle used to float
-             as its own separate amber circle next to Guide; folding it into
-             the same pill (divider between the two halves) reads as one
-             control group instead of two unrelated buttons. -->
-        <div class="guide-pill-group" id="guide-pill-group">
-          <button class="guide-launch-btn" id="guide-launch-btn" title="Interactive Guided Academy">
-            <span>🎓 Guide</span>
-          </button>
-          <span class="guide-pill-divider"></span>
-          <button class="glw-sfx-btn" id="sfx-toggle-btn" title="Toggle Sound Effects (🔊 / 🔇)"
-            aria-label="Toggle Sound Effects">
-            <span id="sfx-icon">🔊</span>
-          </button>
-        </div>
+        <!-- Sound moved to the footer's bottom-left (see #sfx-toggle-btn
+             there) — Guide is the only thing here now, and .ed-nav-left/
+             .ed-nav-right below are flex:1 so this sits exactly in the
+             header's true center regardless of how wide either side is. -->
+        <button class="guide-launch-btn" id="guide-launch-btn" title="Interactive Guided Academy">
+          <span>🎓 Guide</span>
+        </button>
       </div>
 
       <div class="ed-nav-right">
@@ -8213,6 +8254,14 @@
 
     <footer class="ed-footer">
       <span id="cell-pos">–</span>
+      <!-- Sound toggle — moved down here from the header, where it used to
+           sit crowded next to Guide. Bottom-left, next to the other floor-
+           plan display toggles, reads as "a setting for this view" rather
+           than a top-level nav action, which is what it actually is. -->
+      <button class="footer-sfx-btn" id="sfx-toggle-btn" title="Toggle Sound Effects (🔊 / 🔇)"
+        aria-label="Toggle Sound Effects">
+        <span id="sfx-icon">🔊</span>
+      </button>
       <div style="display:flex; align-items:center; gap:16px;">
         <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-weight:700;">
           <input type="checkbox" id="toggle-grid-snap" checked style="accent-color:var(--ink);"> Smart Snap
@@ -13847,12 +13896,17 @@
     // Interactive Onboarding Academy (Chief Maya) — walks through every
     // major tool and panel in the app, not just a few, per a direct ask to
     // "go through everything." Kept intentionally short per step (one idea
-    // each) so it still reads fast even at 11 steps.
+    // each) so it still reads fast even at 12 steps. Each step sets either
+    // `tool` (a real left-sidebar tool to arm — refreshPaletteActive()
+    // highlights it) or `spotlight` (a CSS selector for something that
+    // isn't a sidebar tool — Guide, Properties, the AI/templates strip,
+    // undo/history, Finish) so the highlight always points at what the
+    // text is actually describing, never a mismatched Select icon.
     const ONBOARDING_STEPS = [
       {
         title: "Welcome, Architect!",
-        text: "I'm Chief Maya — I'll walk you through building a cross-dock hub from an empty floor to a finished 3D layout. It only takes a couple of minutes, and you can reopen this guide anytime from the <strong>🎓 Guide</strong> button up top.",
-        tool: "select"
+        text: "I'm Chief Maya. I'll walk you through building a cross-dock hub from an empty floor to a finished 3D layout — a couple of minutes, start to finish. Reopen this guide anytime from <strong>🎓 Guide</strong>, up top.",
+        spotlight: "#guide-launch-btn"
       },
       {
         title: "Start With Walls",
@@ -13861,17 +13915,17 @@
       },
       {
         title: "Rooms Are Walled Spaces",
-        text: "<strong>Room</strong> (<strong>R</strong>) creates an enclosed space with a door — an office, security room, IT room and the rest. Pick a type and size and it drops in centered, with a solid dark border so it reads as walled.",
+        text: "<strong>Room</strong> (<strong>R</strong>) creates an enclosed space with a door — an office, security room, IT room and the rest. Pick a type and size; it drops in centered with a solid dark border, so it reads as walled.",
         tool: "room"
       },
       {
         title: "Zones Are Open Floor Areas",
-        text: "<strong>Zone</strong> (<strong>Z</strong>) is different — an open, unwalled area for an operational step: Inward, Sorting or Dispatch. Pick one, then click-drag on the floor to draw it at whatever size you need.",
+        text: "<strong>Zone</strong> (<strong>Z</strong>) is different — an open, unwalled area for a step like Inward, Sorting or Dispatch. Pick one, then click-drag on the floor to draw it at whatever size you need.",
         tool: "zone"
       },
       {
         title: "The Object Library",
-        text: "<strong>Objects</strong> (<strong>O</strong>) has every rack, table and piece of equipment your hub needs. Click a card then click the floor to place it — or just drag the card straight onto the canvas and drop it where you want.",
+        text: "<strong>Objects</strong> (<strong>O</strong>) holds every rack, table and piece of equipment your hub needs. Click a card and click the floor to place it — or drag the card straight onto the canvas and drop it where you want.",
         tool: "objects"
       },
       {
@@ -13885,24 +13939,30 @@
         tool: "draw"
       },
       {
-        title: "Select, Move & Inspect",
-        text: "<strong>Select</strong> (<strong>V</strong>) is your everyday tool: click anything to select it and its details open automatically in the <strong>Properties</strong> panel on the right. Shift-click to select a whole range at once, or hold <strong>Option/Alt</strong> while hovering to see the distance to whatever's under your cursor.",
-        tool: "select"
+        title: "Select & Inspect",
+        text: "<strong>Select</strong> (<strong>V</strong>) is your everyday tool — click anything to see it here, in the <strong>Properties</strong> panel, which opens on its own.",
+        tool: "select",
+        spotlight: "#right-panel"
+      },
+      {
+        title: "Faster Selection & Measuring",
+        text: "Shift-click extends your selection across a whole range at once. Hold <strong>Option/Alt</strong> while hovering to see the distance to whatever's under your cursor — no need to switch tools.",
+        spotlight: "#right-panel"
       },
       {
         title: "1-Click Templates & Ask AI",
-        text: "Short on time? The <strong>1-Click Templates</strong> strip above the canvas generates a full Mother Hub or Sortation Matrix instantly. Or open <strong>✨ Ask AI</strong> to describe changes in plain English, or upload a blueprint photo for it to trace.",
-        tool: "select"
+        text: "Short on time? <strong>1-Click Templates</strong> generates a full Mother Hub or Sortation Matrix instantly. Or open <strong>✨ Ask AI</strong> to describe changes in plain English, or upload a blueprint photo for it to trace.",
+        spotlight: ".ai-presets-strip, #ed-ai-assistant"
       },
       {
         title: "Undo, History & Autosave",
         text: "Everything autosaves as you go. <strong>↩ Undo</strong> / <strong>↪ Redo</strong> (or Cmd/Ctrl+Z) step back and forward, and <strong>🕒 History</strong> keeps named checkpoints you can preview and restore anytime.",
-        tool: "select"
+        spotlight: "#ed-undo, #ed-redo, #ed-history-btn"
       },
       {
         title: "Mastery Achieved! ⭐️⭐️⭐️",
-        text: "That's the whole toolkit. Hit <strong>✓ Finish</strong> anytime to inspect your layout in 3D, or keep building — I'll be waiting behind the <strong>🎓 Guide</strong> button if you want a refresher.",
-        tool: "select"
+        text: "That's the whole toolkit. Hit <strong>✓ Finish</strong> anytime to inspect your layout in 3D, or keep building — I'll be waiting behind <strong>🎓 Guide</strong> if you want a refresher.",
+        spotlight: "#finish-split-btn"
       }
     ];
 
@@ -13912,11 +13972,27 @@
     const ONBOARDING_FORCE_SHOW = true;
 
     let currentOnboardingStep = 0;
+    // True while the current tour step is about something that isn't a
+    // left-sidebar tool (Ask AI, Undo/History, Finish) — refreshPaletteActive()
+    // checks this so the Select/Wall icon doesn't keep reading as "active"
+    // purely because that was the last real tool picked a couple of steps
+    // ago, which would look like a (wrong) claim that THIS step is about it.
+    let onboardingSuppressPaletteHighlight = false;
 
     function startOnboardingTour() {
       currentOnboardingStep = 0;
       showOnboardingStep(0);
       playSfx("pop");
+    }
+
+    function clearOnboardingSpotlight() {
+      document.querySelectorAll(".ob-spotlight").forEach(el => el.classList.remove("ob-spotlight"));
+    }
+    function applyOnboardingSpotlight(selector) {
+      clearOnboardingSpotlight();
+      if (!selector) return;
+      try { document.querySelectorAll(selector).forEach(el => el.classList.add("ob-spotlight")); }
+      catch (e) { /* bad selector — fail quiet, the dialogue text still stands on its own */ }
     }
 
     function showOnboardingStep(idx) {
@@ -13932,11 +14008,17 @@
       const dots = $("#ob-dots");
 
       if (titleEl) titleEl.textContent = step.title;
-      if (textEl) textEl.innerHTML = step.text;
+      if (textEl) { textEl.innerHTML = step.text; textEl.scrollTop = 0; }
       if (dots) {
         dots.innerHTML = ONBOARDING_STEPS.map((_, i) => `<span class="step-dot ${i === idx ? 'active' : ''}"></span>`).join("");
       }
       if (overlay) overlay.classList.add("on");
+
+      // Set before the tool/drawer branch below runs (it calls
+      // refreshPaletteActive() internally), so a lingering "select" or
+      // "paint:wall" from an earlier step never reads as active during a
+      // step that isn't actually about a sidebar tool.
+      onboardingSuppressPaletteHighlight = !step.tool;
 
       if (step.tool) {
         // Every key handleSmartToolSelect understands (room/zone/objects/
@@ -13951,7 +14033,18 @@
         } else if (typeof setTool === "function") {
           setTool(step.tool);
         }
+      } else {
+        // A step with no `tool` isn't about a left-sidebar tool at all —
+        // don't leave a stale drawer open from whatever the previous step
+        // armed, and don't force the Select icon to light up just because
+        // something has to be "active"; use spotlight (below) instead.
+        closeDrawers();
       }
+      // Highlights the actual element a non-tool step is talking about
+      // (Ask AI, the templates strip, Undo/History, Finish) — separate
+      // from the sidebar's own tool-active highlighting above, so a step
+      // never lights up something on the left that it isn't describing.
+      applyOnboardingSpotlight(step.spotlight);
     }
 
     function advanceOnboarding() {
@@ -13962,6 +14055,9 @@
     function completeOnboarding() {
       const overlay = $("#onboarding-overlay");
       if (overlay) overlay.classList.remove("on");
+      clearOnboardingSpotlight();
+      onboardingSuppressPaletteHighlight = false;
+      refreshPaletteActive();
       localStorage.setItem("darkstore_onboarding_completed", "true");
       toast("🎓 Onboarding Complete! Welcome, Chief Architect.");
     }
@@ -14319,11 +14415,17 @@
         const d = $("#room-drawer");
         const isOpen = d && d.classList.contains("on");
         closeDrawers();
+        // Clears whatever tool was armed before (e.g. still "paint:wall"
+        // from the previous step) so ITS sidebar icon doesn't stay lit
+        // alongside Room's — only the drawer that's actually open should
+        // read as highlighted.
+        tool = "select";
         if (d && !isOpen) d.classList.add("on");
       } else if (smartTool === "objects") {
         const d = $("#obj-drawer");
         const isOpen = d && d.classList.contains("on");
         closeDrawers();
+        tool = "select";
         if (d && !isOpen) d.classList.add("on");
       } else if (smartTool === "zone") {
         // Used to jump straight into drawing a hardcoded "sorting" zone —
@@ -14334,6 +14436,7 @@
         const d = $("#zone-drawer");
         const isOpen = d && d.classList.contains("on");
         closeDrawers();
+        tool = "select";
         if (d && !isOpen) d.classList.add("on");
       } else if (smartTool === "flow") {
         closeDrawers();
@@ -14342,11 +14445,18 @@
         const d = $("#draw-drawer");
         const isOpen = d && d.classList.contains("on");
         closeDrawers();
+        tool = "select";
         if (d && !isOpen) d.classList.add("on");
       } else if (smartTool === "erase") {
         closeDrawers();
         setTool("erase");
       }
+      // Room/Objects/Zone/Draw only toggle a drawer's own "on" class above
+      // — they never call setTool(), which is the only other place this
+      // normally gets triggered — so without this their sidebar icon would
+      // never pick up the "a drawer just opened" highlight added to
+      // refreshPaletteActive() above.
+      refreshPaletteActive();
     }
 
     function closeDrawers() {
@@ -14357,6 +14467,7 @@
       if (zd) zd.classList.remove("on");
       if (dd) dd.classList.remove("on");
       if (hd) hd.classList.remove("on");
+      if (typeof refreshPaletteActive === "function") refreshPaletteActive();
     }
 
     // Version History Event Listeners
@@ -14397,17 +14508,37 @@
     }
 
     function refreshPaletteActive() {
+      // Room/Zone/Objects/Draw open a flyout drawer rather than setting a
+      // matching `tool` string by themselves — Zone/Objects/Draw only
+      // picked up the blue "active" highlight once something was actually
+      // armed inside the drawer (a specific zone type, object, or pen/
+      // shape), and Room never got a case here at all. That left their
+      // sidebar icon dark the whole time their own drawer was open —
+      // including for the entire span of the matching onboarding step.
+      // Treating "this tool's drawer is open" as active too (in addition
+      // to the existing "something from it is armed" checks) fixes both.
+      const roomOpen = $("#room-drawer")?.classList.contains("on");
+      const zoneOpen = $("#zone-drawer")?.classList.contains("on");
+      const objOpen = $("#obj-drawer")?.classList.contains("on");
+      const drawOpen = $("#draw-drawer")?.classList.contains("on");
+      // A drawer being open takes priority over whatever `tool` still
+      // equals underneath it (e.g. "select", left over from opening the
+      // drawer) — otherwise two icons show highlighted at once: the open
+      // drawer's own, AND Select's, for exactly as long as nothing inside
+      // the drawer has been armed yet.
+      const anyDrawerOpen = roomOpen || zoneOpen || objOpen || drawOpen;
       document.querySelectorAll("[data-smart-tool]").forEach(el => {
         const st = (el.dataset && el.dataset.smartTool) || el.getAttribute("data-smart-tool");
         let active = false;
-        if (st === "select" && tool === "select") active = true;
-        else if (st === "wall" && tool === "paint:wall") active = true;
+        if (st === "select" && tool === "select" && !anyDrawerOpen && !onboardingSuppressPaletteHighlight) active = true;
+        else if (st === "wall" && tool === "paint:wall" && !anyDrawerOpen && !onboardingSuppressPaletteHighlight) active = true;
         else if (st === "erase" && tool === "erase") active = true;
         else if (st === "measure" && tool === "measure") active = true;
-        else if (st === "zone" && tool.startsWith("zone:")) active = true;
-        else if (st === "objects" && tool.startsWith("paint:") && tool !== "paint:wall") active = true;
+        else if (st === "room" && roomOpen) active = true;
+        else if (st === "zone" && (tool.startsWith("zone:") || zoneOpen)) active = true;
+        else if (st === "objects" && ((tool.startsWith("paint:") && tool !== "paint:wall") || objOpen)) active = true;
         else if (st === "flow" && tool === "flow") active = true;
-        else if (st === "draw" && (tool === "pen" || tool.startsWith("shape:") || tool.startsWith("stamp:"))) active = true;
+        else if (st === "draw" && (tool === "pen" || tool.startsWith("shape:") || tool.startsWith("stamp:") || drawOpen)) active = true;
         el.classList.toggle("active", active);
       });
       document.querySelectorAll(".draw-shape-btn[data-shape]").forEach(b => {
@@ -14443,6 +14574,25 @@
     function hexAlpha(hex, a) {
       const n = parseInt(hex.slice(1), 16);
       return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+    }
+
+    // Coalesces redraw() calls that fire faster than the browser can paint
+    // (a fast pointermove stream during a drag) into at most one per
+    // animation frame, always using the latest queued state — the standard
+    // fix for a canvas drag that looks like it's stepping in big jumps
+    // instead of gliding, because every single input event was forcing its
+    // own synchronous full-canvas repaint.
+    let dragRedrawScheduled = false;
+    let dragRedrawExtra = null;
+    function scheduleDragRedraw(extra) {
+      if (extra) dragRedrawExtra = extra;
+      if (dragRedrawScheduled) return;
+      dragRedrawScheduled = true;
+      requestAnimationFrame(() => {
+        dragRedrawScheduled = false;
+        redraw();
+        if (dragRedrawExtra) { const fn = dragRedrawExtra; dragRedrawExtra = null; fn(); }
+      });
     }
 
     function redraw() {
@@ -16392,9 +16542,11 @@
           }
           z.x = nx; z.y = ny; z.w = nw; z.h = nh;
         }
-        redraw();
-        updateRightPanel();
-        showZoneToolbar();
+        // Same per-frame coalescing as the object drag above — this branch
+        // was doing a full redraw() *plus* two DOM-touching calls on every
+        // single pointermove, which is an even easier way to fall behind
+        // the input stream and look like it's jumping.
+        scheduleDragRedraw(() => { updateRightPanel(); showZoneToolbar(); });
         return;
       }
       if (marqueeSelect) {
@@ -16447,18 +16599,23 @@
         return;
       }
 
-      if (dragGroup && cell) {
-        // The dragged items glide with the raw cursor position (redrawn on
-        // every move, not just when a grid-cell boundary is crossed) instead
-        // of visually hopping a full 3ft cell at a time — the landing cell
-        // (still grid-snapped, used to commit the move on drop) only changes
-        // when the cursor actually crosses into a new one.
+      if (dragGroup) {
+        // The dragged items glide with the raw cursor position instead of
+        // visually hopping a full 3ft cell at a time — updated (and kept
+        // updating) even if the cursor briefly leaves the grid bounds, so
+        // the ghost never freezes mid-drag. The landing cell (still grid-
+        // snapped, used to commit the move on drop) only changes when the
+        // cursor is actually over a valid cell and crosses into a new one.
+        // Redraws are coalesced to one per animation frame — pointermove
+        // can fire faster than the canvas can repaint, and redrawing
+        // synchronously on every single event is what made the drag look
+        // like it was hopping in big steps rather than gliding.
         dragGroup.pxDX = ev.clientX - dragGroup.startClientX;
         dragGroup.pxDY = ev.clientY - dragGroup.startClientY;
-        if (!dragGroup.currentCell || cell.c !== dragGroup.currentCell.c || cell.r !== dragGroup.currentCell.r) {
+        if (cell && (!dragGroup.currentCell || cell.c !== dragGroup.currentCell.c || cell.r !== dragGroup.currentCell.r)) {
           dragGroup.currentCell = cell;
         }
-        redraw();
+        scheduleDragRedraw();
         return;
       }
       if (drawingZone) {
