@@ -2123,6 +2123,13 @@
       font-size: var(--fs-sm);
       font-weight: 600;
       pointer-events: none;
+      /* Guards against a unit string longer than this was designed for
+         (e.g. "ft per door" instead of "ft") overlapping digits typed into
+         the input — truncates instead of colliding. */
+      max-width: 34px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .dims-diagram-wrap {
@@ -7439,9 +7446,6 @@
         <span id="zoom-val-txt"
           style="min-width:34px; font-size:11px; font-weight:700; color:var(--ink-soft);">130%</span>
       </div>
-      <button class="shortcuts-fab-btn" id="cmdk-open-btn" title="Command Palette (⌘/Ctrl+K)">
-        <span>⚡</span> Commands
-      </button>
       <button class="shortcuts-fab-btn" id="shortcuts-help-btn" title="Keyboard Shortcuts (?)">
         <span>⌨️</span> Shortcuts
       </button>
@@ -7505,8 +7509,6 @@
             onclick="switchSettingsTab('tab-profile', this)">👤 Profile &amp; Team</button>
           <button class="settings-tab-btn" data-tab="tab-design" onclick="switchSettingsTab('tab-design', this)">📐
             Industrial Design</button>
-          <button class="settings-tab-btn" data-tab="tab-export" onclick="switchSettingsTab('tab-export', this)">📤
-            Export &amp; Branding</button>
           <button class="settings-tab-btn" data-tab="tab-storage" onclick="switchSettingsTab('tab-storage', this)">💾
             Cloud &amp; Storage</button>
         </nav>
@@ -7611,35 +7613,7 @@
             </div>
           </div>
 
-          <!-- TAB 3: Export & Branding — what shows up on printed/exported
-               plans. Replaces the old "AI & Vision Engine" tab, which was
-               3 checkboxes permanently checked-and-disabled with no
-               downstream effect anywhere in the app (nothing ever read
-               builderSettings.aiVectorizer/aiOptimizer/aiRooms). -->
-          <div class="settings-panel" id="tab-export">
-            <div class="setting-group">
-              <h4>Title Block &amp; Sign-Off</h4>
-              <div class="setting-card">
-                <div class="info">
-                  <h5>Company / Organization Name</h5>
-                  <p>Shown above the site title on every exported and printed floor plan.</p>
-                </div>
-                <input type="text" id="set-org" class="setting-select" style="width:260px;"
-                  value="BlitzNow Logistics - Bangalore Hub 1">
-              </div>
-
-              <div class="setting-card">
-                <div class="info">
-                  <h5>Show "Prepared By" on Exports</h5>
-                  <p>Stamps your Builder Display Name and Role (from Profile &amp; Team) onto the title block of every PDF/PNG export.</p>
-                </div>
-                <input type="checkbox" id="set-show-prepared" checked
-                  style="width:18px; height:18px; cursor:pointer; accent-color:var(--ink);">
-              </div>
-            </div>
-          </div>
-
-          <!-- TAB 4: Storage & Workspace Engine -->
+          <!-- TAB 3: Storage & Workspace Engine -->
           <div class="settings-panel" id="tab-storage">
             <div class="setting-group">
               <h4>Local Engine & Synchronization</h4>
@@ -7976,6 +7950,16 @@
       const savedSettings = localStorage.getItem(SETTINGS_KEY);
       if (savedSettings) builderSettings = Object.assign(builderSettings, JSON.parse(savedSettings));
     } catch (e) { }
+    // A build before the string-vs-number fix above could already have
+    // saved cellSize/aisleMin as a number (or NaN, if a blank select got
+    // coerced through Number(...) on save) into someone's localStorage —
+    // and a saved value always overrides the defaults on load, so fixing
+    // the defaults alone doesn't repair an already-corrupted cache. Re-
+    // validate against the real option sets and fall back if what's
+    // stored matches neither, so this heals on next load instead of
+    // silently showing an unselected dropdown forever.
+    if (!["4x6", "4x4", "3x3"].includes(builderSettings.cellSize)) builderSettings.cellSize = "4x6";
+    if (!["4.0", "5.0", "6.0", "8.0"].includes(builderSettings.aisleMin)) builderSettings.aisleMin = "4.0";
 
     function escapeHtml(s) { return (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
     const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -8808,14 +8792,24 @@
        clear the skip came from the photo, not a shortcut. Everything a photo
        can't show (throughput timing, wave pattern, exact door count) is
        still asked normally. */
-    function inferVisionAnswers(data, dockLayout, roomList, sortStationCount) {
+    function inferVisionAnswers(data, dockLayout, roomList, sortStationCount, doorsDetected) {
       // Every key here is shown in the "Read from your photo" banner. Only
-      // the ones matching a buildDesignDecisions id (flow/equipment/
+      // the ones matching a buildDesignDecisions id (doors/flow/equipment/
       // sortation) also skip that question — rooms/sortation-count aren't
       // guided-flow decisions, they're direct generator inputs, so they're
       // informational-only entries (no patch needed here; already applied
       // to _genParams by the caller).
       const answered = {};
+      // Door count is only skippable when doors were actually SEEN in the
+      // photo — inferDockLayout's own "no doors detected" fallback (2 in, 2
+      // out) is a guess, not a read, and shouldn't silently stand in for
+      // the manager's real door count without ever asking.
+      if (doorsDetected) {
+        answered.doors = {
+          patch: { dockBays: dockLayout.inCount + dockLayout.outCount, dockInBays: dockLayout.inCount, dockOutBays: dockLayout.outCount },
+          note: dockLayout.note,
+        };
+      }
       answered.flow = { patch: { flowShape: dockLayout.flowShape }, note: dockLayout.note };
       const racks = Array.isArray(data.racks) ? data.racks : [];
       if (racks.length > 0) {
@@ -8880,6 +8874,19 @@
           if (data.dimensionsFt && data.dimensionsFt.length > 0 && data.dimensionsFt.width > 0) {
             l = clamp(data.dimensionsFt.length, 20, 1000);
             w = clamp(data.dimensionsFt.width, 20, 1000);
+          } else {
+            // The photo didn't give a confident read on the floor
+            // dimensions — ask directly instead of silently building the
+            // site on a guessed 150×100 ft footprint the manager never
+            // agreed to. Cancelling either prompt keeps the guess as a
+            // last resort, so the upload never gets stuck.
+            if (statusEl) statusEl.style.display = "none";
+            const lStr = await promptModal("How long is the building?", "The photo didn't give a confident read on the floor dimensions — enter them directly, in feet.", "150", "Next →");
+            if (lStr !== null && parseFloat(lStr) > 0) l = clamp(parseFloat(lStr), 20, 1000);
+            const wStr = await promptModal("How wide is the building?", `Measured the other way from the ${l} ft length.`, "100", "Use this");
+            if (wStr !== null && parseFloat(wStr) > 0) w = clamp(parseFloat(wStr), 20, 1000);
+            if (statusEl) statusEl.style.display = "block";
+            if (statusTxt) statusTxt.textContent = "✨ Building the site to your operating basis…";
           }
           const entries = Array.isArray(data.entries) ? data.entries : [];
           const exits = Array.isArray(data.exits) ? data.exits : [];
@@ -8899,7 +8906,7 @@
             cx: (st.x0 + (st.x1 !== undefined ? st.x1 : st.x0)) / 2,
             cy: (st.y0 + (st.y1 !== undefined ? st.y1 : st.y0)) / 2,
           })) : [];
-          const visionAnswered = inferVisionAnswers(data, dockLayout, roomList, sortStationCount);
+          const visionAnswered = inferVisionAnswers(data, dockLayout, roomList, sortStationCount, entries.length + exits.length > 0);
 
           const baseName = file.name.replace(/\.[^/.]+$/, "");
           const siteName = baseName ? `Blueprint - ${baseName}` : "AI Extracted Layout";
@@ -9993,103 +10000,19 @@
       const peakBoxes = Math.max(1, Math.round(boxes / winH * dwellH));
       const D = [];
 
-      // ---- 1. What shape the building is. One shared gate handles both
-      // loading and unloading either way (a real truck court, one leveler
-      // bank) — what changes is the SHAPE the goods trace from that gate to
-      // sortation and bagging and back, which depends only on the building's
-      // footprint, not on volume or destinations.
-      D.push({
-        id: "flow",
-        title: "What shape is your building?",
-        why: "This decides the shape goods trace from the gate to sortation and bagging and back — pick whichever fits your footprint.",
-        options: [
-          {
-            key: "spine", label: "I · Straight Spine", detail: "Long, narrow building, gate centered on the short wall. Goods go straight back to bagging, no turns.",
-            metrics: [["Turns", "None"], ["Best for", "Long & narrow, has depth to spare"]], patch: { flowShape: "spine" }
-          },
-          {
-            key: "corner", label: "L · Corner Turn", detail: "Gate off to one side. Goods go in, turn once, reach sortation and bagging in the far corner.",
-            metrics: [["Turns", "One 90°"], ["Best for", "L-shaped or corner-constrained"]], patch: { flowShape: "corner" }
-          },
-          {
-            key: "loop", label: "U · Loop-Back", detail: "Wide, shallow building, gate centered. Goods loop up one wall, across the back, down the other, ending near the gate.",
-            metrics: [["Turns", "Two 90°"], ["Best for", "Wide & shallow, gate centered"]], patch: { flowShape: "loop" }
-          },
-        ],
-        recommend: "spine",
-        rationale: "Straight Spine is the default because it's the shortest, most legible process line and the cheapest single conveyor run. Pick Corner Turn if the building or the gate itself can't sit mid-wall, or Loop-Back if the plot is wide and shallow rather than long and narrow.",
-      });
-
-      /* ---- 2. How wide each entrance gate is. Used to ask how boxes move
-         around the floor (equipment/aisle width) — that traded a live number
-         for a "which of 4 equipment types" framing nobody found useful, and
-         almost every hub runs one handling method anyway, so it's now a
-         silent research-set default (trolley, see defaultGenParams) same as
-         lane width and staging depth. Gate width is the more concrete,
-         easier-to-measure real-world number in that slot: it directly sizes
-         the gate zone the generator actually draws (doorSpacingFt below),
-         where the old aisle-width answer only fed a display metric. */
-      const MIN_GATE_FT = 8; // narrowest a single dock door + apron should be
-      const gateWidthCompute = ftPerDoor => {
-        const wd = Math.max(1, Math.round(ftPerDoor));
-        const doorsNow = Math.max(1, p.dockBays || 4);
-        return {
-          metrics: [
-            ["Gate width per door", wd + " ft"],
-            ["Meets minimum functional width", wd >= MIN_GATE_FT ? "Yes" : "No"],
-            [`Wall used at ${doorsNow} door${doorsNow === 1 ? "" : "s"}`, fmtNum(wd * doorsNow) + " ft"],
-          ],
-          patch: { doorSpacingFt: wd },
-        };
-      };
-      D.push({
-        id: "gateWidth",
-        title: "How wide is each entrance gate?",
-        why: "This sets how much wall each dock door needs, and how much frontage the whole gate bank takes up.",
-        options: [],
-        customNumeric: {
-          standalone: true,
-          unit: "ft per door",
-          min: 6, max: 20, step: 1,
-          initial: p.doorSpacingFt || 12,
-          compute: gateWidthCompute,
-          label: "Gate width",
-          help: "12 ft is the common bay spacing for a single dock door — enough for the leveler and a square approach. Narrower saves wall; wider suits oversized trucks.",
-        },
-        recommend: "n12",
-        rationale: "12 ft covers a standard dock door and its leveler with room to approach square. Go narrower only if wall space is tight; wider if you regularly load oversized vehicles.",
-      });
-
-      /* ---- 3. When trucks leave. Drives peak concurrency (staging depth) AND
-         the hours available to sort (which sizes the sorter). Previously
-         assumed a 6-hour night window and never asked — meaning the sortation
-         recommendation, a capital decision, rested on a guess. */
-      D.push({
-        id: "dispatch",
-        title: "When do trucks leave?",
-        why: "This decides how many boxes sit on the floor at once, and how many hours you have to clear them.",
-        options: WAVE_PATTERN_DEFS.map(wp => {
-          const wh = OP_WINDOW_HOURS[wp.key], dh = DWELL_HOURS[wp.key];
-          const peak = Math.max(1, Math.round(boxes / wh * dh));
-          return {
-            key: wp.key, label: wp.label, detail: wp.hint,
-            metrics: [["Hours to sort", wh + " hrs"], ["Boxes on floor at peak", "~" + fmtNum(peak)],
-            ["Sort rate needed", fmtNum(Math.round(boxes / wh)) + "/hr"]],
-            patch: { wavePattern: wp.key }
-          };
-        }),
-        recommend: "waves",
-        rationale: "A few dispatch windows is the steadiest pattern for most hubs — one big night sort peaks hard on floor space and staffing, while running continuously needs cover all day. Pick what your outbound trucks are actually booked for.",
-      });
-
-      /* ---- 4. Door count — a single adjustable number, not presets. Doors
-         run as one shared bank either way (see the note further down), and
-         gate WIDTH is now its own question above, so doorPatch here only
+      /* ---- 1. Door count, first — the most basic fact about the building,
+         and every later question (gate width, flow shape) budgets around
+         it. A single adjustable number, not presets: doors run as one
+         shared bank either way (see the note further down), so this only
          ever sets the count and its in/out reference split, never width.
-         Recommendation is anchored on the real cross-dock density benchmark
-         (~1 door per 2,500-3,000 sq ft — 3-4x a storage warehouse's density,
-         since inbound and outbound run simultaneously), shown live as the
-         number is dialed rather than baked into three fixed presets. */
+         Recommendation is anchored on the real cross-dock density
+         benchmark (~1 door per 2,500-3,000 sq ft — 3-4x a storage
+         warehouse's density, since inbound and outbound run
+         simultaneously), shown live as the number is dialed rather than
+         baked into fixed presets. Skipped entirely when a blueprint photo
+         already showed real doors — see the "doors" entry in
+         inferVisionAnswers, gated on entries/exits actually being
+         detected, not the "couldn't find any" fallback. */
       const maxDoors = Math.max(1, Math.floor((L * 0.8) / 12));
       const densityTarget = clamp(Math.round((L * W) / 2750), 1, maxDoors);
       const winHrs = OP_WINDOW_HOURS[p.wavePattern] || OP_WINDOW_HOURS.night;
@@ -10131,6 +10054,95 @@
         },
         recommend: "n" + densityTarget,
         rationale: `~${fmtNum(doorSqftPer)} sq ft per door is typical cross-dock density — that's ${densityTarget} doors on a ${fmtNum(L * W)} sq ft floor. Plenty of real buildings run on just 1-2; the number is yours to dial to whatever the building actually has.`,
+      });
+
+      // ---- 2. What shape the building is. One shared gate handles both
+      // loading and unloading either way (a real truck court, one leveler
+      // bank) — what changes is the SHAPE the goods trace from that gate to
+      // sortation and bagging and back, which depends only on the building's
+      // footprint, not on volume or destinations.
+      D.push({
+        id: "flow",
+        title: "What shape is your building?",
+        why: "This decides the shape goods trace from the gate to sortation and bagging and back — pick whichever fits your footprint.",
+        options: [
+          {
+            key: "spine", label: "I · Straight Spine", detail: "Long, narrow building, gate centered on the short wall. Goods go straight back to bagging, no turns.",
+            metrics: [["Turns", "None"], ["Best for", "Long & narrow, has depth to spare"]], patch: { flowShape: "spine" }
+          },
+          {
+            key: "corner", label: "L · Corner Turn", detail: "Gate off to one side. Goods go in, turn once, reach sortation and bagging in the far corner.",
+            metrics: [["Turns", "One 90°"], ["Best for", "L-shaped or corner-constrained"]], patch: { flowShape: "corner" }
+          },
+          {
+            key: "loop", label: "U · Loop-Back", detail: "Wide, shallow building, gate centered. Goods loop up one wall, across the back, down the other, ending near the gate.",
+            metrics: [["Turns", "Two 90°"], ["Best for", "Wide & shallow, gate centered"]], patch: { flowShape: "loop" }
+          },
+        ],
+        recommend: "spine",
+        rationale: "Straight Spine is the default because it's the shortest, most legible process line and the cheapest single conveyor run. Pick Corner Turn if the building or the gate itself can't sit mid-wall, or Loop-Back if the plot is wide and shallow rather than long and narrow.",
+      });
+
+      /* ---- 3. How wide each entrance gate is. Used to ask how boxes move
+         around the floor (equipment/aisle width) — that traded a live number
+         for a "which of 4 equipment types" framing nobody found useful, and
+         almost every hub runs one handling method anyway, so it's now a
+         silent research-set default (trolley, see defaultGenParams) same as
+         lane width and staging depth. Gate width is the more concrete,
+         easier-to-measure real-world number in that slot: it directly sizes
+         the gate zone the generator actually draws (doorSpacingFt below),
+         where the old aisle-width answer only fed a display metric. */
+      const MIN_GATE_FT = 8; // narrowest a single dock door + apron should be
+      const gateWidthCompute = ftPerDoor => {
+        const wd = Math.max(1, Math.round(ftPerDoor));
+        const doorsNow = Math.max(1, p.dockBays || 4);
+        return {
+          metrics: [
+            ["Gate width per door", wd + " ft"],
+            ["Meets minimum functional width", wd >= MIN_GATE_FT ? "Yes" : "No"],
+            [`Wall used at ${doorsNow} door${doorsNow === 1 ? "" : "s"}`, fmtNum(wd * doorsNow) + " ft"],
+          ],
+          patch: { doorSpacingFt: wd },
+        };
+      };
+      D.push({
+        id: "gateWidth",
+        title: "How wide is each entrance gate?",
+        why: "This sets how much wall each dock door needs, and how much frontage the whole gate bank takes up.",
+        options: [],
+        customNumeric: {
+          standalone: true,
+          unit: "ft",
+          min: 6, max: 20, step: 1,
+          initial: p.doorSpacingFt || 12,
+          compute: gateWidthCompute,
+          label: "Gate width",
+          help: "12 ft is the common bay spacing for a single dock door — enough for the leveler and a square approach. Narrower saves wall; wider suits oversized trucks.",
+        },
+        recommend: "n12",
+        rationale: "12 ft covers a standard dock door and its leveler with room to approach square. Go narrower only if wall space is tight; wider if you regularly load oversized vehicles.",
+      });
+
+      /* ---- 4. When trucks leave. Drives peak concurrency (staging depth) AND
+         the hours available to sort (which sizes the sorter). Previously
+         assumed a 6-hour night window and never asked — meaning the sortation
+         recommendation, a capital decision, rested on a guess. */
+      D.push({
+        id: "dispatch",
+        title: "When do trucks leave?",
+        why: "This decides how many boxes sit on the floor at once, and how many hours you have to clear them.",
+        options: WAVE_PATTERN_DEFS.map(wp => {
+          const wh = OP_WINDOW_HOURS[wp.key], dh = DWELL_HOURS[wp.key];
+          const peak = Math.max(1, Math.round(boxes / wh * dh));
+          return {
+            key: wp.key, label: wp.label, detail: wp.hint,
+            metrics: [["Hours to sort", wh + " hrs"], ["Boxes on floor at peak", "~" + fmtNum(peak)],
+            ["Sort rate needed", fmtNum(Math.round(boxes / wh)) + "/hr"]],
+            patch: { wavePattern: wp.key }
+          };
+        }),
+        recommend: "waves",
+        rationale: "A few dispatch windows is the steadiest pattern for most hubs — one big night sort peaks hard on floor space and staffing, while running continuously needs cover all day. Pick what your outbound trucks are actually booked for.",
       });
 
       // Lane width and staging depth used to be their own questions here.
@@ -17727,8 +17739,6 @@
       const inAisle = $("#set-aisle-min"); if (inAisle) inAisle.value = builderSettings.aisleMin;
       const inGridColor = $("#set-grid-color"); if (inGridColor) inGridColor.value = customGridColor || "default";
       const inPrefix = $("#set-prefix-tag"); if (inPrefix) inPrefix.value = builderSettings.prefixTag;
-      const inOrg = $("#set-org"); if (inOrg) inOrg.value = builderSettings.org || "";
-      const inShowPrepared = $("#set-show-prepared"); if (inShowPrepared) inShowPrepared.checked = builderSettings.showPreparedBy !== false;
 
       modal.classList.add("on");
       modal.style.display = "flex";
@@ -17759,8 +17769,6 @@
         const chosenColor = $("#set-grid-color")?.value;
         customGridColor = (chosenColor && chosenColor !== "default") ? chosenColor : null;
         redraw();
-        builderSettings.org = ($("#set-org")?.value || "").trim() || "BlitzNow Logistics - Bangalore Hub 1";
-        builderSettings.showPreparedBy = $("#set-show-prepared")?.checked ?? true;
 
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(builderSettings));
       } catch (err) {
