@@ -55,6 +55,67 @@
     { "zone": "growth", "generator_type": "growth", "purpose": "Reserved headroom for volume growth — held-back floor, not built out.", "typical_share_of_footprint_pct": "0-15 (manager-set)", "adjacency": [] }
   ],
 
+  "sortation_layout_patterns": [
+    {
+      "pattern": "pigeonhole_or_bin_wall",
+      "description": "Fully manual carry: a wall or bank of open-fronted pigeonholes/bins, one per destination, that pickers walk parcels to directly from induction. No conveyor at all.",
+      "assumed_by": "throughput_tiers[tier=1].sortation_description ('Pigeonhole wall or bin-sort by destination, fully manual carry', conveyor_cells_expected: 0)"
+    },
+    {
+      "pattern": "manual_perimeter_loop",
+      "description": "A square/rectangular racetrack conveyor loop forms the sortation core; manual sort workers are stationed at fixed positions around its OUTER edge (all 4 sides), picking parcels off the moving belt into destination bins/lanes behind them as it passes — the belt only carries and presents parcels, all sortation decisions and handling stay manual. Distinct from a semiauto divert line (which is usually a single straight/modular spine, not a loop) and from the pigeonhole-wall pattern above (which has no conveyor at all).",
+      "confirmed_by": "reference_layouts[0] below — a real Tier-1-scale facility explicitly labeled 'SORTING AREA (MANUAL SORT)' still uses a conveyor loop, purely to reduce picker walking, not to raise throughput class.",
+      "correction_to_existing_doc": "throughput_tiers[tier=1]'s 'conveyor_cells_expected: 0' is an oversimplification — a manual-sort hub MAY still deploy a low-cost, non-automated loop conveyor. Presence of a conveyor does not by itself imply semiauto/automated sortationMethod; what determines the tier is whether sortation DECISIONS are manual (person reads/decides destination) vs machine-diverted."
+    }
+  ],
+
+  "reference_layouts": [
+    {
+      "name": "Reference Manual-Sort Mother Hub — single-gate split-flow",
+      "source": "Real facility floor-plan reference image provided by the user, 2026-09-01 (not generator output, not a fabricated example). Dimensions/areas below are as explicitly labeled on the source drawing.",
+      "how_to_use_this": "This is ONE validated real-world instance of the zone_catalog and design_constants above, not a fixed template to reproduce verbatim. Generalize the RATIOS, ADJACENCY, and FLOW PATTERN — the same principles should produce a good layout with these same object types in different positions/proportions for a different building shape or scale, not this exact picture redrawn.",
+      "tier_match": 1,
+      "tier_name": "Micro Manual Hub",
+      "dimensionsFt": { "length": 120, "width": 100 },
+      "totalAreaSqft": 12000,
+      "sortationMethod": "manual",
+      "sortationLayoutPattern": "manual_perimeter_loop",
+      "gate": {
+        "count": 1,
+        "widthFt": 12,
+        "wallBand": "south",
+        "pattern": "single_shared_gate",
+        "note": "ONE shared gate/vehicle apron serves both inbound unload and outbound dispatch — a real-world instance of this app's own gate-flow zone model (ZONE_DEFS.dock = 'Shared Gate'; receiving → sorting → bagging → dispatchQueue sequence) rather than the separate dockIn/dockOut-wall model. Internally, incoming and outbound are still kept on OPPOSITE sides of the building (west vs east) so product never crosses its own path, even with only one exterior gate — a hybrid of design_constants.flow_pattern_rule's u_flow (one gate) and i_flow (opposite-side separation) reasoning, not a pure case of either."
+      },
+      "support_band": {
+        "wallBand": "north",
+        "depthFt": 12,
+        "totalAreaSqft": 684,
+        "pctOfGFA": 5.7,
+        "vs_doc_range": "Below zone_catalog's support_rooms typical_share_of_footprint_pct (8-14%) — plausibly because absolute admin/utility footprint doesn't scale down linearly with a smaller Tier-1 building. Noted, not silently forced to match.",
+        "zones": [
+          { "generator_type": "office", "label": "Office / Admin", "wFt": 10, "hFt": 12, "areaSqft": 120, "order": 1 },
+          { "generator_type": "bathroom", "label": "Toilet", "wFt": 6, "hFt": 8, "areaSqft": 48, "order": 2 },
+          { "generator_type": "conference", "label": "Staff Room", "wFt": 8, "hFt": 12, "areaSqft": 96, "order": 3, "note": "Closest existing ZONE_DEFS match for a break/staff room — not an exact concept match, kept for consistency with the app's current zone vocabulary rather than inventing a new type for one reference." },
+          { "generator_type": "ups", "label": "Electrical / UPS", "wFt": 6, "hFt": 10, "areaSqft": 60, "order": 4 },
+          { "generator_type": "store", "label": "Storage Area", "wFt": 30, "hFt": 12, "areaSqft": 360, "order": 5, "note": "Auxiliary shelving/spares storage, not core sortation-lane storage — sits in the support band, not the operational flow." }
+        ]
+      },
+      "operational_zones": [
+        { "generator_type": "receiving", "label": "Incoming Bag / Parcel Unload Area", "wFt": 15, "hFt": 30, "areaSqft": 450, "wallBand": "west", "pctOfGFA": 3.75 },
+        { "generator_type": "sorting", "label": "Sorting Area (Manual Sort)", "wFt": 40, "hFt": 40, "areaSqft": 1600, "position": "center", "pctOfGFA": 13.3, "note": "Square core, perimeter conveyor loop, manual sort stations on all 4 outer sides — see sortation_layout_patterns.manual_perimeter_loop." },
+        { "generator_type": "outboundLane", "label": "Outgoing Staging Area (Lane-wise)", "wFt": 20, "hFt": 40, "areaSqft": 800, "position": "east-center, between sorting and dispatch", "laneCount": 5, "pctOfGFA": 6.7 },
+        { "generator_type": "dispatchQueue", "label": "Dispatch / Loading Area", "wFt": 15, "hFt": 40, "areaSqft": 600, "wallBand": "east", "pctOfGFA": 5.0 }
+      ],
+      "flow_pattern": "gate (south, shared) -> splits internally to receiving (west band) and dispatchQueue (east band) -> both feed/drain the central sorting loop -> sorted parcels move to outboundLane staging (lane-wise by destination, east-center) -> dispatchQueue -> gate. One-way, no crossed paths, despite only one physical gate.",
+      "area_accounting": {
+        "labeled_zones_pct_of_gfa": 34.5,
+        "unlabeled_open_floor_pct_of_gfa": 65.5,
+        "note": "Roughly two-thirds of this real reference's interior is open floor — the walkway ring around the sorting loop, handling space between zones, and the gate's interior apron — none of it separately named. Real Tier-1 manual hubs run leaner on named/walled area and heavier on open interior floor than a naive reading of zone_catalog's individual percentages (which sum toward a denser-looking budget) would suggest; open circulation is not wasted space here, it's load-bearing for manual handling."
+      }
+    }
+  ],
+
   "throughput_tiers": [
     {
       "tier": 1,

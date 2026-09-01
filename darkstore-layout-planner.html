@@ -3209,6 +3209,22 @@
       line-height: 1.5;
     }
 
+    .opt-res-advisory-line {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+      font-size: var(--fs-xs);
+      color: #92600a;
+      background: #fdf3d8;
+      border-radius: 6px;
+      padding: 5px 8px;
+      line-height: 1.45;
+    }
+    body.dark-mode .opt-res-advisory-line {
+      color: #f3d38a;
+      background: rgba(217, 168, 44, 0.14);
+    }
+
     .opt-res-actions {
       display: flex;
       gap: 6px;
@@ -18596,9 +18612,64 @@
       };
     }
 
+    // Real mother-hub design-knowledge (reference/mother-hub-layouts.json,
+    // served condensed via /api/design-knowledge) - fetched once and
+    // cached for the session, since it's static reference data that
+    // doesn't change while the app is open. Powers Optimize Layout's
+    // zone-balance advisory below.
+    let designKnowledgeCache = null;
+    async function fetchDesignKnowledge() {
+      if (designKnowledgeCache) return designKnowledgeCache;
+      try {
+        designKnowledgeCache = await apiFetch("/api/design-knowledge");
+      } catch (e) {
+        designKnowledgeCache = { available: false, zoneAreaRanges: {} };
+      }
+      return designKnowledgeCache;
+    }
+
+    // Compares the current layout's zone-area mix against real mother-hub
+    // design ranges - informational only, NEVER auto-resizes or auto-adds
+    // anything (that's exactly the "invents content" antipattern this app
+    // already had to be fixed out of once - see optimizeCurrentLayout's own
+    // history). office/security/medical/conference/store/ups/bathroom share
+    // ONE combined "support band" range in the knowledge base (they're
+    // budgeted together in real hubs, not independently), so their areas
+    // are summed before comparing rather than checked one at a time.
+    const SUPPORT_BAND_ZONE_TYPES = new Set(["office", "security", "medical", "conference", "store", "ups", "bathroom"]);
+    function computeZoneBalanceAdvisory(dk) {
+      if (!dk || !dk.available || !site || !site.zones || !site.zones.length) return [];
+      const ranges = dk.zoneAreaRanges || {};
+      const totalArea = site.L * site.W;
+      if (!totalArea) return [];
+      let supportArea = 0;
+      const byType = {};
+      site.zones.forEach(z => {
+        const area = getZoneArea(z);
+        if (SUPPORT_BAND_ZONE_TYPES.has(z.type)) supportArea += area;
+        else byType[z.type] = (byType[z.type] || 0) + area;
+      });
+      const advisories = [];
+      const check = (range, area, label) => {
+        if (!range) return;
+        const pct = (area / totalArea) * 100;
+        if (pct < range.minPct) {
+          advisories.push(`${label}: ${pct.toFixed(1)}% of floor - typical is ${range.minPct}-${range.maxPct}%, consider expanding.`);
+        } else if (pct > range.maxPct * 1.5) {
+          // Only flag "too big" past a real margin, not right at the edge -
+          // an oversized support/operational zone is rarely as costly a
+          // mistake as an undersized one, and managers legitimately vary.
+          advisories.push(`${label}: ${pct.toFixed(1)}% of floor - typical is ${range.minPct}-${range.maxPct}%, larger than usual.`);
+        }
+      };
+      check(ranges.office, supportArea, "Support rooms (office/security/medical/etc.)");
+      Object.keys(byType).forEach(type => check(ranges[type], byType[type], (ZONE_DEFS[type] || {}).name || type));
+      return advisories.slice(0, 4); // keep the popup short - most impactful few, not an exhaustive audit
+    }
+
     let optimizeRevertState = null;
     function hideOptimizeResult() { $("#optimize-result")?.classList.remove("on"); }
-    function showOptimizeResult(before, after, revertState) {
+    function showOptimizeResult(before, after, revertState, advisory) {
       const card = $("#optimize-result");
       if (!card) return;
       optimizeRevertState = revertState;
@@ -18623,6 +18694,13 @@
       const newRooms = after.roomNames.filter(n => !before.roomNames.includes(n));
       newRooms.forEach(n => lines.push(`<div class="opt-res-line">＋ <span>Room added: <b>${n}</b></span></div>`));
 
+      // Zone-balance advisory (from reference/mother-hub-layouts.json via
+      // /api/design-knowledge) - purely informational, never applied
+      // automatically. Shown alongside the real diff above, visually
+      // distinct (amber) so it reads as "worth considering," not as
+      // something Optimize actually did.
+      (advisory || []).forEach(msg => lines.push(`<div class="opt-res-advisory-line">⚠ <span>${escapeHtml(msg)}</span></div>`));
+
       $("#opt-res-changes").innerHTML = lines.length
         ? lines.join("")
         : `<div class="opt-res-none">Your layout already meets the standard - nothing needed changing.</div>`;
@@ -18645,7 +18723,7 @@
       toast("Reverted to your previous layout");
     });
 
-    function optimizeCurrentLayout() {
+    async function optimizeCurrentLayout() {
       if (!site) return;
       hideOptimizeResult();
       snapshot();
@@ -18769,8 +18847,11 @@
 
       // Optimize rewrites the manager's floor. Rather than asserting success
       // in a toast that vanishes, show exactly what changed and offer a
-      // one-click way back.
-      showOptimizeResult(beforeStats, captureLayoutStats(), beforeState);
+      // one-click way back - plus, separately, an honest advisory (not a
+      // change) on how the resulting zone mix compares to real mother-hub
+      // proportions.
+      const dk = await fetchDesignKnowledge();
+      showOptimizeResult(beforeStats, captureLayoutStats(), beforeState, computeZoneBalanceAdvisory(dk));
     }
     window.optimizeCurrentLayout = optimizeCurrentLayout;
 

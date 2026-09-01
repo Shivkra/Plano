@@ -151,6 +151,77 @@ const GEMINI_MODELS = [
    competing with image analysis for the same per-model daily cap. */
 const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || "gemini-3.1-flash-lite";
 
+/* ---------- design-knowledge base ----------
+   A structured JSON reference of real mother-hub/cross-dock design research
+   plus one fully-specified real facility example lives at
+   reference/mother-hub-layouts.json (reference/mother-hub-design-guide.md is
+   its prose companion). It predates this session but was never actually
+   loaded by anything at runtime - it was read once by a human to hand-tune
+   the deterministic generator's constants, then left sitting in the repo.
+   Loaded here so it can actually ground the LLM-backed features (AI tweak)
+   and be served to the frontend (GET /api/design-knowledge) instead of
+   staying inert. Read once at startup, not per-request, since it's static
+   reference data nothing writes to. A missing/invalid file degrades to
+   null/empty rather than crashing the server or blocking AI tweak. */
+const DESIGN_KNOWLEDGE_FILE = path.join(__dirname, "..", "reference", "mother-hub-layouts.json");
+let DESIGN_KNOWLEDGE = null;
+try {
+  DESIGN_KNOWLEDGE = JSON.parse(fs.readFileSync(DESIGN_KNOWLEDGE_FILE, "utf8"));
+} catch (e) {
+  console.warn("Design-knowledge base not loaded (" + DESIGN_KNOWLEDGE_FILE + "):", e.message);
+}
+
+/* A condensed, prompt-sized brief distilled from DESIGN_KNOWLEDGE - the
+   full file is tens of KB, too much to spend on every single AI-tweak
+   call. Pulls just the zone catalog (name/purpose/typical share of floor)
+   plus the couple of design constants that matter most for a sizing/
+   placement decision, and a one-line summary of the concrete reference
+   layout. Built once at startup, not per-request. */
+function buildDesignKnowledgeBrief(dk) {
+  if (!dk) return "";
+  const zones = (dk.zone_catalog || [])
+    .map((z) => `- ${z.zone} (${z.generator_type}): ${z.purpose} Typical ${z.typical_share_of_footprint_pct}% of floor.`)
+    .join("\n");
+  const ref = (dk.reference_layouts || [])[0];
+  const laneCount = ref ? (ref.operational_zones || []).find((o) => o.generator_type === "outboundLane")?.laneCount : null;
+  const refLine = ref
+    ? `Real reference example: a ${ref.dimensionsFt.length}x${ref.dimensionsFt.width}ft (${ref.totalAreaSqft} sqft) Tier-${ref.tier_match} manual-sort hub, single shared gate, ${laneCount || "several"} destination staging lanes, perimeter-loop sortation core - about ${ref.area_accounting.labeled_zones_pct_of_gfa}% of floor in named zones, the rest open circulation for handling.`
+    : "";
+  return [
+    "Reference design knowledge for Mother Hub / cross-dock sortation facilities (real industry research, not generic warehouse advice):",
+    zones,
+    dk.design_constants && dk.design_constants.flow_pattern_rule ? `Flow: ${dk.design_constants.flow_pattern_rule.i_flow_through_flow}` : "",
+    dk.design_constants && dk.design_constants.destination_lane_placement_principle ? `Lane placement: ${dk.design_constants.destination_lane_placement_principle.description}` : "",
+    refLine,
+    "Use these as realistic sizing/placement references - but the manager's explicit instruction always wins over a typical-range default.",
+  ].filter(Boolean).join("\n");
+}
+const DESIGN_KNOWLEDGE_BRIEF = buildDesignKnowledgeBrief(DESIGN_KNOWLEDGE);
+
+/* Per-zone-type "typical share of floor area" ranges, derived from
+   DESIGN_KNOWLEDGE.zone_catalog for the frontend's Optimize-Layout zone-
+   balance advisory (GET /api/design-knowledge). Most catalog entries'
+   generator_type is already a bare ZONE_DEFS key ("dockIn", "outboundLane",
+   ...); a couple describe a compound concept ("sorting (zone) + conveyor
+   ...", "security / medical / office / ...") - CATALOG_TO_ZONE_TYPES maps
+   just those few to the real zone type(s) they correspond to, so this stays
+   a derivation from the JSON file, not a second hand-maintained copy of it. */
+const CATALOG_TO_ZONE_TYPES = {
+  sortation_core: ["sorting"],
+  support_rooms: ["security", "medical", "office", "conference", "store", "ups", "bathroom"],
+};
+function buildZoneAreaRanges(dk) {
+  const ranges = {};
+  for (const z of (dk && dk.zone_catalog) || []) {
+    const m = String(z.typical_share_of_footprint_pct || "").match(/(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)/);
+    if (!m) continue;
+    const types = CATALOG_TO_ZONE_TYPES[z.zone] || (/^[a-zA-Z]+$/.test(z.generator_type || "") ? [z.generator_type] : []);
+    for (const t of types) ranges[t] = { minPct: Number(m[1]), maxPct: Number(m[2]), purpose: z.purpose };
+  }
+  return ranges;
+}
+const ZONE_AREA_RANGES = buildZoneAreaRanges(DESIGN_KNOWLEDGE);
+
 async function callGeminiVision(base64Image, mimeType) {
   let lastErr = null;
   for (const model of GEMINI_MODELS) {
@@ -717,6 +788,20 @@ async function handleAiRefine(req, res) {
 function handleVisionStatus(req, res) {
   return sendJson(res, 200, { available: !!GEMINI_API_KEY });
 }
+
+// Serves the condensed mother-hub design-knowledge base (see
+// reference/mother-hub-layouts.json / DESIGN_KNOWLEDGE above) for the
+// frontend's own use - currently Optimize Layout's zone-balance advisory.
+// No auth required (same as /api/vision-status): it's static reference
+// data, not anything user-specific.
+function handleDesignKnowledge(req, res) {
+  if (!DESIGN_KNOWLEDGE) return sendJson(res, 200, { available: false, zoneAreaRanges: {} });
+  return sendJson(res, 200, {
+    available: true,
+    zoneAreaRanges: ZONE_AREA_RANGES,
+    referenceExample: (DESIGN_KNOWLEDGE.reference_layouts || [])[0] || null,
+  });
+}
 async function handleVisionImport(req, res) {
   let body;
   try {
@@ -960,6 +1045,8 @@ You will be given the current site's facts (floor dimensions, and the existing r
    "target" must match one of the existing zones you were given in the facts (by its label or type) - never invent a target that doesn't exist, and never emit resizeZone/moveZone/deleteZone/recolorZone/renameZone for something you weren't told exists.
    Keep "summary" to one or two plain sentences describing what you're about to do, so the manager can see it before it happens.
 
+${DESIGN_KNOWLEDGE_BRIEF}
+
 Reply with ONLY strict JSON, nothing outside it: {"summary": "...", "actions": [...]}`;
 
 function sanitizeAiTweakActions(raw) {
@@ -1096,6 +1183,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && p === "/api/vision-status") {
       return handleVisionStatus(req, res);
+    }
+    if (req.method === "GET" && p === "/api/design-knowledge") {
+      return handleDesignKnowledge(req, res);
     }
     if (req.method === "POST" && p === "/api/vision-import") {
       const email = authenticate(req);
