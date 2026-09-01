@@ -7442,7 +7442,7 @@
         <div class="login-chip-row" id="login-chip-row"></div>
       </div>
       <form id="login-form" novalidate
-        onsubmit="event.preventDefault(); signIn(document.getElementById('login-email').value);">
+        onsubmit="event.preventDefault(); requestOtp(document.getElementById('login-email').value);">
         <div class="login-reveal login-reveal--4 field field--reticle">
           <label class="field-label" for="login-email">What's your email?</label>
           <div class="login-reticle-wrap">
@@ -7453,9 +7453,34 @@
           <div class="field-error" id="login-email-error" style="display:none;">Enter a valid email address.</div>
         </div>
         <button type="submit" class="login-reveal login-reveal--5 btn primary lg full" id="login-go"
-          style="margin-top:14px;">Continue →</button>
+          style="margin-top:14px;">Send code →</button>
         <button type="button" class="login-reveal login-reveal--6 login-quick-link" id="login-quick"
-          onclick="signIn('siva.k@blitznow.in')">⚡ Quick sign in as Lead Architect</button>
+          onclick="requestOtp('siva.k@blitznow.in')">⚡ Quick sign in as Lead Architect</button>
+      </form>
+
+      <!-- OTP step - shown after requestOtp() succeeds, in place of the
+           email form. Verifies the code server-side before issuing a
+           token; see /api/verify-otp. -->
+      <form id="otp-form" novalidate style="display:none;"
+        onsubmit="event.preventDefault(); verifyOtp();">
+        <div class="field field--reticle">
+          <label class="field-label" for="otp-code">Enter the code</label>
+          <div class="login-reticle-wrap">
+            <input type="text" id="otp-code" placeholder="000000" maxlength="6" autocomplete="one-time-code"
+              inputmode="numeric" pattern="[0-9]*" enterkeyhint="go" style="letter-spacing:6px; text-align:center;">
+            <i class="ret ret--tl"></i><i class="ret ret--tr"></i><i class="ret ret--bl"></i><i class="ret ret--br"></i>
+          </div>
+          <div class="field-error" id="otp-code-error" style="display:none;"></div>
+          <div id="otp-sent-note" style="font-size:12px; color:var(--ink-soft); margin-top:8px;"></div>
+        </div>
+        <button type="submit" class="btn primary lg full" id="otp-verify-btn" style="margin-top:14px;">Verify &amp;
+          continue →</button>
+        <div style="display:flex; justify-content:space-between; margin-top:12px;">
+          <button type="button" class="login-quick-link" id="otp-back-btn" onclick="showLoginGate()">← Use a
+            different email</button>
+          <button type="button" class="login-quick-link" id="otp-resend-btn" onclick="requestOtp(otpEmailPending, true)">Resend
+            code</button>
+        </div>
       </form>
     </div>
   </div>
@@ -9485,23 +9510,17 @@
         throw new ApiError(0, "Network connection error");
       }
       if (res.status === 401) {
-        console.warn("API 401 for path:", path, "- attempting auto re-auth");
-        if (currentUser && !options._retried) {
-          try {
-            const loginRes = await fetch(getApiBase() + "/api/login", {
-              method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: currentUser }),
-            });
-            if (loginRes.ok) {
-              const loginData = await loginRes.json();
-              if (loginData && loginData.token) {
-                authToken = loginData.token;
-                localStorage.setItem(AUTH_TOKEN_KEY, authToken);
-                return await apiFetch(path, Object.assign({}, options, { _retried: true }));
-              }
-            }
-          } catch (reauthErr) { }
-        }
-        throw new ApiError(401, "Session unauthorized");
+        // Used to silently re-POST /api/login with just the stored email
+        // to mint a fresh token with no verification at all - which is
+        // exactly the bypass OTP exists to close, and that endpoint is
+        // gone now anyway. A 401 means the stored session is no longer
+        // good; the only honest recovery is a real sign-in (a fresh code),
+        // not a silent one, so this just clears the stale session and
+        // surfaces the error for the caller to act on.
+        console.warn("API 401 for path:", path, "- clearing stale session");
+        localStorage.removeItem(CURRENT_USER_KEY);
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        throw new ApiError(401, "Sign in again - session missing or expired.");
       }
       if (!res.ok) {
         let msg = "Request failed";
@@ -20635,8 +20654,14 @@
     });
 
     /* =====================================================================
-       LOGIN - email only, no password or OTP yet
+       LOGIN - email + a one-time code sent to that address, no password.
+       requestOtp() emails the code (POST /api/request-otp), verifyOtp()
+       checks it and issues the session token (POST /api/verify-otp) - see
+       the matching comment at the top of server/server.js. A device that's
+       already signed in skips straight past this via initLogin()'s stored-
+       token check below; OTP only gates a fresh sign-in.
     ===================================================================== */
+    var otpEmailPending = null;
     function loadCurrentUser() { return localStorage.getItem(CURRENT_USER_KEY) || null; }
     function loadKnownUsers() {
       try { return JSON.parse(localStorage.getItem(KNOWN_USERS_KEY)) || []; } catch (e) { return []; }
@@ -20667,7 +20692,10 @@
           const chip = document.createElement("div");
           chip.className = "login-chip";
           chip.innerHTML = `<span class="avatar">${escapeHtml(initials(email))}</span><span class="nm">${escapeHtml(email)}</span>`;
-          chip.addEventListener("click", () => signIn(email));
+          // A "known" chip is just a shortcut that pre-fills the email -
+          // it still has to prove it owns that address via a fresh code,
+          // same as typing it in by hand.
+          chip.addEventListener("click", () => requestOtp(email));
           row.appendChild(chip);
         });
         knownBlock.style.display = "block";
@@ -20678,6 +20706,13 @@
       if (emailInput) emailInput.value = "";
       const errEl = $("#login-email-error");
       if (errEl) errEl.style.display = "none";
+      // Reset back to the email step - showLoginGate() is also how "use a
+      // different email" and "sign out" get here, and neither should land
+      // on a stale OTP form for whatever email was pending before.
+      otpEmailPending = null;
+      const loginForm = $("#login-form"), otpForm = $("#otp-form");
+      if (loginForm) loginForm.style.display = "";
+      if (otpForm) otpForm.style.display = "none";
       showScreen("login-gate");
     }
 
@@ -20711,7 +20746,11 @@
       });
     })();
 
-    async function signIn(email) {
+    // Step 1: email address -> emails a 6-digit code, then shows the OTP
+    // form in place of the email form. `isResend` just changes which
+    // button shows the loading state (the resend link inside the OTP
+    // step, instead of the main "Send code" submit button).
+    async function requestOtp(email, isResend) {
       email = String(email || "").trim().toLowerCase();
       if (!email) {
         email = "lead.architect@blitznow.in";
@@ -20719,35 +20758,93 @@
         email = email + "@blitznow.in";
       }
 
-      currentUser = email;
-      const btn = $("#login-go");
-      if (btn) { btn.disabled = true; btn.textContent = "Entering Workspace…"; }
+      const errEl = $("#login-email-error");
+      if (!isValidEmail(email)) {
+        if (errEl) errEl.style.display = "block";
+        return;
+      }
+      if (errEl) errEl.style.display = "none";
+
+      // The email step has two ways to trigger this ("Send code" or the
+      // "Quick sign in" shortcut) - disable both together so whichever one
+      // wasn't clicked doesn't sit there looking clickable mid-request.
+      const btn = isResend ? $("#otp-resend-btn") : $("#login-go");
+      const quickBtn = isResend ? null : $("#login-quick");
+      const originalLabel = btn ? btn.textContent : "";
+      if (btn) { btn.disabled = true; btn.textContent = isResend ? "Sending…" : "Sending code…"; }
+      if (quickBtn) quickBtn.disabled = true;
 
       try {
-        const res = await fetch(getApiBase() + "/api/login", {
+        const res = await fetch(getApiBase() + "/api/request-otp", {
           method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }),
         });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.token) {
-            authToken = data.token;
-            currentUser = data.email || email;
-          }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast(data.error || "Could not send a code - try again.");
+        } else {
+          showOtpStep(email, !!data.devMode);
         }
       } catch (netErr) {
-        console.warn("Offline fallback login", netErr);
+        toast("Could not reach the server - check your connection and try again.");
       }
+      if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
+      if (quickBtn) quickBtn.disabled = false;
+    }
 
-      if (!authToken) {
-        authToken = "token-" + Date.now();
+    function showOtpStep(email, devMode) {
+      otpEmailPending = email;
+      const loginForm = $("#login-form"), otpForm = $("#otp-form");
+      if (loginForm) loginForm.style.display = "none";
+      if (otpForm) otpForm.style.display = "";
+      const codeInput = $("#otp-code");
+      if (codeInput) { codeInput.value = ""; setTimeout(() => codeInput.focus(), 50); }
+      const errEl = $("#otp-code-error");
+      if (errEl) errEl.style.display = "none";
+      const noteEl = $("#otp-sent-note");
+      if (noteEl) {
+        noteEl.textContent = devMode
+          ? "Email sending isn't configured on this server - check the server console for your code."
+          : `Code sent to ${email}. It expires in 10 minutes.`;
       }
+    }
 
-      localStorage.setItem(CURRENT_USER_KEY, currentUser);
-      localStorage.setItem(AUTH_TOKEN_KEY, authToken);
-      rememberKnownUser(currentUser);
+    // Step 2: the 6-digit code -> a real session token, same as the old
+    // instant login used to issue on nothing but an email address.
+    async function verifyOtp() {
+      const code = ($("#otp-code")?.value || "").trim();
+      const errEl = $("#otp-code-error");
+      if (!/^\d{6}$/.test(code)) {
+        if (errEl) { errEl.textContent = "Enter the 6-digit code."; errEl.style.display = "block"; }
+        return;
+      }
+      if (errEl) errEl.style.display = "none";
 
-      if (btn) { btn.disabled = false; btn.textContent = "Continue →"; }
-      enterApp();
+      const btn = $("#otp-verify-btn");
+      const originalLabel = btn ? btn.textContent : "";
+      if (btn) { btn.disabled = true; btn.textContent = "Verifying…"; }
+
+      try {
+        const res = await fetch(getApiBase() + "/api/verify-otp", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: otpEmailPending, code }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.token) {
+          if (errEl) { errEl.textContent = data.error || "That code isn't right - try again."; errEl.style.display = "block"; }
+          if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
+          return;
+        }
+        currentUser = data.email || otpEmailPending;
+        authToken = data.token;
+        localStorage.setItem(CURRENT_USER_KEY, currentUser);
+        localStorage.setItem(AUTH_TOKEN_KEY, authToken);
+        rememberKnownUser(currentUser);
+        otpEmailPending = null;
+        enterApp();
+      } catch (netErr) {
+        if (errEl) { errEl.textContent = "Could not reach the server - check your connection and try again."; errEl.style.display = "block"; }
+      }
+      if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
     }
 
     function switchUser() {

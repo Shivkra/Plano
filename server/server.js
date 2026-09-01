@@ -6,17 +6,21 @@
  * runs anywhere with `node server.js` - no `npm install` step, no native
  * compilation, no internet access needed to fetch packages.
  *
- * Storage is a pair of JSON files under ./data (data/users.json,
- * data/sites.json). That's the "database" for now: simple, human-readable,
- * easy to back up (copy the folder), and completely sufficient for a
- * handful of warehouse managers saving a handful of sites each. If this
- * ever needs to scale past that, swap loadJson/saveJson for a real DB -
- * every call site already goes through those two functions.
+ * Storage is a handful of JSON files under ./data (data/users.json,
+ * data/sites.json, data/otps.json). That's the "database" for now: simple,
+ * human-readable, easy to back up (copy the folder), and completely
+ * sufficient for a handful of warehouse managers saving a handful of sites
+ * each. If this ever needs to scale past that, swap loadJson/saveJson for a
+ * real DB - every call site already goes through those two functions.
  *
- * Auth: email only, no password, no OTP yet (the frontend says so too).
- * A signed, stateless token (HMAC over the email) is issued on login, so
- * there's no session store to lose on restart. When OTP verification is
- * added, it slots in right before the token is issued in handleLogin().
+ * Auth: email + a one-time code sent to that address, no password. Sign-in
+ * is two calls: POST /api/request-otp emails a 6-digit code (10-minute
+ * expiry, one request per 30s per address); POST /api/verify-otp checks it
+ * and, on a match, issues the same signed stateless token as before (HMAC
+ * over the email - no session store to lose on restart). Sending the actual
+ * email is optional-by-default like the Gemini/Anthropic integrations below
+ * - set RESEND_API_KEY to enable it; without it request-otp logs the code
+ * to this console instead, so local development still works end to end.
  */
 
 const http = require("http");
@@ -29,6 +33,7 @@ const PORT = process.env.PORT || 8934;
 const DATA_DIR = path.join(__dirname, "data");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const SITES_FILE = path.join(DATA_DIR, "sites.json");
+const OTPS_FILE = path.join(DATA_DIR, "otps.json");
 const SECRET_FILE = path.join(DATA_DIR, "secret.key");
 const FRONTEND_FILE = path.join(__dirname, "..", "darkstore-layout-planner.html");
 const PLANOGRAM_FILE = path.join(__dirname, "..", "darkstore-planogram.html");
@@ -348,6 +353,68 @@ function callGeminiText(systemInstruction, contents) {
   });
 }
 
+/* ---------- optional OTP email delivery (Resend) ----------
+   Sends the sign-in code via Resend's HTTP API (POST /emails), not the
+   Resend SDK, to keep this a zero-npm-dependency server like the Gemini/
+   Anthropic calls above. Off by default - set RESEND_API_KEY to enable;
+   without it, handleRequestOtp() logs the code to this console instead of
+   emailing it, so signing in still works locally. OTP_FROM_EMAIL lets a
+   verified sending domain override Resend's shared onboarding@resend.dev
+   sandbox address (which can only deliver to the Resend account's own
+   verified address until a domain is added). */
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+const OTP_FROM_EMAIL = process.env.OTP_FROM_EMAIL || "Blitz <onboarding@resend.dev>";
+const OTP_TTL_MS = 10 * 60 * 1000;
+const OTP_RESEND_COOLDOWN_MS = 30 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+
+function generateOtpCode() {
+  return String(crypto.randomInt(0, 1000000)).padStart(6, "0");
+}
+
+function sendOtpEmail(toEmail, code) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify({
+      from: OTP_FROM_EMAIL,
+      to: toEmail,
+      subject: `${code} is your Blitz sign-in code`,
+      text: `Your Blitz sign-in code is ${code}. It expires in 10 minutes. If you didn't request this, you can ignore this email.`,
+      html:
+        `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:420px;margin:0 auto;padding:32px 24px;">` +
+        `<p style="font-size:14px;color:#57534E;margin:0 0 20px;">Your Blitz sign-in code:</p>` +
+        `<div style="font-size:36px;font-weight:800;letter-spacing:6px;color:#17171A;margin:0 0 20px;">${code}</div>` +
+        `<p style="font-size:13px;color:#78716C;margin:0;">Expires in 10 minutes. If you didn't request this, you can ignore this email.</p>` +
+        `</div>`,
+    });
+    const req = https.request(
+      {
+        hostname: "api.resend.com",
+        path: "/emails",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(payload),
+          "Authorization": "Bearer " + RESEND_API_KEY,
+        },
+        timeout: 15000,
+      },
+      (res) => {
+        let chunks = [];
+        res.on("data", (c) => chunks.push(c));
+        res.on("end", () => {
+          const body = Buffer.concat(chunks).toString("utf8");
+          if (res.statusCode >= 200 && res.statusCode < 300) return resolve();
+          reject(new Error("Email service returned " + res.statusCode + ": " + body.slice(0, 300)));
+        });
+      }
+    );
+    req.on("timeout", () => req.destroy(new Error("Email request timed out")));
+    req.on("error", reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /* ---------- tiny JSON-file datastore ---------- */
@@ -446,7 +513,11 @@ function authenticate(req) {
 }
 
 /* ---------- route handlers ---------- */
-async function handleLogin(req, res) {
+function handleOtpStatus(req, res) {
+  return sendJson(res, 200, { available: !!RESEND_API_KEY });
+}
+
+async function handleRequestOtp(req, res) {
   let body;
   try {
     body = await readBody(req);
@@ -457,8 +528,73 @@ async function handleLogin(req, res) {
   if (!isValidEmail(email)) {
     return sendJson(res, 400, { error: "Enter a valid email address." });
   }
-  // OTP verification would go here before the token is issued - the
-  // frontend has not sent one yet, so there's nothing to check for now.
+  const otps = loadJson(OTPS_FILE, {});
+  const existing = otps[email];
+  if (existing && Date.now() - (existing.lastSentAt || 0) < OTP_RESEND_COOLDOWN_MS) {
+    const waitSec = Math.ceil((OTP_RESEND_COOLDOWN_MS - (Date.now() - existing.lastSentAt)) / 1000);
+    return sendJson(res, 429, { error: `Wait ${waitSec}s before requesting another code.` });
+  }
+  const code = generateOtpCode();
+  otps[email] = { code, expiresAt: Date.now() + OTP_TTL_MS, attempts: 0, lastSentAt: Date.now() };
+  saveJson(OTPS_FILE, otps);
+
+  if (!RESEND_API_KEY) {
+    // Dev fallback - no email provider configured, so the only way to see
+    // the code is the server console. devMode:true lets the frontend say
+    // so instead of implying an email that was never actually sent.
+    console.log(`[OTP] Email sending not configured (RESEND_API_KEY unset) - code for ${email}: ${code}`);
+    return sendJson(res, 200, { ok: true, devMode: true });
+  }
+  try {
+    await sendOtpEmail(email, code);
+  } catch (e) {
+    console.error("[OTP] send failed:", e.message);
+    return sendJson(res, 502, { error: "Could not send the code right now - try again in a moment." });
+  }
+  return sendJson(res, 200, { ok: true });
+}
+
+async function handleVerifyOtp(req, res) {
+  let body;
+  try {
+    body = await readBody(req);
+  } catch (e) {
+    return sendJson(res, 400, { error: "Invalid request body" });
+  }
+  const email = String((body && body.email) || "").trim().toLowerCase();
+  const code = String((body && body.code) || "").trim();
+  if (!isValidEmail(email)) {
+    return sendJson(res, 400, { error: "Enter a valid email address." });
+  }
+  if (!code) {
+    return sendJson(res, 400, { error: "Enter the code from your email." });
+  }
+  const otps = loadJson(OTPS_FILE, {});
+  const entry = otps[email];
+  if (!entry) {
+    return sendJson(res, 400, { error: "Request a new code first." });
+  }
+  if (Date.now() > entry.expiresAt) {
+    delete otps[email];
+    saveJson(OTPS_FILE, otps);
+    return sendJson(res, 400, { error: "That code expired - request a new one." });
+  }
+  if ((entry.attempts || 0) >= OTP_MAX_ATTEMPTS) {
+    delete otps[email];
+    saveJson(OTPS_FILE, otps);
+    return sendJson(res, 429, { error: "Too many attempts - request a new code." });
+  }
+  const a = Buffer.from(code);
+  const b = Buffer.from(entry.code);
+  const match = a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (!match) {
+    entry.attempts = (entry.attempts || 0) + 1;
+    saveJson(OTPS_FILE, otps);
+    return sendJson(res, 400, { error: "That code's not right - try again." });
+  }
+  delete otps[email];
+  saveJson(OTPS_FILE, otps);
+
   const users = loadJson(USERS_FILE, {});
   if (!users[email]) {
     users[email] = { email, createdAt: Date.now() };
@@ -860,8 +996,14 @@ const server = http.createServer(async (req, res) => {
         return res.end(fs.readFileSync(filePath));
       }
     }
-    if (req.method === "POST" && p === "/api/login") {
-      return await handleLogin(req, res);
+    if (req.method === "POST" && p === "/api/request-otp") {
+      return await handleRequestOtp(req, res);
+    }
+    if (req.method === "POST" && p === "/api/verify-otp") {
+      return await handleVerifyOtp(req, res);
+    }
+    if (req.method === "GET" && p === "/api/otp-status") {
+      return handleOtpStatus(req, res);
     }
     if (req.method === "POST" && p === "/api/ai-refine") {
       const email = authenticate(req);
