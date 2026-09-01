@@ -182,17 +182,25 @@ function buildDesignKnowledgeBrief(dk) {
   const zones = (dk.zone_catalog || [])
     .map((z) => `- ${z.zone} (${z.generator_type}): ${z.purpose} Typical ${z.typical_share_of_footprint_pct}% of floor.`)
     .join("\n");
-  const ref = (dk.reference_layouts || [])[0];
-  const laneCount = ref ? (ref.operational_zones || []).find((o) => o.generator_type === "outboundLane")?.laneCount : null;
-  const refLine = ref
-    ? `Real reference example: a ${ref.dimensionsFt.length}x${ref.dimensionsFt.width}ft (${ref.totalAreaSqft} sqft) Tier-${ref.tier_match} manual-sort hub, single shared gate, ${laneCount || "several"} destination staging lanes, perimeter-loop sortation core - about ${ref.area_accounting.labeled_zones_pct_of_gfa}% of floor in named zones, the rest open circulation for handling.`
-    : "";
+  // Summarize every reference layout on file, not just the first - there
+  // are now 4 (single-gate at two aspect ratios, dual-gate, and one
+  // L-shaped footprint), and each is a real validated instance worth the
+  // model knowing about. Kept to one line per reference so this doesn't
+  // balloon the prompt as more references get added over time.
+  const refs = dk.reference_layouts || [];
+  const refLines = refs.map((ref) => {
+    const laneCount = (ref.operational_zones || []).find((o) => o.generator_type === "outboundLane")?.laneCount;
+    const gateDesc = ref.gate ? `${ref.gate.count} gate${ref.gate.count === 1 ? "" : "s"} (${ref.gate.pattern})` : "gate config unknown";
+    return `- ${ref.dimensionsFt.length}x${ref.dimensionsFt.width}ft (${ref.totalAreaSqft} sqft, ${ref.buildingShape || "rectangular"}), Tier-${ref.tier_match} manual-sort, ${gateDesc}, ${laneCount || "several"} staging lanes - ${ref.area_accounting.labeled_zones_pct_of_gfa}% of floor in named zones.`;
+  });
+  const refBlock = refLines.length ? `Real reference examples on file (${refLines.length}):\n${refLines.join("\n")}` : "";
   return [
     "Reference design knowledge for Mother Hub / cross-dock sortation facilities (real industry research, not generic warehouse advice):",
     zones,
-    dk.design_constants && dk.design_constants.flow_pattern_rule ? `Flow: ${dk.design_constants.flow_pattern_rule.i_flow_through_flow}` : "",
+    dk.design_constants && dk.design_constants.flow_pattern_rule ? `Flow: ${dk.design_constants.flow_pattern_rule.i_flow_through_flow} A third pattern, dual-gate-same-wall (two separate Inbound/Outbound gates on one wall instead of a single shared gate or opposite-wall docks), is also validated by real reference examples below.` : "",
     dk.design_constants && dk.design_constants.destination_lane_placement_principle ? `Lane placement: ${dk.design_constants.destination_lane_placement_principle.description}` : "",
-    refLine,
+    dk.design_constants && dk.design_constants.storage_placement_principle ? "Storage placement: auxiliary storage racking should sit as far from the vehicle gate(s) as the footprint allows, to keep its restock/retrieval foot traffic clear of the truck-to-dock circulation path." : "",
+    refBlock,
     "Use these as realistic sizing/placement references - but the manager's explicit instruction always wins over a typical-range default.",
   ].filter(Boolean).join("\n");
 }
@@ -799,7 +807,13 @@ function handleDesignKnowledge(req, res) {
   return sendJson(res, 200, {
     available: true,
     zoneAreaRanges: ZONE_AREA_RANGES,
-    referenceExample: (DESIGN_KNOWLEDGE.reference_layouts || [])[0] || null,
+    // Was a single referenceExample (index 0 only) - now returns all of
+    // them, since there are 4 on file (single-gate at two aspect ratios,
+    // dual-gate, and one L-shaped footprint) and nothing consuming this
+    // field should silently only ever see the first. Not read by the
+    // frontend today (Optimize Layout's advisory only uses
+    // zoneAreaRanges), kept for API completeness / future use.
+    referenceExamples: DESIGN_KNOWLEDGE.reference_layouts || [],
   });
 }
 async function handleVisionImport(req, res) {
