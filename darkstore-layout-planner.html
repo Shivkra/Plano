@@ -7485,6 +7485,15 @@
             <i class="ret ret--tl"></i><i class="ret ret--tr"></i><i class="ret ret--bl"></i><i class="ret ret--br"></i>
           </div>
           <div class="field-error" id="otp-code-error" style="display:none;"></div>
+          <!-- TEMP, test phase only - the server hands back the live code
+               itself (see TOTP_TEST_MODE_SHOW_CODE in server.js) so
+               testers don't need a real authenticator app yet. Pre-filled
+               into the field above too; this note just makes it visible
+               that it's happening, since normally nothing but the app
+               on your phone would ever know this value. -->
+          <div id="otp-test-code-note"
+            style="display:none; margin-top:10px; font-size:11.5px; font-weight:700; color:#B45309; background:rgba(180,83,9,0.1); border:1px solid rgba(180,83,9,0.25); border-radius:6px; padding:6px 10px;">
+          </div>
         </div>
         <button type="submit" class="btn primary lg full" id="otp-verify-btn" style="margin-top:14px;">Verify &amp;
           continue →</button>
@@ -20723,6 +20732,7 @@
       // different email" and "sign out" get here, and neither should land
       // on a stale OTP form for whatever email was pending before.
       otpEmailPending = null;
+      clearInterval(otpTestCodeRefreshTimer);
       const loginForm = $("#login-form"), otpForm = $("#otp-form");
       if (loginForm) loginForm.style.display = "";
       if (otpForm) otpForm.style.display = "none";
@@ -20824,6 +20834,47 @@
         const linkEl = $("#otp-setup-link");
         if (linkEl) linkEl.href = data.otpauthUrl;
       }
+      applyTotpTestCode(data && data.testCode, codeInput);
+    }
+
+    // TEMP, test phase only - see TOTP_TEST_MODE_SHOW_CODE in server.js.
+    // The server includes the live code in every /api/totp-begin response
+    // while that flag is on; this just surfaces it and keeps it fresh
+    // (codes rotate every 30s) so testers never have to actually go find
+    // an authenticator app. Safe to delete this function and its call site
+    // once real devices are in use - the rest of the flow doesn't depend
+    // on it at all.
+    let otpTestCodeRefreshTimer = null;
+    function applyTotpTestCode(testCode, codeInput) {
+      clearInterval(otpTestCodeRefreshTimer);
+      otpTestCodeRefreshTimer = null;
+      const noteEl = $("#otp-test-code-note");
+      if (!testCode) {
+        if (noteEl) noteEl.style.display = "none";
+        return;
+      }
+      if (noteEl) {
+        noteEl.textContent = `Test mode - your code right now is ${testCode} (already filled in below).`;
+        noteEl.style.display = "block";
+      }
+      if (codeInput) codeInput.value = testCode;
+      // Codes rotate every 30s - refetch a touch before that so the
+      // displayed/pre-filled value doesn't go stale while someone's
+      // looking at the screen.
+      otpTestCodeRefreshTimer = setInterval(async () => {
+        if (!otpEmailPending) { clearInterval(otpTestCodeRefreshTimer); return; }
+        try {
+          const res = await fetch(getApiBase() + "/api/totp-begin", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: otpEmailPending }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (data && data.testCode && noteEl) {
+            noteEl.textContent = `Test mode - your code right now is ${data.testCode} (already filled in below).`;
+            const input = $("#otp-code");
+            if (input) input.value = data.testCode;
+          }
+        } catch (e) { /* silent - this is just a convenience refresh */ }
+      }, 25000);
     }
 
     // Step 2: the 6-digit code from the authenticator app -> a real
@@ -20859,6 +20910,7 @@
         localStorage.setItem(AUTH_TOKEN_KEY, authToken);
         rememberKnownUser(currentUser);
         otpEmailPending = null;
+        clearInterval(otpTestCodeRefreshTimer);
         enterApp();
       } catch (netErr) {
         if (errEl) { errEl.textContent = "Could not reach the server - check your connection and try again."; errEl.style.display = "block"; }

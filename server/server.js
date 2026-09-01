@@ -366,6 +366,13 @@ const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 const TOTP_STEP_SECONDS = 30;
 const TOTP_MAX_ATTEMPTS = 5;
 const TOTP_ATTEMPT_RESET_MS = 60 * 1000;
+// TEMP: test phase - handleTotpBegin() also hands back the CURRENT valid
+// code (computed server-side from the same secret) so testers can read it
+// straight off the login screen instead of needing a real authenticator
+// app installed. This is exactly the thing TOTP normally exists to avoid
+// exposing - flip this back to false once real devices are in use, so
+// only the secret (for enrollment) goes over the wire, never the live code.
+const TOTP_TEST_MODE_SHOW_CODE = true;
 
 function base32Encode(buf) {
   let bits = "";
@@ -546,7 +553,9 @@ async function handleTotpBegin(req, res) {
   const totps = loadJson(TOTP_FILE, {});
   let entry = totps[email];
   if (entry && entry.verified) {
-    return sendJson(res, 200, { mode: "verify" });
+    const resp = { mode: "verify" };
+    if (TOTP_TEST_MODE_SHOW_CODE) resp.testCode = hotp(base32Decode(entry.secret), Math.floor(Date.now() / 1000 / TOTP_STEP_SECONDS));
+    return sendJson(res, 200, resp);
   }
   if (!entry) {
     entry = { secret: base32Encode(crypto.randomBytes(20)), verified: false, createdAt: Date.now(), attempts: 0 };
@@ -554,7 +563,9 @@ async function handleTotpBegin(req, res) {
     saveJson(TOTP_FILE, totps);
   }
   const otpauthUrl = `otpauth://totp/${encodeURIComponent("Blitz:" + email)}?secret=${entry.secret}&issuer=Blitz&digits=6&period=${TOTP_STEP_SECONDS}`;
-  return sendJson(res, 200, { mode: "setup", secret: entry.secret, otpauthUrl });
+  const resp = { mode: "setup", secret: entry.secret, otpauthUrl };
+  if (TOTP_TEST_MODE_SHOW_CODE) resp.testCode = hotp(base32Decode(entry.secret), Math.floor(Date.now() / 1000 / TOTP_STEP_SECONDS));
+  return sendJson(res, 200, resp);
 }
 
 // Step 2: check the 6-digit code from the authenticator app. The first
