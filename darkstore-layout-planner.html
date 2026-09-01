@@ -13010,11 +13010,22 @@
       });
 
       // 3. Rooms & Functional Zones (Offices, Inbound/Outbound Staging)
+      // Inset by one wall-thickness cell on every side so a room renders
+      // clearly INSIDE the perimeter walls, never overlapping or sitting
+      // on top of them. Previously clamped x/y down to 0 - a room the AI
+      // placed flush with the traced wall (a very common real reading,
+      // since the room's own drawn edge often touches the wall line in
+      // the source photo) landed exactly ON the wall's cells instead of
+      // just inside them, and clearPaintUnderZone deliberately preserves
+      // wall cells under a zone (so resizing a room onto a wall doesn't
+      // silently delete real structure) - so the room's fill rendered
+      // sitting on top of the wall rather than stopping short of it.
       (data.rooms || []).forEach(rm => {
-        const xFt = snap2(clamp(rm.x * targetSite.L, 0, targetSite.L - 8));
-        const yFt = snap2(clamp(rm.y * targetSite.W, 0, targetSite.W - 8));
-        const wFt = snap2(clamp(rm.w * targetSite.L, 4, targetSite.L - xFt));
-        const hFt = snap2(clamp(rm.h * targetSite.W, 4, targetSite.W - yFt));
+        const inset = CELL_FT;
+        const wFt = snap2(clamp(rm.w * targetSite.L, 4, targetSite.L - inset * 2));
+        const hFt = snap2(clamp(rm.h * targetSite.W, 4, targetSite.W - inset * 2));
+        const xFt = snap2(clamp(rm.x * targetSite.L, inset, Math.max(inset, targetSite.L - inset - wFt)));
+        const yFt = snap2(clamp(rm.y * targetSite.W, inset, Math.max(inset, targetSite.W - inset - hFt)));
         const type = ZONE_DEFS[rm.type] ? rm.type : "office";
         const label = rm.name || (ZONE_DEFS[type] ? ZONE_DEFS[type].name : "Room");
         const z = mkZone(type, xFt, yFt, wFt, hFt, label);
@@ -13090,17 +13101,41 @@
         targetSite.cells[idx] = PAINT_DEFS.exit.id; targetSite.rots[idx] = 0;
       });
 
-      // 8. Mother-Hub Intelligent Auto-Completion for rough/sparse sketches:
-      enrichMotherHubFromSketch(targetSite, data);
+      // 8. Close gaps in the traced perimeter (structural completion only -
+      // see completeVisionPerimeterWalls's own comment for why this used
+      // to do a lot more than that).
+      completeVisionPerimeterWalls(targetSite);
     }
     window.applyFullVisionDataToSite = applyFullVisionDataToSite;
 
-    function enrichMotherHubFromSketch(targetSite, data) {
+    // Was named enrichMotherHubFromSketch and did four things: complete a
+    // sparse perimeter, invent 3 fake inbound + 3 fake outbound dock doors
+    // whenever the photo didn't yield any, invent up to 4 whole rooms
+    // (sorting/security/ups/bathroom) at hardcoded positions whenever the
+    // photo yielded fewer than 2 real ones, and carpet the floor with a
+    // synthetic sortbox grid whenever fewer than 20 cells were painted -
+    // all of it silent, all of it running on every real photo import. That
+    // last one in particular doesn't know where the traced walls actually
+    // are (it positions off `targetSite.L`/`W` and the support-room
+    // cluster's own bounding box, not the real wall cells), so on a sketch
+    // where the AI correctly extracted rooms as zones but didn't convert
+    // the hand-drawn sort-station circles into literal rack cells - a
+    // perfectly reasonable real reading, not a failure - this would
+    // silently paint an invented sortbox grid that had no relationship to
+    // where the real building's walls were, landing well outside them.
+    // This is the same silent-fake-content antipattern already fixed in
+    // vision import's old canned-layout fallback and Optimize Layout's old
+    // invent-new-rooms pass earlier this session, just in a third place -
+    // caught this time from a real user-reported bad import, not proactively.
+    // Only the one genuinely structural piece survives: completing an
+    // outer wall the photo left open on one side (a building missing one
+    // of its 4 walls in a hand sketch is far more likely an occluded/
+    // off-frame edge than a real open-air wall), gated on the wall count
+    // being low enough that "mostly untraced" is a fair read, same
+    // threshold as before.
+    function completeVisionPerimeterWalls(targetSite) {
       if (!targetSite) return;
-
       const cols = targetSite.cols, rows = targetSite.rows;
-
-      // 1. Ensure Outer Perimeter Walls if sketch has missing or sparse boundaries
       let wallCount = 0;
       for (let i = 0; i < targetSite.cells.length; i++) {
         if (targetSite.cells[i] === PAINT_DEFS.wall.id) wallCount++;
@@ -13118,78 +13153,6 @@
           if (!targetSite.cells[leftIdx]) { targetSite.cells[leftIdx] = PAINT_DEFS.wall.id; targetSite.rots[leftIdx] = 0; }
           if (!targetSite.cells[rightIdx]) { targetSite.cells[rightIdx] = PAINT_DEFS.wall.id; targetSite.rots[rightIdx] = 0; }
         }
-      }
-
-      // 2. Ensure Inward & Outward Dock Doors
-      const hasEntries = targetSite.cells.some(v => v === PAINT_DEFS.entry.id);
-      const hasExits = targetSite.cells.some(v => v === PAINT_DEFS.exit.id);
-      if (!hasEntries) {
-        // Place 3 Inward Docks on left wall
-        const midR = Math.floor(rows / 2);
-        [-3, 0, 3].forEach(offset => {
-          const r = clamp(midR + offset, 2, rows - 3);
-          const idx = r * cols;
-          targetSite.cells[idx] = PAINT_DEFS.entry.id; targetSite.rots[idx] = 0;
-        });
-      }
-      if (!hasExits) {
-        // Place 3 Outward Dispatch Docks on right wall
-        const midR = Math.floor(rows / 2);
-        [-3, 0, 3].forEach(offset => {
-          const r = clamp(midR + offset, 2, rows - 3);
-          const idx = r * cols + (cols - 1);
-          targetSite.cells[idx] = PAINT_DEFS.exit.id; targetSite.rots[idx] = 0;
-        });
-      }
-
-      // 3. Ensure Core Mother-Hub Support Rooms if sketch is sparse
-      targetSite.zones = targetSite.zones || [];
-      if (targetSite.zones.length < 2) {
-        const existingTypes = new Set(targetSite.zones.map(z => z.type));
-
-        // Sortation & Staging Area (Main Mother-Hub Core)
-        if (!existingTypes.has("sorting")) {
-          const sortW = snap2(clamp(targetSite.L * 0.4, 24, 70));
-          const sortH = snap2(clamp(targetSite.W * 0.22, 14, 28));
-          const sortX = snap2((targetSite.L - sortW) / 2);
-          const sortY = snap2(targetSite.W - sortH - 6);
-          const sortZone = mkZone("sorting", sortX, sortY, sortW, sortH, "Order Sortation & Dispatch Hub");
-          targetSite.zones.push(sortZone);
-          clearPaintUnderZone(sortZone, targetSite);
-        }
-
-        // Security & Ops Office (Top-Left)
-        if (!existingTypes.has("security") && !existingTypes.has("office")) {
-          const offZone = mkZone("security", 6, 6, 18, 14, "Ops & Security Control");
-          targetSite.zones.push(offZone);
-          clearPaintUnderZone(offZone, targetSite);
-        }
-
-        // Battery Charging & UPS Station (Top-Right)
-        if (!existingTypes.has("ups")) {
-          const upsZone = mkZone("ups", snap2(targetSite.L - 24), 6, 18, 14, "Battery Charging & UPS");
-          targetSite.zones.push(upsZone);
-          clearPaintUnderZone(upsZone, targetSite);
-        }
-
-        // Restroom / Amenities (Top-Center Left)
-        if (!existingTypes.has("bathroom")) {
-          const bathZone = mkZone("bathroom", 26, 6, 14, 14, "Restroom & Amenities");
-          targetSite.zones.push(bathZone);
-          clearPaintUnderZone(bathZone, targetSite);
-        }
-      }
-
-      // 4. Ensure Storage Racking / Sortation Matrix on Open Floor
-      let occupiedCount = 0;
-      for (let i = 0; i < targetSite.cells.length; i++) {
-        const v = targetSite.cells[i];
-        if (v && v !== PAINT_DEFS.wall.id && v !== PAINT_DEFS.entry.id && v !== PAINT_DEFS.exit.id) {
-          occupiedCount++;
-        }
-      }
-      if (occupiedCount < 20) {
-        paintSortBoxes(targetSite, 2);
       }
     }
 
