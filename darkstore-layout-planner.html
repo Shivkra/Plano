@@ -13010,22 +13010,41 @@
       });
 
       // 3. Rooms & Functional Zones (Offices, Inbound/Outbound Staging)
-      // Inset by one wall-thickness cell on every side so a room renders
-      // clearly INSIDE the perimeter walls, never overlapping or sitting
-      // on top of them. Previously clamped x/y down to 0 - a room the AI
-      // placed flush with the traced wall (a very common real reading,
-      // since the room's own drawn edge often touches the wall line in
-      // the source photo) landed exactly ON the wall's cells instead of
-      // just inside them, and clearPaintUnderZone deliberately preserves
-      // wall cells under a zone (so resizing a room onto a wall doesn't
-      // silently delete real structure) - so the room's fill rendered
-      // sitting on top of the wall rather than stopping short of it.
+      // Two layers of wall-avoidance, not one - the first fix here only
+      // inset against the NOMINAL L/W boundary, on the assumption that the
+      // traced perimeter wall sits exactly at fraction 0.0/1.0. That's
+      // usually true but not guaranteed - a real photo's traced wall can
+      // land a little inside or outside that boundary - so a room could
+      // still end up overlapping the ACTUAL wall cells even after that
+      // clamp. This adds a second pass, right after, that checks the
+      // room's real cell range against whatever wall cells actually got
+      // painted in step 2 above and nudges it inward until there's no
+      // overlap - the literal invariant ("never on top of a real wall"),
+      // not an assumption about where the wall is.
+      const trimRoomAwayFromWalls = (xFt, yFt, wFt, hFt) => {
+        for (let iter = 0; iter < 8; iter++) {
+          const c0 = clamp(Math.floor(xFt / CELL_FT), 0, targetSite.cols - 1);
+          const c1 = clamp(Math.ceil((xFt + wFt) / CELL_FT) - 1, 0, targetSite.cols - 1);
+          const r0 = clamp(Math.floor(yFt / CELL_FT), 0, targetSite.rows - 1);
+          const r1 = clamp(Math.ceil((yFt + hFt) / CELL_FT) - 1, 0, targetSite.rows - 1);
+          const rowHasWall = (r) => { for (let c = c0; c <= c1; c++) if (targetSite.cells[r * targetSite.cols + c] === PAINT_DEFS.wall.id) return true; return false; };
+          const colHasWall = (c) => { for (let r = r0; r <= r1; r++) if (targetSite.cells[r * targetSite.cols + c] === PAINT_DEFS.wall.id) return true; return false; };
+          let changed = false;
+          if (hFt > CELL_FT * 2 && r0 <= r1 && rowHasWall(r0)) { yFt += CELL_FT; hFt -= CELL_FT; changed = true; }
+          if (hFt > CELL_FT * 2 && r0 <= r1 && rowHasWall(r1)) { hFt -= CELL_FT; changed = true; }
+          if (wFt > CELL_FT * 2 && c0 <= c1 && colHasWall(c0)) { xFt += CELL_FT; wFt -= CELL_FT; changed = true; }
+          if (wFt > CELL_FT * 2 && c0 <= c1 && colHasWall(c1)) { wFt -= CELL_FT; changed = true; }
+          if (!changed) break;
+        }
+        return { xFt: snap2(xFt), yFt: snap2(yFt), wFt: snap2(wFt), hFt: snap2(hFt) };
+      };
       (data.rooms || []).forEach(rm => {
         const inset = CELL_FT;
-        const wFt = snap2(clamp(rm.w * targetSite.L, 4, targetSite.L - inset * 2));
-        const hFt = snap2(clamp(rm.h * targetSite.W, 4, targetSite.W - inset * 2));
-        const xFt = snap2(clamp(rm.x * targetSite.L, inset, Math.max(inset, targetSite.L - inset - wFt)));
-        const yFt = snap2(clamp(rm.y * targetSite.W, inset, Math.max(inset, targetSite.W - inset - hFt)));
+        let wFt = snap2(clamp(rm.w * targetSite.L, 4, targetSite.L - inset * 2));
+        let hFt = snap2(clamp(rm.h * targetSite.W, 4, targetSite.W - inset * 2));
+        let xFt = snap2(clamp(rm.x * targetSite.L, inset, Math.max(inset, targetSite.L - inset - wFt)));
+        let yFt = snap2(clamp(rm.y * targetSite.W, inset, Math.max(inset, targetSite.W - inset - hFt)));
+        ({ xFt, yFt, wFt, hFt } = trimRoomAwayFromWalls(xFt, yFt, wFt, hFt));
         const type = ZONE_DEFS[rm.type] ? rm.type : "office";
         const label = rm.name || (ZONE_DEFS[type] ? ZONE_DEFS[type].name : "Room");
         const z = mkZone(type, xFt, yFt, wFt, hFt, label);
