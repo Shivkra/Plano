@@ -1,16 +1,16 @@
 "use strict";
 /**
- * Warehouse Layout Planner — backend.
+ * Warehouse Layout Planner - backend.
  *
  * Zero npm dependencies on purpose (only Node's built-in modules), so this
- * runs anywhere with `node server.js` — no `npm install` step, no native
+ * runs anywhere with `node server.js` - no `npm install` step, no native
  * compilation, no internet access needed to fetch packages.
  *
  * Storage is a pair of JSON files under ./data (data/users.json,
  * data/sites.json). That's the "database" for now: simple, human-readable,
  * easy to back up (copy the folder), and completely sufficient for a
  * handful of warehouse managers saving a handful of sites each. If this
- * ever needs to scale past that, swap loadJson/saveJson for a real DB —
+ * ever needs to scale past that, swap loadJson/saveJson for a real DB -
  * every call site already goes through those two functions.
  *
  * Auth: email only, no password, no OTP yet (the frontend says so too).
@@ -35,7 +35,7 @@ const PLANOGRAM_FILE = path.join(__dirname, "..", "darkstore-planogram.html");
 
 /* ---------- optional AI-refine (Claude) ----------
    Fully optional, off by default, and currently reachable only by calling
-   the API directly — the frontend's "AI Refine" button was replaced by the
+   the API directly - the frontend's "AI Refine" button was replaced by the
    Gemini-powered "AI Tweak" feature (see the vision/interview/tweak
    section below). Kept here rather than removed since it's still a real,
    working endpoint, just not wired to any UI control right now. Set
@@ -46,7 +46,7 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
 const ANTHROPIC_MODEL = "claude-sonnet-5";
 const AI_REFINE_SYSTEM_PROMPT =
   "You are a warehouse layout reviewer. You are given one dark-store/fulfillment-center floor plan as structured facts (dimensions, zones with positions, entry side, order volume, any manager note). " +
-  "Suggest concrete, specific improvements to zone placement, flow, or spacing — grounded ONLY in the facts given, never invented ones. " +
+  "Suggest concrete, specific improvements to zone placement, flow, or spacing - grounded ONLY in the facts given, never invented ones. " +
   "Reply with ONLY a JSON array (no prose, no markdown fences) of up to 5 objects: " +
   '[{"title": short string, "detail": one or two sentences, "severity": "info"|"suggestion"|"warning"}]. ' +
   "If the layout already looks sound, return an empty array.";
@@ -122,14 +122,14 @@ function extractJsonObject(text) {
    Reads a photo of a hand-sketched or existing floor plan and extracts
    wall lines + entry/exit points, so the Step 2 canvas can be pre-filled
    from a real photo instead of drawn cell-by-cell from scratch. Off by
-   default — set GEMINI_API_KEY to enable; without it /api/vision-status
+   default - set GEMINI_API_KEY to enable; without it /api/vision-status
    reports unavailable and the frontend hides the "Import a photo" button.
    Chosen specifically for its multimodal strength (not just a second text
-   provider) — this is a job Claude's text-only AI-refine endpoint can't do. */
+   provider) - this is a job Claude's text-only AI-refine endpoint can't do. */
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 /* Vision runs with graceful multi-model fallback. The 2.x/1.5 models this
    list used to carry have since been retired ("no longer available to new
-   users" / 404) — Google's own error for that points at gemini-3.6-flash,
+   users" / 404) - Google's own error for that points at gemini-3.6-flash,
    confirmed live against this project's key alongside the other two. */
 const GEMINI_MODELS = [
   process.env.GEMINI_MODEL,
@@ -138,7 +138,7 @@ const GEMINI_MODELS = [
   "gemini-3.1-flash-lite",
 ].filter(Boolean);
 /* Text calls (interview, AI tweak, assistant) use a separate model from
-   vision — keeps them on their own free-tier quota bucket instead of
+   vision - keeps them on their own free-tier quota bucket instead of
    competing with image analysis for the same per-model daily cap. */
 const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || "gemini-3.1-flash-lite";
 
@@ -154,16 +154,16 @@ async function callGeminiVision(base64Image, mimeType) {
               parts: [
                 {
                   text:
-                    "You are an expert cross-dock sortation hub architectural CAD spatial extraction model — a mother hub where already-packed boxes arrive, get sorted by destination, and ship onward the same day. This is NOT a storage warehouse: there is no bulk pallet storage or picking to look for. " +
-                    "Analyze this uploaded architectural blueprint, CAD drawing, PDF floor plan, or facility photo in high detail. Read every text label on the drawing (room names, dimensions, door tags like S1/S2, UPS/network/switch labels) — they are the ground truth for what to extract, more reliable than shape alone. " +
-                    "This upload is very often a genuine technical blueprint, not a photo of a physical space — read it with real architectural-drawing conventions in mind, not general scene understanding: walls are usually a thick line, a filled/hatched band between two parallel lines, or a solid black band, not a thin single stroke; a door is a gap in that wall line paired with a quarter-circle swing arc (or a short diagonal leaf line) rather than an actual visible opening the way a photo would show one; a dimension is a thin line capped with arrowheads or tick marks running parallel to what it measures, with the number written above or beside it — trust that number over a visual guess of the same span. Ignore the title block, drawing border, revision/stamp box, and north-arrow/legend graphics as their OWN floor-plan content (a title block's own little rectangles are not rooms) — but DO read numbers and a scale notation out of them (e.g. a ratio like \"1:100\" or an architectural scale like 1/4\" = 1'-0\") when the floor plan itself is short on explicit dimension strings. If the sheet shows more than one view (a floor plan plus an elevation, a detail callout, or a second unrelated plan), extract only from the primary floor-plan view — the one showing walls and rooms in top-down layout, not a side profile or a zoomed detail. " +
-                    "Extract EVERY door/shutter opening on EVERY wall exactly where it is drawn — doors are commonly on more than one wall (e.g. one long wall plus an adjacent wall), and there is no assumption that inbound and outbound sit on opposite walls. Classify each opening as an entry (inbound) or exit (outbound) only if the drawing marks it as such (arrows, labels); otherwise list it under whichever of entries/exits is a reasonable default and note the ambiguity in \"summary\". " +
-                    "Extract every enclosed support room by its actual label and actual position/size — common ones are security room, conference/meeting room, manager's cabin/office, store room, medical/first-aid room, UPS/network/server room, battery room. Use the room's real name from the drawing even if it doesn't match the type enum exactly. " +
-                    "Extract sortation/segregation stations separately from storage racking — these are open-fronted boxes or bays for staging parcels sorted by destination city or hub, typically labeled S1, S2, S3 and arranged in a row facing a wall or a conveyor. Also note any conveyor belt path. " +
-                    "IMPORTANT — do not confuse a staircase with a sortation station: a staircase is drawn as a small enclosed box containing a ladder-like series of parallel tread lines, almost always labeled \"UP\" or \"DN\" (not a destination code), and usually appears alone or in a short vertical run of identical boxes evenly spaced along one wall (e.g. one every 25 ft) rather than as a contiguous row of open bays. If a box has tread lines and an UP/DN label, it is a staircase — extract it under \"staircases\", never under \"sortStations\", even if its label also happens to look like S1/S2/S3. " +
-                    "Extract structural columns separately from rooms and racking — a real blueprint usually marks each column as a small filled or hatched square/circle, often sitting on a lettered/numbered grid (column lines A, B, C… and 1, 2, 3… along the sheet edges) and spaced at a regular interval (commonly 20-40 ft). List each column's own point, not a run like a wall or rack — these matter because a real column is a fixed physical obstruction a manager cannot move a rack or sortation station onto. " +
+                    "You are an expert cross-dock sortation hub architectural CAD spatial extraction model - a mother hub where already-packed boxes arrive, get sorted by destination, and ship onward the same day. This is NOT a storage warehouse: there is no bulk pallet storage or picking to look for. " +
+                    "Analyze this uploaded architectural blueprint, CAD drawing, PDF floor plan, or facility photo in high detail. Read every text label on the drawing (room names, dimensions, door tags like S1/S2, UPS/network/switch labels) - they are the ground truth for what to extract, more reliable than shape alone. " +
+                    "This upload is very often a genuine technical blueprint, not a photo of a physical space - read it with real architectural-drawing conventions in mind, not general scene understanding: walls are usually a thick line, a filled/hatched band between two parallel lines, or a solid black band, not a thin single stroke; a door is a gap in that wall line paired with a quarter-circle swing arc (or a short diagonal leaf line) rather than an actual visible opening the way a photo would show one; a dimension is a thin line capped with arrowheads or tick marks running parallel to what it measures, with the number written above or beside it - trust that number over a visual guess of the same span. Ignore the title block, drawing border, revision/stamp box, and north-arrow/legend graphics as their OWN floor-plan content (a title block's own little rectangles are not rooms) - but DO read numbers and a scale notation out of them (e.g. a ratio like \"1:100\" or an architectural scale like 1/4\" = 1'-0\") when the floor plan itself is short on explicit dimension strings. If the sheet shows more than one view (a floor plan plus an elevation, a detail callout, or a second unrelated plan), extract only from the primary floor-plan view - the one showing walls and rooms in top-down layout, not a side profile or a zoomed detail. " +
+                    "Extract EVERY door/shutter opening on EVERY wall exactly where it is drawn - doors are commonly on more than one wall (e.g. one long wall plus an adjacent wall), and there is no assumption that inbound and outbound sit on opposite walls. Classify each opening as an entry (inbound) or exit (outbound) only if the drawing marks it as such (arrows, labels); otherwise list it under whichever of entries/exits is a reasonable default and note the ambiguity in \"summary\". " +
+                    "Extract every enclosed support room by its actual label and actual position/size - common ones are security room, conference/meeting room, manager's cabin/office, store room, medical/first-aid room, UPS/network/server room, battery room. Use the room's real name from the drawing even if it doesn't match the type enum exactly. " +
+                    "Extract sortation/segregation stations separately from storage racking - these are open-fronted boxes or bays for staging parcels sorted by destination city or hub, typically labeled S1, S2, S3 and arranged in a row facing a wall or a conveyor. Also note any conveyor belt path. " +
+                    "IMPORTANT - do not confuse a staircase with a sortation station: a staircase is drawn as a small enclosed box containing a ladder-like series of parallel tread lines, almost always labeled \"UP\" or \"DN\" (not a destination code), and usually appears alone or in a short vertical run of identical boxes evenly spaced along one wall (e.g. one every 25 ft) rather than as a contiguous row of open bays. If a box has tread lines and an UP/DN label, it is a staircase - extract it under \"staircases\", never under \"sortStations\", even if its label also happens to look like S1/S2/S3. " +
+                    "Extract structural columns separately from rooms and racking - a real blueprint usually marks each column as a small filled or hatched square/circle, often sitting on a lettered/numbered grid (column lines A, B, C… and 1, 2, 3… along the sheet edges) and spaced at a regular interval (commonly 20-40 ft). List each column's own point, not a run like a wall or rack - these matter because a real column is a fixed physical obstruction a manager cannot move a rack or sortation station onto. " +
                     "Express every coordinate as a normalized decimal (0.0 to 1.0) of total width (x) and total height (y) from the top-left (0,0). " +
-                    "Estimate total facility length and width in feet from the dimension strings or the scale notation on the drawing (e.g. 150 × 100 ft) — prefer explicit dimension labels over visually estimating. Check the unit first: a blueprint may be dimensioned in meters, millimeters, or another unit instead of feet (common outside the US) — read whatever unit the drawing actually uses and convert to feet in dimensionsFt rather than assuming the numbers are already feet. " +
+                    "Estimate total facility length and width in feet from the dimension strings or the scale notation on the drawing (e.g. 150 × 100 ft) - prefer explicit dimension labels over visually estimating. Check the unit first: a blueprint may be dimensioned in meters, millimeters, or another unit instead of feet (common outside the US) - read whatever unit the drawing actually uses and convert to feet in dimensionsFt rather than assuming the numbers are already feet. " +
                     "Reply with ONLY valid JSON (no markdown formatting, no code fences) with the exact structure:\n" +
                     "{\n" +
                     '  "dimensionsFt": { "length": number, "width": number },\n' +
@@ -289,7 +289,7 @@ function parseVisionResult(text) {
     : [];
   const entries = Array.isArray(parsed.entries) ? parsed.entries.slice(0, 20).map((p) => ({ x: clamp01(p.x), y: clamp01(p.y) })) : [];
   const exits = Array.isArray(parsed.exits) ? parsed.exits.slice(0, 20).map((p) => ({ x: clamp01(p.x), y: clamp01(p.y) })) : [];
-  // Structural columns — blueprint-only content in practice (a photo rarely
+  // Structural columns - blueprint-only content in practice (a photo rarely
   // shows a column grid clearly enough to extract points from), but real
   // and worth keeping: a column is a fixed obstruction, same reasoning as
   // walls. Capped higher than entries/exits since a real column grid on a
@@ -457,7 +457,7 @@ async function handleLogin(req, res) {
   if (!isValidEmail(email)) {
     return sendJson(res, 400, { error: "Enter a valid email address." });
   }
-  // OTP verification would go here before the token is issued — the
+  // OTP verification would go here before the token is issued - the
   // frontend has not sent one yet, so there's nothing to check for now.
   const users = loadJson(USERS_FILE, {});
   if (!users[email]) {
@@ -546,7 +546,7 @@ async function handleVisionImport(req, res) {
   try {
     body = await readBody(req, 15 * 1024 * 1024); // PDFs run larger than a compressed photo
   } catch (e) {
-    return sendJson(res, 400, { error: e.message === "payload too large" ? "That file is too large — try a smaller photo or PDF (15MB max)." : "Invalid request body" });
+    return sendJson(res, 400, { error: e.message === "payload too large" ? "That file is too large - try a smaller photo or PDF (15MB max)." : "Invalid request body" });
   }
   const image = body && typeof body.image === "string" ? body.image : "";
   const mimeType = body && typeof body.mimeType === "string" ? body.mimeType : "";
@@ -635,7 +635,7 @@ async function handleVisionImport(req, res) {
    This is the highest-leverage part of the whole product: the quality of
    the generated layout is capped by the quality of what we learn here.
    So the prompt below is written as a veteran warehouse architect's
-   interview, not a form-filler — it encodes the specific domain rules
+   interview, not a form-filler - it encodes the specific domain rules
    that actually determine whether a floor plan works (aisle width is a
    function of material-handling equipment, flow pattern determines dock
    placement, temperature zones are structural, fast movers belong near
@@ -644,7 +644,7 @@ async function handleVisionImport(req, res) {
    Every field in `extracted` below is deliberately something the layout
    generator can ACT on (see generateDefaultLayout / buildLayoutCandidate
    in the frontend). Fields that would only decorate a summary and never
-   move a wall were left out on purpose — asking for information you then
+   move a wall were left out on purpose - asking for information you then
    ignore is depth theater, and it costs the manager real time. */
 const ROOM_TYPES = ["security", "medical", "conference", "office", "store", "ups", "bathroom"];
 // Aisle width follows what physically moves boxes across the sort floor.
@@ -662,7 +662,7 @@ function sanitizeExtracted(raw) {
     }
   });
   const handlingEquipment = Object.prototype.hasOwnProperty.call(EQUIPMENT_AISLE_ROWS, e.handlingEquipment) ? e.handlingEquipment : "trolley";
-  // Derived from equipment, never taken on trust from the model — this is the
+  // Derived from equipment, never taken on trust from the model - this is the
   // most consequential dimension on the floor and the place a plausible-
   // sounding hallucination would do the most damage.
   const aisleRows = EQUIPMENT_AISLE_ROWS[handlingEquipment];
@@ -688,18 +688,18 @@ function sanitizeExtracted(raw) {
     pedestrianEntry: e.pedestrianEntry === "right" ? "right" : "left",
   };
 }
-const DEEP_QA_SYSTEM = `You are a warehouse design architect with 20+ years of experience laying out cross-dock sortation hubs and parcel networks. You are interviewing a hub manager who is NOT technical, to gather what you need before finalising their floor plan. Speak in plain everyday language — never use jargon without explaining it in the same breath.
+const DEEP_QA_SYSTEM = `You are a warehouse design architect with 20+ years of experience laying out cross-dock sortation hubs and parcel networks. You are interviewing a hub manager who is NOT technical, to gather what you need before finalising their floor plan. Speak in plain everyday language - never use jargon without explaining it in the same breath.
 
-THIS SITE IS A CROSS-DOCK SORTATION MOTHER HUB, NOT A STORAGE WAREHOUSE. Already-packed boxes of ambient goods arrive from origin, get sorted by destination, and are dispatched onward to downstream hubs the same day. There is NO picking, NO packing, NO long-term storage, NO cold chain, and NO delivery riders here. Never ask about any of those — asking about them signals you did not read the brief and wastes the manager's time.
+THIS SITE IS A CROSS-DOCK SORTATION MOTHER HUB, NOT A STORAGE WAREHOUSE. Already-packed boxes of ambient goods arrive from origin, get sorted by destination, and are dispatched onward to downstream hubs the same day. There is NO picking, NO packing, NO long-term storage, NO cold chain, and NO delivery riders here. Never ask about any of those - asking about them signals you did not read the brief and wastes the manager's time.
 
 WHAT YOUR EXPERIENCE TELLS YOU ACTUALLY DETERMINES A GOOD SORT HUB (use this to decide what is worth asking):
-1. OUTBOUND STAGING LANES ARE THE HEART OF THE BUILDING. You need roughly one marshalling lane per destination hub, and each lane must hold a full wave of boxes for that destination. The NUMBER OF DESTINATION HUBS is therefore the single most important number in the whole design — establish it first if you do not already know it.
+1. OUTBOUND STAGING LANES ARE THE HEART OF THE BUILDING. You need roughly one marshalling lane per destination hub, and each lane must hold a full wave of boxes for that destination. The NUMBER OF DESTINATION HUBS is therefore the single most important number in the whole design - establish it first if you do not already know it.
 2. WAVE PATTERN DRIVES STAGING SIZE. If everything dispatches in one nightly window, staging must hold the entire day's volume at once. A continuous trickle-out operation needs a fraction of that floor. Ask in plain terms: does everything go out in one go at night, or steadily through the day?
 3. SORTATION METHOD sets the footprint and the throughput ceiling: sorting by hand into cages/roll-cages is cheap and flexible but slow and needs lots of floor; a conveyor with manual divert is the middle ground; an automated cross-belt or tilt-tray sorter is fast and compact but expensive and fixed.
 4. I-FLOW (through-flow) is almost always right for cross-dock: inbound doors on one side, outbound on the opposite, boxes travelling one direction only. U-flow (same side) causes inbound and outbound traffic to collide and should only be used when the building genuinely has doors on one wall.
 5. INBOUND AND OUTBOUND DOOR COUNTS ARE SEPARATE PROBLEMS. Inbound is a few large vehicles unloading in bulk; outbound is many smaller line-haul vehicles, one or more per destination. They rarely need the same number of doors.
 6. DWELL TIME: how long a box sits between arriving and leaving directly sizes the staging floor.
-7. MISSORTS AND DAMAGES ARE INEVITABLE — without a dedicated exception area they pile up in the dispatch aisle and block the operation.
+7. MISSORTS AND DAMAGES ARE INEVITABLE - without a dedicated exception area they pile up in the dispatch aisle and block the operation.
 8. RETURNS (RTO) flowing back from the hubs need their own path, or they contaminate the outbound flow.
 9. Floors are sized for PEAK NIGHT, not daily average.
 10. AISLE WIDTH follows what physically moves boxes: hand-carry ~4ft, trolley/pallet-truck ~6ft, roll-cage ~8ft, forklift ~12ft.
@@ -707,22 +707,22 @@ WHAT YOUR EXPERIENCE TELLS YOU ACTUALLY DETERMINES A GOOD SORT HUB (use this to 
 
 HOW TO INTERVIEW:
 - Ask ONE focused question at a time, in the manager's language, not yours.
-- Ask AT LEAST 4 and AT MOST 6 questions. Do NOT finish early. A single answer is never enough to design a hub responsibly — if you think you could stop after one or two, you are guessing at the rest, and guessing is what this interview exists to prevent. Only finish before 4 if the facts you were given genuinely already answer everything below.
+- Ask AT LEAST 4 and AT MOST 6 questions. Do NOT finish early. A single answer is never enough to design a hub responsibly - if you think you could stop after one or two, you are guessing at the rest, and guessing is what this interview exists to prevent. Only finish before 4 if the facts you were given genuinely already answer everything below.
 - WORK DOWN THIS PRIORITY LIST, skipping anything the facts already tell you:
   1. What physically moves boxes across the floor (sets aisle width).
-  2. How boxes get sorted — by hand into cages, conveyor with manual divert, or an automated sorter (sets the sortation footprint).
-  3. How long a box typically sits between arriving and leaving, and whether outbound vehicles load all at once or throughout the window (sets staging depth — ask this even if you know the wave pattern, because dwell time is different from dispatch timing).
+  2. How boxes get sorted - by hand into cages, conveyor with manual divert, or an automated sorter (sets the sortation footprint).
+  3. How long a box typically sits between arriving and leaving, and whether outbound vehicles load all at once or throughout the window (sets staging depth - ask this even if you know the wave pattern, because dwell time is different from dispatch timing).
   4. Whether returns come back from the hubs, and roughly what share of volume (sets the returns area).
   5. Whether inbound and outbound vehicles differ in size/type, and how many of each are on site at peak (sets the split between inbound and outbound doors).
   6. Any growth expected over the next 2-3 years (sets reserved floor).
 - READ THE FACTS YOU WERE GIVEN CAREFULLY and reason from them. NEVER ask something you were already told. Never ask something you can safely infer.
 - Prefer a question whose answer changes the drawing over one that merely fills a field.
-- Say WHY you are asking in one short clause when the reason is not obvious — e.g. "so I can size your staging lanes".
+- Say WHY you are asking in one short clause when the reason is not obvious - e.g. "so I can size your staging lanes".
 
 Reply with ONLY strict JSON, nothing outside it.
-While still asking: {"done":false,"question":"...","why":"short plain-language reason this matters, or empty string","quickReplies":["...","..."]} — quickReplies optional, max 4 short tappable options, omit when a free-text answer fits better.
+While still asking: {"done":false,"question":"...","why":"short plain-language reason this matters, or empty string","quickReplies":["...","..."]} - quickReplies optional, max 4 short tappable options, omit when a free-text answer fits better.
 When finished: {"done":true,"summaryLine":"one plain sentence recapping what you set up","rationale":"2-3 plain sentences explaining the key design decisions you made and why, in the manager's language","extracted":{"handlingEquipment":"manual"|"trolley"|"cage"|"forklift","sortationMethod":"manual"|"semiauto"|"automated","destinationHubs":<int>,"flowPattern":"i-flow"|"u-flow","dockBays":<int>,"dockSeparate":<bool>,"dockInBays":<int>,"dockOutBays":<int>,"ordersPerDay":<int boxes per day>,"inboundStaging":<bool>,"outboundLanes":<bool>,"exceptionArea":<bool>,"returnsArea":<bool>,"chargingArea":<bool>,"growthHeadroomPct":<int 0-40>,"rooms":{"security":{"on":<bool>,"size":"S"|"M"|"L"},"medical":{"on":<bool>,"size":"S"|"M"|"L"},"conference":{"on":<bool>,"headcount":<int>},"office":{"on":<bool>,"headcount":<int>},"store":{"on":<bool>,"size":"S"|"M"|"L"},"ups":{"on":<bool>,"size":"S"|"M"|"L"},"bathroom":{"on":<bool>,"size":"S"|"M"|"L"}},"pedestrianEntry":"left"|"right"}}.
-Fill EVERY field in extracted with your best expert judgement, including ones you never explicitly asked about — never omit a field.`;
+Fill EVERY field in extracted with your best expert judgement, including ones you never explicitly asked about - never omit a field.`;
 async function handleInterview(req, res) {
   if (!GEMINI_API_KEY) {
     return sendJson(res, 501, { error: "The AI interview isn't configured on this server (no GEMINI_API_KEY set)." });
@@ -748,7 +748,7 @@ async function handleInterview(req, res) {
     if (parsed.done) {
       return sendJson(res, 200, {
         done: true,
-        summaryLine: String(parsed.summaryLine || "Got it — here's what I set up."),
+        summaryLine: String(parsed.summaryLine || "Got it - here's what I set up."),
         rationale: String(parsed.rationale || "").slice(0, 800),
         extracted: sanitizeExtracted(parsed.extracted),
       });
@@ -766,11 +766,11 @@ async function handleInterview(req, res) {
    A free-form "ask anything" helper, separate from the interview above:
    the interview is AI-initiated (it asks the manager questions to fill
    in the generator's parameters); this is manager-initiated (they ask
-   the AI general questions — "what's a mini sorting box", "how many dock
-   bays do I need" — and get a plain-language answer). Doesn't touch the
+   the AI general questions - "what's a mini sorting box", "how many dock
+   bays do I need" - and get a plain-language answer). Doesn't touch the
    site data at all, purely informational. */
-const ASSISTANT_SYSTEM = `You are a friendly, patient assistant helping a warehouse manager who is NOT technical use a warehouse layout planning tool. Answer their question directly and simply — no logistics jargon, no acronyms, no corporate tone.
-You may be given known facts about their current site for context — use them if relevant, ignore them if the question is general.
+const ASSISTANT_SYSTEM = `You are a friendly, patient assistant helping a warehouse manager who is NOT technical use a warehouse layout planning tool. Answer their question directly and simply - no logistics jargon, no acronyms, no corporate tone.
+You may be given known facts about their current site for context - use them if relevant, ignore them if the question is general.
 Keep answers short: 2-4 sentences, unless the question genuinely needs more.
 Reply with ONLY strict JSON, nothing else outside the JSON: {"answer": "..."}.`;
 async function handleAssistant(req, res) {
@@ -790,7 +790,7 @@ async function handleAssistant(req, res) {
   try {
     const text = await callGeminiText(ASSISTANT_SYSTEM, [{ role: "user", parts: [{ text: userText }] }]);
     const parsed = extractJsonObject(text) || {};
-    const answer = typeof parsed.answer === "string" && parsed.answer.trim() ? parsed.answer.trim().slice(0, 1500) : "Sorry, I couldn't come up with an answer to that — try rephrasing?";
+    const answer = typeof parsed.answer === "string" && parsed.answer.trim() ? parsed.answer.trim().slice(0, 1500) : "Sorry, I couldn't come up with an answer to that - try rephrasing?";
     return sendJson(res, 200, { answer });
   } catch (e) {
     return sendJson(res, 502, { error: "The AI assistant hit a snag: " + e.message });
@@ -802,7 +802,7 @@ async function handleAssistant(req, res) {
    generated. Deliberately NOT free-form spatial editing (an LLM emitting
    raw x/y/w/h zone coordinates is one hallucination away from a broken,
 /* ---------- static frontend ----------
-   Read fresh on every request rather than caching in memory — it's one
+   Read fresh on every request rather than caching in memory - it's one
    small file, disk I/O is cheap at this traffic scale, and it means
    editing darkstore-layout-planner.html takes effect on next reload
    without having to restart the server. */
@@ -813,7 +813,7 @@ function serveFrontend(res) {
     res.end(html);
   } catch (e) {
     res.writeHead(500, { "Content-Type": "text/plain" });
-    res.end("Could not load darkstore-layout-planner.html — expected it next to the server/ folder.");
+    res.end("Could not load darkstore-layout-planner.html - expected it next to the server/ folder.");
   }
 }
 
@@ -824,7 +824,7 @@ function servePlanogram(res) {
     res.end(html);
   } catch (e) {
     res.writeHead(500, { "Content-Type": "text/plain" });
-    res.end("Could not load darkstore-planogram.html — expected it next to the server/ folder.");
+    res.end("Could not load darkstore-planogram.html - expected it next to the server/ folder.");
   }
 }
 
@@ -865,7 +865,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && p === "/api/ai-refine") {
       const email = authenticate(req);
-      if (!email) return sendJson(res, 401, { error: "Sign in again — session missing or expired." });
+      if (!email) return sendJson(res, 401, { error: "Sign in again - session missing or expired." });
       return await handleAiRefine(req, res);
     }
     if (req.method === "GET" && p === "/api/vision-status") {
@@ -873,23 +873,23 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && p === "/api/vision-import") {
       const email = authenticate(req);
-      if (!email) return sendJson(res, 401, { error: "Sign in again — session missing or expired." });
+      if (!email) return sendJson(res, 401, { error: "Sign in again - session missing or expired." });
       return await handleVisionImport(req, res);
     }
     if (req.method === "POST" && p === "/api/interview") {
       const email = authenticate(req);
-      if (!email) return sendJson(res, 401, { error: "Sign in again — session missing or expired." });
+      if (!email) return sendJson(res, 401, { error: "Sign in again - session missing or expired." });
       return await handleInterview(req, res);
     }
     if (req.method === "POST" && p === "/api/assistant") {
       const email = authenticate(req);
-      if (!email) return sendJson(res, 401, { error: "Sign in again — session missing or expired." });
+      if (!email) return sendJson(res, 401, { error: "Sign in again - session missing or expired." });
       return await handleAssistant(req, res);
     }
 
     if (p.startsWith("/api/sites")) {
       const email = authenticate(req);
-      if (!email) return sendJson(res, 401, { error: "Sign in again — session missing or expired." });
+      if (!email) return sendJson(res, 401, { error: "Sign in again - session missing or expired." });
 
       if (req.method === "GET" && p === "/api/sites") {
         return handleListSites(req, res, email);
