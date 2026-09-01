@@ -7,20 +7,24 @@
  * compilation, no internet access needed to fetch packages.
  *
  * Storage is a handful of JSON files under ./data (data/users.json,
- * data/sites.json, data/otps.json). That's the "database" for now: simple,
+ * data/sites.json, data/totp.json). That's the "database" for now: simple,
  * human-readable, easy to back up (copy the folder), and completely
  * sufficient for a handful of warehouse managers saving a handful of sites
  * each. If this ever needs to scale past that, swap loadJson/saveJson for a
  * real DB - every call site already goes through those two functions.
  *
- * Auth: email + a one-time code sent to that address, no password. Sign-in
- * is two calls: POST /api/request-otp emails a 6-digit code (10-minute
- * expiry, one request per 30s per address); POST /api/verify-otp checks it
- * and, on a match, issues the same signed stateless token as before (HMAC
- * over the email - no session store to lose on restart). Sending the actual
- * email is optional-by-default like the Gemini/Anthropic integrations below
- * - set RESEND_API_KEY to enable it; without it request-otp logs the code
- * to this console instead, so local development still works end to end.
+ * Auth: email + a TOTP code (RFC 6238 - the same standard behind Google
+ * Authenticator, Authy, 1Password, etc.), no password. Deliberately not
+ * email-delivered OTP: that needs a transactional email provider account
+ * (and its API key) that nothing here can sign up for on its own, so this
+ * verifies via a factor the user already controls - their authenticator
+ * app - using only Node's built-in crypto (HMAC-SHA1), no npm dependency
+ * and no external account of any kind. Sign-in is two calls: POST
+ * /api/totp-begin either starts enrollment (first time for that email -
+ * returns a fresh secret to scan/enter) or asks for a code (already
+ * enrolled); POST /api/totp-verify checks the code against the stored
+ * secret and, on a match, issues the same signed stateless token as before
+ * (HMAC over the email - no session store to lose on restart).
  */
 
 const http = require("http");
@@ -33,7 +37,7 @@ const PORT = process.env.PORT || 8934;
 const DATA_DIR = path.join(__dirname, "data");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const SITES_FILE = path.join(DATA_DIR, "sites.json");
-const OTPS_FILE = path.join(DATA_DIR, "otps.json");
+const TOTP_FILE = path.join(DATA_DIR, "totp.json");
 const SECRET_FILE = path.join(DATA_DIR, "secret.key");
 const FRONTEND_FILE = path.join(__dirname, "..", "darkstore-layout-planner.html");
 const PLANOGRAM_FILE = path.join(__dirname, "..", "darkstore-planogram.html");
@@ -353,66 +357,76 @@ function callGeminiText(systemInstruction, contents) {
   });
 }
 
-/* ---------- optional OTP email delivery (Resend) ----------
-   Sends the sign-in code via Resend's HTTP API (POST /emails), not the
-   Resend SDK, to keep this a zero-npm-dependency server like the Gemini/
-   Anthropic calls above. Off by default - set RESEND_API_KEY to enable;
-   without it, handleRequestOtp() logs the code to this console instead of
-   emailing it, so signing in still works locally. OTP_FROM_EMAIL lets a
-   verified sending domain override Resend's shared onboarding@resend.dev
-   sandbox address (which can only deliver to the Resend account's own
-   verified address until a domain is added). */
-const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
-const OTP_FROM_EMAIL = process.env.OTP_FROM_EMAIL || "Blitz <onboarding@resend.dev>";
-const OTP_TTL_MS = 10 * 60 * 1000;
-const OTP_RESEND_COOLDOWN_MS = 30 * 1000;
-const OTP_MAX_ATTEMPTS = 5;
+/* ---------- TOTP (RFC 6238) - zero external dependency, zero account ----------
+   Base32 is what every authenticator app expects a manually-typed secret
+   in (and what otpauth:// URIs use) - Node has no built-in base32, so it's
+   the one bit of the algorithm implemented by hand here; everything else
+   is a direct RFC 4226/6238 read against Node's own crypto.createHmac. */
+const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+const TOTP_STEP_SECONDS = 30;
+const TOTP_MAX_ATTEMPTS = 5;
+const TOTP_ATTEMPT_RESET_MS = 60 * 1000;
 
-function generateOtpCode() {
-  return String(crypto.randomInt(0, 1000000)).padStart(6, "0");
+function base32Encode(buf) {
+  let bits = "";
+  for (const byte of buf) bits += byte.toString(2).padStart(8, "0");
+  let out = "";
+  for (let i = 0; i < bits.length; i += 5) {
+    let chunk = bits.slice(i, i + 5);
+    if (chunk.length < 5) chunk = chunk.padEnd(5, "0");
+    out += BASE32_ALPHABET[parseInt(chunk, 2)];
+  }
+  return out;
 }
-
-function sendOtpEmail(toEmail, code) {
-  return new Promise((resolve, reject) => {
-    const payload = JSON.stringify({
-      from: OTP_FROM_EMAIL,
-      to: toEmail,
-      subject: `${code} is your Blitz sign-in code`,
-      text: `Your Blitz sign-in code is ${code}. It expires in 10 minutes. If you didn't request this, you can ignore this email.`,
-      html:
-        `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:420px;margin:0 auto;padding:32px 24px;">` +
-        `<p style="font-size:14px;color:#57534E;margin:0 0 20px;">Your Blitz sign-in code:</p>` +
-        `<div style="font-size:36px;font-weight:800;letter-spacing:6px;color:#17171A;margin:0 0 20px;">${code}</div>` +
-        `<p style="font-size:13px;color:#78716C;margin:0;">Expires in 10 minutes. If you didn't request this, you can ignore this email.</p>` +
-        `</div>`,
-    });
-    const req = https.request(
-      {
-        hostname: "api.resend.com",
-        path: "/emails",
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Content-Length": Buffer.byteLength(payload),
-          "Authorization": "Bearer " + RESEND_API_KEY,
-        },
-        timeout: 15000,
-      },
-      (res) => {
-        let chunks = [];
-        res.on("data", (c) => chunks.push(c));
-        res.on("end", () => {
-          const body = Buffer.concat(chunks).toString("utf8");
-          if (res.statusCode >= 200 && res.statusCode < 300) return resolve();
-          reject(new Error("Email service returned " + res.statusCode + ": " + body.slice(0, 300)));
-        });
-      }
-    );
-    req.on("timeout", () => req.destroy(new Error("Email request timed out")));
-    req.on("error", reject);
-    req.write(payload);
-    req.end();
-  });
+function base32Decode(str) {
+  str = String(str || "").toUpperCase().replace(/[^A-Z2-7]/g, "");
+  let bits = "";
+  for (const ch of str) {
+    const idx = BASE32_ALPHABET.indexOf(ch);
+    if (idx === -1) continue;
+    bits += idx.toString(2).padStart(5, "0");
+  }
+  const bytes = [];
+  for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(parseInt(bits.slice(i, i + 8), 2));
+  return Buffer.from(bytes);
+}
+// HOTP, RFC 4226: HMAC-SHA1 over an 8-byte big-endian counter, then dynamic
+// truncation into a 6-digit code.
+function hotp(secretBuf, counter) {
+  const counterBuf = Buffer.alloc(8);
+  let c = BigInt(counter);
+  for (let i = 7; i >= 0; i--) {
+    counterBuf[i] = Number(c & 0xffn);
+    c >>= 8n;
+  }
+  const hmac = crypto.createHmac("sha1", secretBuf).update(counterBuf).digest();
+  const offset = hmac[hmac.length - 1] & 0x0f;
+  const binCode =
+    ((hmac[offset] & 0x7f) << 24) |
+    ((hmac[offset + 1] & 0xff) << 16) |
+    ((hmac[offset + 2] & 0xff) << 8) |
+    (hmac[offset + 3] & 0xff);
+  return String(binCode % 1000000).padStart(6, "0");
+}
+// TOTP, RFC 6238: HOTP with the counter derived from wall-clock time
+// instead of an incrementing value.
+function totpAt(secretBuf, unixMs) {
+  return hotp(secretBuf, Math.floor(unixMs / 1000 / TOTP_STEP_SECONDS));
+}
+// Accepts the current 30s step plus one step either side, so a little
+// clock drift between the server and the user's phone doesn't reject an
+// otherwise-correct code.
+function verifyTotp(secretBase32, code) {
+  code = String(code || "").trim();
+  if (!/^\d{6}$/.test(code)) return false;
+  const secretBuf = base32Decode(secretBase32);
+  const now = Date.now();
+  const codeBuf = Buffer.from(code);
+  for (const stepOffset of [0, -1, 1]) {
+    const candidate = Buffer.from(totpAt(secretBuf, now + stepOffset * TOTP_STEP_SECONDS * 1000));
+    if (candidate.length === codeBuf.length && crypto.timingSafeEqual(candidate, codeBuf)) return true;
+  }
+  return false;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -513,11 +527,12 @@ function authenticate(req) {
 }
 
 /* ---------- route handlers ---------- */
-function handleOtpStatus(req, res) {
-  return sendJson(res, 200, { available: !!RESEND_API_KEY });
-}
-
-async function handleRequestOtp(req, res) {
+// Step 1: does this email already have a confirmed authenticator enrolled?
+// If so, just ask for a code. If not (first time, or a previous enrollment
+// was started but never confirmed), hand back a secret to scan/enter - the
+// SAME secret on a retry, so refreshing the setup screen doesn't silently
+// invalidate whatever the user already scanned into their app.
+async function handleTotpBegin(req, res) {
   let body;
   try {
     body = await readBody(req);
@@ -528,33 +543,25 @@ async function handleRequestOtp(req, res) {
   if (!isValidEmail(email)) {
     return sendJson(res, 400, { error: "Enter a valid email address." });
   }
-  const otps = loadJson(OTPS_FILE, {});
-  const existing = otps[email];
-  if (existing && Date.now() - (existing.lastSentAt || 0) < OTP_RESEND_COOLDOWN_MS) {
-    const waitSec = Math.ceil((OTP_RESEND_COOLDOWN_MS - (Date.now() - existing.lastSentAt)) / 1000);
-    return sendJson(res, 429, { error: `Wait ${waitSec}s before requesting another code.` });
+  const totps = loadJson(TOTP_FILE, {});
+  let entry = totps[email];
+  if (entry && entry.verified) {
+    return sendJson(res, 200, { mode: "verify" });
   }
-  const code = generateOtpCode();
-  otps[email] = { code, expiresAt: Date.now() + OTP_TTL_MS, attempts: 0, lastSentAt: Date.now() };
-  saveJson(OTPS_FILE, otps);
-
-  if (!RESEND_API_KEY) {
-    // Dev fallback - no email provider configured, so the only way to see
-    // the code is the server console. devMode:true lets the frontend say
-    // so instead of implying an email that was never actually sent.
-    console.log(`[OTP] Email sending not configured (RESEND_API_KEY unset) - code for ${email}: ${code}`);
-    return sendJson(res, 200, { ok: true, devMode: true });
+  if (!entry) {
+    entry = { secret: base32Encode(crypto.randomBytes(20)), verified: false, createdAt: Date.now(), attempts: 0 };
+    totps[email] = entry;
+    saveJson(TOTP_FILE, totps);
   }
-  try {
-    await sendOtpEmail(email, code);
-  } catch (e) {
-    console.error("[OTP] send failed:", e.message);
-    return sendJson(res, 502, { error: "Could not send the code right now - try again in a moment." });
-  }
-  return sendJson(res, 200, { ok: true });
+  const otpauthUrl = `otpauth://totp/${encodeURIComponent("Blitz:" + email)}?secret=${entry.secret}&issuer=Blitz&digits=6&period=${TOTP_STEP_SECONDS}`;
+  return sendJson(res, 200, { mode: "setup", secret: entry.secret, otpauthUrl });
 }
 
-async function handleVerifyOtp(req, res) {
+// Step 2: check the 6-digit code from the authenticator app. The first
+// successful check for a given email is also what marks that email's
+// enrollment as confirmed (so handleTotpBegin stops offering setup mode
+// for it from then on).
+async function handleTotpVerify(req, res) {
   let body;
   try {
     body = await readBody(req);
@@ -566,34 +573,29 @@ async function handleVerifyOtp(req, res) {
   if (!isValidEmail(email)) {
     return sendJson(res, 400, { error: "Enter a valid email address." });
   }
-  if (!code) {
-    return sendJson(res, 400, { error: "Enter the code from your email." });
+  if (!/^\d{6}$/.test(code)) {
+    return sendJson(res, 400, { error: "Enter the 6-digit code." });
   }
-  const otps = loadJson(OTPS_FILE, {});
-  const entry = otps[email];
+  const totps = loadJson(TOTP_FILE, {});
+  const entry = totps[email];
   if (!entry) {
-    return sendJson(res, 400, { error: "Request a new code first." });
+    return sendJson(res, 400, { error: "Set up your authenticator first." });
   }
-  if (Date.now() > entry.expiresAt) {
-    delete otps[email];
-    saveJson(OTPS_FILE, otps);
-    return sendJson(res, 400, { error: "That code expired - request a new one." });
+  if (entry.lastAttemptAt && Date.now() - entry.lastAttemptAt > TOTP_ATTEMPT_RESET_MS) {
+    entry.attempts = 0;
   }
-  if ((entry.attempts || 0) >= OTP_MAX_ATTEMPTS) {
-    delete otps[email];
-    saveJson(OTPS_FILE, otps);
-    return sendJson(res, 429, { error: "Too many attempts - request a new code." });
+  if ((entry.attempts || 0) >= TOTP_MAX_ATTEMPTS) {
+    return sendJson(res, 429, { error: "Too many attempts - wait a minute and try again." });
   }
-  const a = Buffer.from(code);
-  const b = Buffer.from(entry.code);
-  const match = a.length === b.length && crypto.timingSafeEqual(a, b);
-  if (!match) {
+  if (!verifyTotp(entry.secret, code)) {
     entry.attempts = (entry.attempts || 0) + 1;
-    saveJson(OTPS_FILE, otps);
+    entry.lastAttemptAt = Date.now();
+    saveJson(TOTP_FILE, totps);
     return sendJson(res, 400, { error: "That code's not right - try again." });
   }
-  delete otps[email];
-  saveJson(OTPS_FILE, otps);
+  entry.verified = true;
+  entry.attempts = 0;
+  saveJson(TOTP_FILE, totps);
 
   const users = loadJson(USERS_FILE, {});
   if (!users[email]) {
@@ -996,14 +998,11 @@ const server = http.createServer(async (req, res) => {
         return res.end(fs.readFileSync(filePath));
       }
     }
-    if (req.method === "POST" && p === "/api/request-otp") {
-      return await handleRequestOtp(req, res);
+    if (req.method === "POST" && p === "/api/totp-begin") {
+      return await handleTotpBegin(req, res);
     }
-    if (req.method === "POST" && p === "/api/verify-otp") {
-      return await handleVerifyOtp(req, res);
-    }
-    if (req.method === "GET" && p === "/api/otp-status") {
-      return handleOtpStatus(req, res);
+    if (req.method === "POST" && p === "/api/totp-verify") {
+      return await handleTotpVerify(req, res);
     }
     if (req.method === "POST" && p === "/api/ai-refine") {
       const email = authenticate(req);

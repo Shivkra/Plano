@@ -7442,7 +7442,7 @@
         <div class="login-chip-row" id="login-chip-row"></div>
       </div>
       <form id="login-form" novalidate
-        onsubmit="event.preventDefault(); requestOtp(document.getElementById('login-email').value);">
+        onsubmit="event.preventDefault(); beginTotp(document.getElementById('login-email').value);">
         <div class="login-reveal login-reveal--4 field field--reticle">
           <label class="field-label" for="login-email">What's your email?</label>
           <div class="login-reticle-wrap">
@@ -7453,34 +7453,43 @@
           <div class="field-error" id="login-email-error" style="display:none;">Enter a valid email address.</div>
         </div>
         <button type="submit" class="login-reveal login-reveal--5 btn primary lg full" id="login-go"
-          style="margin-top:14px;">Send code →</button>
+          style="margin-top:14px;">Continue →</button>
         <button type="button" class="login-reveal login-reveal--6 login-quick-link" id="login-quick"
-          onclick="requestOtp('siva.k@blitznow.in')">⚡ Quick sign in as Lead Architect</button>
+          onclick="beginTotp('siva.k@blitznow.in')">⚡ Quick sign in as Lead Architect</button>
       </form>
 
-      <!-- OTP step - shown after requestOtp() succeeds, in place of the
-           email form. Verifies the code server-side before issuing a
-           token; see /api/verify-otp. -->
+      <!-- Authenticator step - shown after beginTotp() succeeds, in place
+           of the email form. Two modes from the server: "setup" (first
+           time for this email - shows a secret to scan/enter, plus the
+           code field to confirm it) or "verify" (already enrolled - just
+           the code field). See /api/totp-begin, /api/totp-verify. -->
       <form id="otp-form" novalidate style="display:none;"
-        onsubmit="event.preventDefault(); verifyOtp();">
+        onsubmit="event.preventDefault(); verifyTotp();">
+        <div id="otp-setup-block" style="display:none; margin-bottom:16px;">
+          <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin:0 0 10px;">
+            First time here - set up an authenticator app (Google Authenticator, Authy, 1Password, etc). Add a new
+            account and enter this key manually, or tap it on a phone with the app installed:
+          </p>
+          <a id="otp-setup-link" href="#" style="text-decoration:none;">
+            <code id="otp-setup-secret"
+              style="display:block; font-size:14px; font-weight:800; letter-spacing:2px; word-break:break-all; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; color:var(--ink);"></code>
+          </a>
+          <p style="font-size:12px; color:var(--ink-soft); margin:8px 0 0;">Then enter the 6-digit code it shows
+            below to confirm.</p>
+        </div>
         <div class="field field--reticle">
-          <label class="field-label" for="otp-code">Enter the code</label>
+          <label class="field-label" for="otp-code" id="otp-code-label">Enter the code</label>
           <div class="login-reticle-wrap">
             <input type="text" id="otp-code" placeholder="000000" maxlength="6" autocomplete="one-time-code"
               inputmode="numeric" pattern="[0-9]*" enterkeyhint="go" style="letter-spacing:6px; text-align:center;">
             <i class="ret ret--tl"></i><i class="ret ret--tr"></i><i class="ret ret--bl"></i><i class="ret ret--br"></i>
           </div>
           <div class="field-error" id="otp-code-error" style="display:none;"></div>
-          <div id="otp-sent-note" style="font-size:12px; color:var(--ink-soft); margin-top:8px;"></div>
         </div>
         <button type="submit" class="btn primary lg full" id="otp-verify-btn" style="margin-top:14px;">Verify &amp;
           continue →</button>
-        <div style="display:flex; justify-content:space-between; margin-top:12px;">
-          <button type="button" class="login-quick-link" id="otp-back-btn" onclick="showLoginGate()">← Use a
-            different email</button>
-          <button type="button" class="login-quick-link" id="otp-resend-btn" onclick="requestOtp(otpEmailPending, true)">Resend
-            code</button>
-        </div>
+        <button type="button" class="login-quick-link" id="otp-back-btn" onclick="showLoginGate()"
+          style="display:block; margin-top:12px;">← Use a different email</button>
       </form>
     </div>
   </div>
@@ -20654,12 +20663,16 @@
     });
 
     /* =====================================================================
-       LOGIN - email + a one-time code sent to that address, no password.
-       requestOtp() emails the code (POST /api/request-otp), verifyOtp()
-       checks it and issues the session token (POST /api/verify-otp) - see
-       the matching comment at the top of server/server.js. A device that's
-       already signed in skips straight past this via initLogin()'s stored-
-       token check below; OTP only gates a fresh sign-in.
+       LOGIN - email + a TOTP code from an authenticator app, no password
+       and no email delivery (that needs a paid provider account this app
+       can't sign up for itself - see the matching comment at the top of
+       server/server.js). beginTotp() (POST /api/totp-begin) either starts
+       enrollment for a never-before-seen email (returns a secret to scan/
+       enter) or asks for a code if that email is already enrolled;
+       verifyTotp() (POST /api/totp-verify) checks the code and issues the
+       session token. A device that's already signed in skips straight past
+       this via initLogin()'s stored-token check below - TOTP only gates a
+       fresh sign-in.
     ===================================================================== */
     var otpEmailPending = null;
     function loadCurrentUser() { return localStorage.getItem(CURRENT_USER_KEY) || null; }
@@ -20693,9 +20706,9 @@
           chip.className = "login-chip";
           chip.innerHTML = `<span class="avatar">${escapeHtml(initials(email))}</span><span class="nm">${escapeHtml(email)}</span>`;
           // A "known" chip is just a shortcut that pre-fills the email -
-          // it still has to prove it owns that address via a fresh code,
-          // same as typing it in by hand.
-          chip.addEventListener("click", () => requestOtp(email));
+          // it still has to pass a fresh authenticator code, same as
+          // typing it in by hand.
+          chip.addEventListener("click", () => beginTotp(email));
           row.appendChild(chip);
         });
         knownBlock.style.display = "block";
@@ -20746,11 +20759,11 @@
       });
     })();
 
-    // Step 1: email address -> emails a 6-digit code, then shows the OTP
-    // form in place of the email form. `isResend` just changes which
-    // button shows the loading state (the resend link inside the OTP
-    // step, instead of the main "Send code" submit button).
-    async function requestOtp(email, isResend) {
+    // Step 1: email address -> either "this email is already enrolled,
+    // just ask for a code" or "first time - here's a secret to scan/enter"
+    // (see handleTotpBegin in server.js). Either way, shows the code-entry
+    // form in place of the email form.
+    async function beginTotp(email) {
       email = String(email || "").trim().toLowerCase();
       if (!email) {
         email = "lead.architect@blitznow.in";
@@ -20765,24 +20778,23 @@
       }
       if (errEl) errEl.style.display = "none";
 
-      // The email step has two ways to trigger this ("Send code" or the
+      // The email step has two ways to trigger this ("Continue" or the
       // "Quick sign in" shortcut) - disable both together so whichever one
       // wasn't clicked doesn't sit there looking clickable mid-request.
-      const btn = isResend ? $("#otp-resend-btn") : $("#login-go");
-      const quickBtn = isResend ? null : $("#login-quick");
+      const btn = $("#login-go"), quickBtn = $("#login-quick");
       const originalLabel = btn ? btn.textContent : "";
-      if (btn) { btn.disabled = true; btn.textContent = isResend ? "Sending…" : "Sending code…"; }
+      if (btn) { btn.disabled = true; btn.textContent = "Checking…"; }
       if (quickBtn) quickBtn.disabled = true;
 
       try {
-        const res = await fetch(getApiBase() + "/api/request-otp", {
+        const res = await fetch(getApiBase() + "/api/totp-begin", {
           method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          toast(data.error || "Could not send a code - try again.");
+          toast(data.error || "Could not continue - try again.");
         } else {
-          showOtpStep(email, !!data.devMode);
+          showTotpStep(email, data);
         }
       } catch (netErr) {
         toast("Could not reach the server - check your connection and try again.");
@@ -20791,7 +20803,7 @@
       if (quickBtn) quickBtn.disabled = false;
     }
 
-    function showOtpStep(email, devMode) {
+    function showTotpStep(email, data) {
       otpEmailPending = email;
       const loginForm = $("#login-form"), otpForm = $("#otp-form");
       if (loginForm) loginForm.style.display = "none";
@@ -20800,17 +20812,24 @@
       if (codeInput) { codeInput.value = ""; setTimeout(() => codeInput.focus(), 50); }
       const errEl = $("#otp-code-error");
       if (errEl) errEl.style.display = "none";
-      const noteEl = $("#otp-sent-note");
-      if (noteEl) {
-        noteEl.textContent = devMode
-          ? "Email sending isn't configured on this server - check the server console for your code."
-          : `Code sent to ${email}. It expires in 10 minutes.`;
+
+      const setupBlock = $("#otp-setup-block");
+      const isSetup = data && data.mode === "setup";
+      if (setupBlock) setupBlock.style.display = isSetup ? "" : "none";
+      const codeLabel = $("#otp-code-label");
+      if (codeLabel) codeLabel.textContent = isSetup ? "Confirm the code" : "Enter the code";
+      if (isSetup) {
+        const secretEl = $("#otp-setup-secret");
+        if (secretEl) secretEl.textContent = data.secret;
+        const linkEl = $("#otp-setup-link");
+        if (linkEl) linkEl.href = data.otpauthUrl;
       }
     }
 
-    // Step 2: the 6-digit code -> a real session token, same as the old
-    // instant login used to issue on nothing but an email address.
-    async function verifyOtp() {
+    // Step 2: the 6-digit code from the authenticator app -> a real
+    // session token (the first successful check for a never-before-seen
+    // email also confirms its enrollment server-side, see handleTotpVerify).
+    async function verifyTotp() {
       const code = ($("#otp-code")?.value || "").trim();
       const errEl = $("#otp-code-error");
       if (!/^\d{6}$/.test(code)) {
@@ -20824,7 +20843,7 @@
       if (btn) { btn.disabled = true; btn.textContent = "Verifying…"; }
 
       try {
-        const res = await fetch(getApiBase() + "/api/verify-otp", {
+        const res = await fetch(getApiBase() + "/api/totp-verify", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: otpEmailPending, code }),
         });
