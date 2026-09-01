@@ -9,9 +9,9 @@
   },
 
   "design_constants": {
-    "dock_door_spacing_ft": { "minimum": 12, "preferred_at_high_throughput": 14, "note": "12 ft center-to-center is the floor; 14-16 ft reduces MHE congestion at higher door density. Current generator bayW=12 — correct as the safe default, worth exposing 14 ft as a Tier 4-5 option." },
-    "dock_door_density": { "cross_dock_sqft_per_door": "2500-3000", "storage_warehouse_sqft_per_door": "8000-12000+", "implication": "A mother hub needs 3-4x the door density of a storage building of the same footprint — door count should scale with floor area, not just be a flat default." },
-    "truck_court_depth_ft": { "full_trailer": "130-180", "last_mile_van": "40-60", "note": "Inbound (trunk/linehaul) bays generally need deeper apron than outbound (last-mile van) bays — a ratio the generator does not currently distinguish; both dock bands use the same depth." },
+    "dock_door_spacing_ft": { "minimum": 12, "preferred_at_high_throughput": 14, "note": "12 ft center-to-center is the floor; 14-16 ft reduces MHE congestion at higher door density. Current generator bayW=12 — correct as the safe default, worth exposing 14 ft as a Tier 4-5 option.", "sources": ["https://www.steelcobuildings.com/warehouse-loading-dock-design-layout-door-spacing-and-truck-court-planning/ (confirms 12ft minimum center-to-center, 14-16ft modern/higher-safety standard)"] },
+    "dock_door_density": { "cross_dock_sqft_per_door": "2500-3000", "storage_warehouse_sqft_per_door": "8000-12000+", "implication": "A mother hub needs 3-4x the door density of a storage building of the same footprint — door count should scale with floor area, not just be a flat default.", "sources": ["https://www.steelcobuildings.com/warehouse-loading-dock-design-layout-door-spacing-and-truck-court-planning/ (cross-dock: 1 door per 2,000-3,000 sqft; general distribution center: 1 per 5,000-10,000 sqft; manufacturing: 1 per 15,000-20,000 sqft - corroborates this row's ratio directly)"] },
+    "truck_court_depth_ft": { "full_trailer": "130-180", "last_mile_van": "40-60", "note": "Inbound (trunk/linehaul) bays generally need deeper apron than outbound (last-mile van) bays — a ratio the generator does not currently distinguish; both dock bands use the same depth.", "sources": ["https://www.steelcobuildings.com/warehouse-loading-dock-design-layout-door-spacing-and-truck-court-planning/ (130-180ft recommended truck court depth for 53ft trailers - matches this row's full_trailer figure exactly)"] },
     "aisle_width_ft_by_equipment": { "manual_handcart": 4, "trolley": 6, "roll_cage": 8, "forklift": 12, "note": "Matches EQUIPMENT_AISLE_ROWS in server.js and the equipment decision already in the generator — confirmed correct, no change needed." },
     "staging_depth_formula": {
       "description": "Peak concurrent boxes on the floor = throughput / operating_window_hours * dwell_hours. Already implemented (OP_WINDOW_HOURS / DWELL_HOURS / BOX_SQFT_STAGED in darkstore-layout-planner.html) — confirmed matches how real dwell-driven staging is sized, not a share of daily total volume.",
@@ -38,7 +38,33 @@
       "one_way_flow": "Sortation-to-bagging-to-staging should read as one direction on the plan, no path doubles back through a zone it already passed.",
       "no_cross_traffic": "MHE/cart paths for inbound induction and outbound loading should not intersect the same aisle at the same time — this is what the I-flow rule and the lane band sitting strictly between sortation and the outbound dock (not beside it) both protect.",
       "generator_status": "Confirmed by the flow ordering in generateDefaultLayout: sort -> stage in lanes -> load is enforced (sort.y < lanes.y < dock.y assertion already tested this session)."
+    },
+    "dock_door_specifications": {
+      "description": "Added 2026-09-01 from published warehouse-dock design sources, cross-checked against dock_door_spacing_ft/dock_door_density above (they corroborate, not contradict). Physical door object sizing, not layout/spacing rules.",
+      "standard_door_size_ft": { "width": 9, "height": 10, "note": "9ft wide is the industry-preferred width - narrower doors risk trailer/door-track contact and don't allow slightly off-center trailer positioning. Range in practice is 8-10ft wide, 8-10ft tall; 10x12ft for oversized loads, 8x8ft for lighter operations." },
+      "dock_platform_height_in": { "range": "44-52", "note": "Sized to match trailer bed height so a forklift/pallet jack can roll straight across - not a manager-facing layout number in this app today, but relevant if a 3D/elevation view is ever added." },
+      "trailer_staging_spaces_per_dock": { "inbound": "3-5", "outbound": "2-3", "note": "Yard/apron staging spots per active door - genuinely new data point, not previously in this file. Not currently modeled by the generator (truck_court_depth_ft above sizes the apron's DEPTH, not how many trailers queue per door) - worth a future decision option." },
+      "app_object_note": "This app's own PAINT_DEFS has no distinct 'vehicle dock door' object at this real 9-10ft scale - entry/exit (3x0.5ft) are pedestrian/small-shutter scale, rollshutter (8x1ft) is the closest match to a real dock door's width. Flagged, not changed this pass - the zone-level dockIn/dockOut area budget already accounts for real dock footprint; only the individual door OBJECT is undersized if placed literally.",
+      "sources": [
+        "https://www.steelcobuildings.com/warehouse-loading-dock-design-layout-door-spacing-and-truck-court-planning/",
+        "https://www.speed-doors.com/what-is-the-standard-size-of-a-loading-dock-door/",
+        "https://saferack.com/posts/loading-dock-heights-by-truck-type/"
+      ]
     }
+  },
+
+  "architectural_symbol_conventions": {
+    "description": "Added 2026-09-01, alongside the drawPaintCell rendering fix it documents (darkstore-layout-planner.html) - real AutoCAD/architectural-drawing door symbol convention, replacing this app's old generic glyph-in-a-box icon for the Door and Fire Exit objects.",
+    "swing_door_symbol": {
+      "components": ["a straight line breaking the wall (the opening itself)", "the door leaf drawn as a straight line, usually shown open", "a quarter-circle arc tracing the path the leaf's outer edge travels from closed (flush with the wall) to open"],
+      "arc_radius_rule": "The arc's radius equals the door leaf's own real length - not an arbitrary decorative curve.",
+      "open_angle_deg": 90,
+      "generator_status": "Implemented in drawPaintCell for PAINT_DEFS.door and PAINT_DEFS.fireexit - leaf + arc, radius = the object's own declared width, oriented by the existing 4-way Rotate control. Entry/Exit (large dock shutters, id 6/7) deliberately kept their own directional-arrow symbol instead - a rolling/coiling shutter doesn't swing on a hinge, so a swing arc would be physically wrong for that object type."
+    },
+    "sources": [
+      "https://vdci.edu/learn/autocad/drawing-door-geometry-in-autocad-rectangles-and-arcs-tutorial",
+      "https://cadauthority.com/how-to/tutorials/draw-door-autocad-guide/"
+    ]
   },
 
   "zone_catalog": [

@@ -16380,6 +16380,44 @@
         g.closePath();
         g.fill();
         g.restore();
+      } else if (def.id === 29 || def.id === 25) {
+        // AutoCAD-style swing-door symbol: a solid leaf line (the door
+        // panel, shown open) plus a thin quarter-circle swing arc whose
+        // radius equals the leaf's own real length - the standard
+        // architectural-drawing convention (a line breaking the wall,
+        // then an arc tracing the path the leaf's outer edge travels
+        // from closed/flush-with-the-wall to open/90-into-the-room).
+        // Replaces the old plain door-glyph icon, which looked identical
+        // to every other object. Same 4-way Rotate control every other
+        // rotatable object already has orients which way it swings -
+        // no separate mirror/flip control (real CAD doors also need a
+        // hinge-side flip; add one later if this needs the full 8
+        // orientations).
+        g.save();
+        const leafLen = w;
+        const hx = -leafLen / 2; // hinge point: left edge of the opening
+        // The leaf and arc extend well beyond the door's own thin
+        // footprint fill (that's correct - a real swing door's arc
+        // sweeps into the room, not just its own wall-opening width),
+        // onto the plain canvas background rather than a colored block -
+        // so this needs a stroke color that reads on that background
+        // (unlike the white overlays used elsewhere, which sit on top of
+        // an already-colored fill). Reuses the object's own accent color
+        // (amber for a door, red for a fire exit) instead of introducing
+        // a third door-specific color.
+        g.strokeStyle = fillColor;
+        g.lineCap = "round";
+        g.lineWidth = Math.max(1, h * 0.6);
+        g.beginPath();
+        g.moveTo(hx, 0);
+        g.lineTo(hx, -leafLen); // leaf, open 90° into the room
+        g.stroke();
+        g.lineWidth = Math.max(0.75, h * 0.35);
+        g.globalAlpha = 0.65;
+        g.beginPath();
+        g.arc(hx, 0, leafLen, -Math.PI / 2, 0); // swing arc back to the closed position
+        g.stroke();
+        g.restore();
       } else if (def.glyph) {
         const glyphLen = Array.from(def.glyph).length;
         const fontScale = glyphLen > 1 ? 0.36 : 0.52;
