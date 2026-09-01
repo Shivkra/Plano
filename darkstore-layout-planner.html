@@ -3749,6 +3749,78 @@
       box-shadow: 0 2px 6px rgba(14, 165, 233, 0.25);
     }
 
+    /* ================= MULTI-PAGE CANVAS (max 3 pages per site) ================= */
+    .page-tabs-strip {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--surface);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: var(--r-pill);
+      padding: 4px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+    }
+
+    [data-theme="dark"] .page-tabs-strip,
+    body.dark-mode .page-tabs-strip {
+      background: rgba(23, 28, 38, 0.85);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .page-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--ink-soft);
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: var(--r-pill);
+      cursor: pointer;
+      transition: all var(--dur-f) var(--ease);
+      white-space: nowrap;
+    }
+
+    .page-tab-btn:hover {
+      background: var(--surface-2);
+      color: var(--ink);
+    }
+
+    .page-tab-btn.active {
+      background: linear-gradient(135deg, #0EA5E9, #6366F1);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(14, 165, 233, 0.25);
+    }
+
+    .page-tab-add-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--ink-soft);
+      font-size: 14px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      flex-shrink: 0;
+      transition: all var(--dur-f) var(--ease);
+    }
+
+    .page-tab-add-btn:hover:not(:disabled) {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .page-tab-add-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
     /* ================= DIMENSIONS & AREA RIGHT-SIDE DRAWER ================= */
     .dim-drawer-right {
       display: none;
@@ -4814,7 +4886,7 @@
       color: var(--ink-soft);
       cursor: pointer;
       z-index: 5;
-      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
       transition: all var(--dur-f) var(--ease);
     }
 
@@ -4822,7 +4894,7 @@
       background: var(--primary, #0284C7);
       border-color: var(--primary, #0284C7);
       color: #fff;
-      box-shadow: 0 2px 8px rgba(0,0,0,.16);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .16);
     }
 
     .right-panel-content {
@@ -6824,8 +6896,15 @@
     }
 
     @keyframes obSpotlightPulse {
-      0%, 100% { box-shadow: 0 0 0 3px rgba(2, 132, 199, .9), 0 0 0 7px rgba(2, 132, 199, .22); }
-      50% { box-shadow: 0 0 0 3px rgba(2, 132, 199, 1), 0 0 0 11px rgba(2, 132, 199, .1); }
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 3px rgba(2, 132, 199, .9), 0 0 0 7px rgba(2, 132, 199, .22);
+      }
+
+      50% {
+        box-shadow: 0 0 0 3px rgba(2, 132, 199, 1), 0 0 0 11px rgba(2, 132, 199, .1);
+      }
     }
 
     /* =====================================================================
@@ -6882,8 +6961,13 @@
     }
 
     @keyframes ambientGlowRotate {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
     }
 
     /* Construction Viewport — a small warehouse assembling itself, phase by
@@ -6939,11 +7023,19 @@
        a fill-box origin), doors/racks/flow settle in with a small drop +
        fade, so each phase reads as a distinct construction step rather
        than a generic progress-bar tick. */
-    .ai-build-svg { width: 84%; height: 84%; overflow: visible; }
+    .ai-build-svg {
+      width: 84%;
+      height: 84%;
+      overflow: visible;
+    }
 
-    .bld-ground { stroke: rgba(245, 158, 11, 0.3); stroke-width: 2; }
+    .bld-ground {
+      stroke: rgba(245, 158, 11, 0.3);
+      stroke-width: 2;
+    }
 
-    .bld-walls, .bld-roof {
+    .bld-walls,
+    .bld-roof {
       fill: #B45309;
       transform-box: fill-box;
       transform-origin: 50% 100%;
@@ -6951,8 +7043,16 @@
       opacity: 0.35;
       transition: transform 0.65s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
     }
-    .bld-roof { fill: #92400E; }
-    .bld-walls.built, .bld-roof.built { transform: scaleY(1); opacity: 1; }
+
+    .bld-roof {
+      fill: #92400E;
+    }
+
+    .bld-walls.built,
+    .bld-roof.built {
+      transform: scaleY(1);
+      opacity: 1;
+    }
 
     .bld-door {
       fill: #292524;
@@ -6964,8 +7064,15 @@
       opacity: 0;
       transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease;
     }
-    .bld-door.built { transform: translateY(0); opacity: 1; }
-    .bld-door.built:nth-of-type(2) { transition-delay: 0.1s; }
+
+    .bld-door.built {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .bld-door.built:nth-of-type(2) {
+      transition-delay: 0.1s;
+    }
 
     .bld-racks rect {
       fill: #FBBF24;
@@ -6975,9 +7082,19 @@
       opacity: 0;
       transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
     }
-    .bld-racks.built rect { transform: scaleY(1); opacity: 1; }
-    .bld-racks.built rect:nth-child(2) { transition-delay: 0.08s; }
-    .bld-racks.built rect:nth-child(3) { transition-delay: 0.16s; }
+
+    .bld-racks.built rect {
+      transform: scaleY(1);
+      opacity: 1;
+    }
+
+    .bld-racks.built rect:nth-child(2) {
+      transition-delay: 0.08s;
+    }
+
+    .bld-racks.built rect:nth-child(3) {
+      transition-delay: 0.16s;
+    }
 
     .bld-flow {
       fill: none;
@@ -6990,8 +7107,16 @@
       transition: opacity 0.4s ease;
       animation: bldFlowDash 1s linear infinite;
     }
-    .bld-flow.built { opacity: 0.9; }
-    @keyframes bldFlowDash { to { stroke-dashoffset: -26; } }
+
+    .bld-flow.built {
+      opacity: 0.9;
+    }
+
+    @keyframes bldFlowDash {
+      to {
+        stroke-dashoffset: -26;
+      }
+    }
 
     .bld-flag {
       opacity: 0;
@@ -7000,7 +7125,11 @@
       transform-origin: 50% 100%;
       transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
     }
-    .bld-flag.built { opacity: 1; transform: translateY(0); }
+
+    .bld-flag.built {
+      opacity: 1;
+      transform: translateY(0);
+    }
 
     /* Crane — animates continuously the entire time the overlay is open,
        independent of phase state, so there's always visible motion even
@@ -7008,18 +7137,41 @@
        phases (a real vision call can take well over a minute; the old
        laser/progress bar just sat frozen at "97%" for that whole stretch,
        which read as stuck even though nothing had actually failed). */
-    .bld-crane-mast, .bld-crane-arm { stroke: #78716C; stroke-width: 3; stroke-linecap: round; }
+    .bld-crane-mast,
+    .bld-crane-arm {
+      stroke: #78716C;
+      stroke-width: 3;
+      stroke-linecap: round;
+    }
+
     /* Base position sits under the arm (which runs from the mast at x=246
        to its far reach at x=140); the animation's own translate values
        carry the trolley's full position — a plain CSS transform on an SVG
        element replaces a transform="" attribute rather than combining
        with it, so the position can't be split between the two. */
-    .bld-crane-trolley { animation: bldTrolleyMove 3.2s ease-in-out infinite; }
-    .bld-crane-cable { stroke: #78716C; stroke-width: 1.5; }
-    .bld-crane-hook { fill: #F59E0B; }
+    .bld-crane-trolley {
+      animation: bldTrolleyMove 3.2s ease-in-out infinite;
+    }
+
+    .bld-crane-cable {
+      stroke: #78716C;
+      stroke-width: 1.5;
+    }
+
+    .bld-crane-hook {
+      fill: #F59E0B;
+    }
+
     @keyframes bldTrolleyMove {
-      0%, 100% { transform: translate(214px, 29px); }
-      50% { transform: translate(156px, 29px); }
+
+      0%,
+      100% {
+        transform: translate(214px, 29px);
+      }
+
+      50% {
+        transform: translate(156px, 29px);
+      }
     }
 
     /* Floating Status & Progress */
@@ -7049,8 +7201,17 @@
     }
 
     @keyframes pulseDot {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.4); opacity: 0.5; }
+
+      0%,
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+
+      50% {
+        transform: scale(1.4);
+        opacity: 0.5;
+      }
     }
 
     .ai-scanner-title {
@@ -7756,9 +7917,18 @@
           </div>
         </div>
 
+        <!-- Page Tabs — up to 3 independent floor-plan pages per site.
+             Not sticky (unlike the templates strip below it) since it's a
+             set-once-in-a-while control, not something reached for while
+             scrolled deep into the canvas. -->
+        <div class="page-tabs-strip" id="page-tabs-strip"
+          style="margin:12px auto 0; width:fit-content;">
+          <!-- Injected by renderPageTabs() -->
+        </div>
+
         <!-- Top 1-Click Templates Strip -->
         <div class="ai-presets-strip"
-          style="position:sticky; top:12px; z-index:30; margin:12px auto 6px; width:fit-content; display:flex; align-items:center; gap:6px;">
+          style="position:sticky; top:12px; z-index:30; margin:8px auto 6px; width:fit-content; display:flex; align-items:center; gap:6px;">
           <span class="ai-presets-label">⚡ 1-Click Templates:</span>
           <button class="ai-chip-btn primary" onclick="applyAiLayoutArchetype('motherhub')">🏢 Mother Hub (15k)</button>
           <button class="ai-chip-btn" onclick="applyAiLayoutArchetype('cross_dock')">📦 Sortation Matrix</button>
@@ -8792,7 +8962,8 @@
         <div class="onboarding-speaker">Chief Maya · Supply Chain Architect</div>
         <div class="onboarding-title" id="ob-title">Welcome to the Darkstore Builder!</div>
         <div class="onboarding-text" id="ob-text">Let's build your fulfillment empire step-by-step. Start by placing an
-          <strong>Inward Dock Door</strong> for receiving inventory.</div>
+          <strong>Inward Dock Door</strong> for receiving inventory.
+        </div>
         <div class="onboarding-footer">
           <div class="onboarding-step-dots" id="ob-dots">
             <span class="step-dot active"></span>
@@ -8804,7 +8975,7 @@
           <div style="display:flex; gap:8px;">
             <button class="btn ghost sm" id="ob-skip-btn">Skip Tutorial</button>
             <button class="btn primary sm" id="ob-next-btn"
-              style="background:#0284C7; color:#fff; border:none; font-weight:800; cursor:pointer;">Next Objective
+              style="background:#0284C7; color:#fff; border:none; font-weight:800; cursor:pointer;">Next
               →</button>
           </div>
         </div>
@@ -8815,13 +8986,16 @@
   <!-- AI Blueprint Vision Scanner & Progress Animation Overlay -->
   <div class="ai-vision-scanner-overlay" id="ai-vision-scanner-overlay">
     <div class="ai-scanner-card" style="position:relative;">
-      <button class="btn ghost icon sm" id="ai-scanner-close-btn" style="position:absolute; top:12px; right:12px; font-size:16px; color:var(--ink-soft); z-index:20; cursor:pointer;" title="Close scanner">✕</button>
+      <button class="btn ghost icon sm" id="ai-scanner-close-btn"
+        style="position:absolute; top:12px; right:12px; font-size:16px; color:var(--ink-soft); z-index:20; cursor:pointer;"
+        title="Close scanner">✕</button>
       <div class="ai-scanner-tag">
         <span class="ai-scanner-pulse-dot"></span>
         <span id="ai-scanner-stage-badge">AI Spatial Engine</span>
       </div>
       <h3 class="ai-scanner-title" id="ai-scanner-title">Analyzing Blueprint &amp; Layout</h3>
-      <div class="ai-scanner-status-txt" id="ai-scanner-status-txt">Enhancing image resolution &amp; optical contrast…</div>
+      <div class="ai-scanner-status-txt" id="ai-scanner-status-txt">Enhancing image resolution &amp; optical contrast…
+      </div>
 
       <!-- Construction Viewport — a small warehouse assembling itself,
            phase by phase, with a crane working in the background the
@@ -8859,8 +9033,11 @@
             <path d="M20,150 C90,150 140,150 210,150" id="bld-flow" class="bld-flow" />
           </svg>
         </div>
-        <img src="" id="ai-scanner-preview-img" class="ai-scanner-preview-img" alt="Floor plan preview" style="display:none;">
-        <div id="ai-scanner-doc-icon" style="display:none; position:absolute; right:10px; bottom:10px; font-size:26px; opacity:0.85; filter:drop-shadow(0 0 10px rgba(245,158,11,0.4));">📐</div>
+        <img src="" id="ai-scanner-preview-img" class="ai-scanner-preview-img" alt="Floor plan preview"
+          style="display:none;">
+        <div id="ai-scanner-doc-icon"
+          style="display:none; position:absolute; right:10px; bottom:10px; font-size:26px; opacity:0.85; filter:drop-shadow(0 0 10px rgba(245,158,11,0.4));">
+          📐</div>
       </div>
 
       <!-- Progress Track & Percentage Counter -->
@@ -9446,6 +9623,107 @@
       if (!Array.isArray(s.customAssets)) s.customAssets = [];
       if (!s.cellColors || typeof s.cellColors !== "object") s.cellColors = {};
       if (!s.cellLocks || typeof s.cellLocks !== "object") s.cellLocks = {};
+    }
+
+    /* =====================================================================
+       MULTI-PAGE CANVAS — up to 3 independent floor-plan pages per site.
+       Rather than threading a page dimension through the thousand-plus
+       direct `site.cells` / `site.zones` / etc. references throughout this
+       file, the live top-level site fields ALWAYS represent whichever page
+       is active; `site.pages[i]` is just a snapshot of those same fields
+       for every OTHER (inactive) page, in the exact shape snapshotState()/
+       applySnap() already use for undo/redo. Every existing feature —
+       undo, save, export, 3D view, AI import, all of it — keeps working
+       unmodified, because as far as any of them can tell there's still
+       just one `site`; it's whichever page the user last switched to.
+    ===================================================================== */
+    const MAX_SITE_PAGES = 3;
+
+    function pageBlobFromLiveSite(name) {
+      return {
+        name: name || "Page",
+        cells: site.cells, rots: site.rots,
+        cellDims: site.cellDims || {}, cellColors: site.cellColors || {}, cellLocks: site.cellLocks || {},
+        zones: site.zones, flows: site.flows || [], annotations: site.annotations || [], customAssets: site.customAssets || [],
+        L: site.L, W: site.W, cols: site.cols, rows: site.rows
+      };
+    }
+
+    function loadPageBlobIntoLiveSite(p) {
+      site.cells = p.cells; site.rots = p.rots;
+      site.cellDims = p.cellDims || {}; site.cellColors = p.cellColors || {}; site.cellLocks = p.cellLocks || {};
+      site.zones = p.zones; site.flows = p.flows || []; site.annotations = p.annotations || []; site.customAssets = p.customAssets || [];
+      site.L = p.L; site.W = p.W; site.cols = p.cols; site.rows = p.rows;
+    }
+
+    // Wraps the currently-live floor plan as "Page 1" the first time a site
+    // (new or pre-dating this feature) is opened — a no-op on every later
+    // open, since site.pages already exists and travels with the saved site.
+    function ensureSitePages() {
+      if (!site) return;
+      if (!Array.isArray(site.pages) || !site.pages.length) {
+        site.pages = [pageBlobFromLiveSite("Page 1")];
+        site.activePageIndex = 0;
+      }
+      if (typeof site.activePageIndex !== "number" || site.activePageIndex < 0 || site.activePageIndex >= site.pages.length) {
+        site.activePageIndex = 0;
+      }
+    }
+
+    function switchToPage(idx) {
+      if (!site || !Array.isArray(site.pages)) return;
+      if (idx === site.activePageIndex || idx < 0 || idx >= site.pages.length) return;
+      // Persist whatever's live back into its own slot before leaving it.
+      site.pages[site.activePageIndex] = pageBlobFromLiveSite(site.pages[site.activePageIndex].name);
+      loadPageBlobIntoLiveSite(site.pages[idx]);
+      site.activePageIndex = idx;
+      deselectZone();
+      selectedCell = null; selectedCells = []; selectedFlowId = null; selectedAnnotationId = null;
+      undoStack = []; redoStack = []; updateUndoBtns();
+      if ($("#ed-dims")) $("#ed-dims").textContent = `${site.L} × ${site.W} ft`;
+      sizeCanvas();
+      redraw();
+      updateStats();
+      updateRightPanel();
+      renderPageTabs();
+      queueSave();
+      playSfx("pop");
+    }
+
+    function addSitePage() {
+      if (!site) return;
+      ensureSitePages();
+      if (site.pages.length >= MAX_SITE_PAGES) return toast(`Maximum of ${MAX_SITE_PAGES} pages`);
+      site.pages[site.activePageIndex] = pageBlobFromLiveSite(site.pages[site.activePageIndex].name);
+      const cols = site.cols, rows = site.rows;
+      const newPage = {
+        name: `Page ${site.pages.length + 1}`,
+        cells: new Array(cols * rows).fill(0),
+        rots: new Array(cols * rows).fill(0),
+        cellDims: {}, cellColors: {}, cellLocks: {},
+        zones: [], flows: [], annotations: [], customAssets: [],
+        L: site.L, W: site.W, cols, rows
+      };
+      site.pages.push(newPage);
+      switchToPage(site.pages.length - 1);
+      toast(`Added ${newPage.name}`);
+    }
+
+    function renderPageTabs() {
+      const el = $("#page-tabs-strip");
+      if (!el || !site) return;
+      ensureSitePages();
+      const tabsHtml = site.pages.map((p, i) => {
+        const name = escapeHtml(p.name || `Page ${i + 1}`);
+        return `<button class="page-tab-btn${i === site.activePageIndex ? " active" : ""}" data-page-idx="${i}" title="${name}">${name}</button>`;
+      }).join("");
+      const canAdd = site.pages.length < MAX_SITE_PAGES;
+      el.innerHTML = tabsHtml +
+        `<button class="page-tab-add-btn" id="page-tab-add-btn" title="${canAdd ? "Add a page (max " + MAX_SITE_PAGES + ")" : "Maximum of " + MAX_SITE_PAGES + " pages"}"${canAdd ? "" : " disabled"}>+</button>`;
+      el.querySelectorAll(".page-tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => switchToPage(+btn.dataset.pageIdx));
+      });
+      $("#page-tab-add-btn")?.addEventListener("click", addSitePage);
     }
 
     /* =====================================================================
@@ -10893,7 +11171,9 @@
       if ($("#ed-dims")) $("#ed-dims").textContent = `${site.L} × ${site.W} ft`;
       if ($("#constraint-note")) $("#constraint-note").textContent = site.constraintNote ? "Note: " + site.constraintNote : "";
 
+      ensureSitePages();
       buildPalette();
+      renderPageTabs();
       sizeCanvas();
       bindCanvasEvents();
       redraw();
@@ -13052,6 +13332,7 @@
         site._freshGenerate = true;
         saveSite(site).catch(() => { });
       }
+      ensureSitePages();
       undoStack = []; redoStack = [];
       activePreviewVersionId = null; liveSiteBackup = null;
       if ($("#history-preview-bar")) $("#history-preview-bar").style.display = "none";
@@ -13075,6 +13356,7 @@
       if ($("#zoom")) $("#zoom").value = cellPx;
       if (typeof updateZoomTxt === "function") updateZoomTxt();
       buildPalette();
+      renderPageTabs();
       sizeCanvas();
       bindCanvasEvents();
       redraw();
@@ -14039,6 +14321,18 @@
         // armed, and don't force the Select icon to light up just because
         // something has to be "active"; use spotlight (below) instead.
         closeDrawers();
+      }
+      // Only the sidebar this step is actually about should be open at
+      // once — a left-drawer step (Room/Zone/Objects/Draw) used to leave
+      // the right Properties panel sitting open alongside it (previously
+      // expanded from an earlier selection), and the Properties-panel
+      // steps didn't force it open if the user had it collapsed. Now each
+      // side explicitly closes when it's the other one's turn.
+      const LEFT_DRAWER_TOOLS = new Set(["room", "zone", "objects", "draw"]);
+      if (LEFT_DRAWER_TOOLS.has(step.tool)) {
+        if (typeof collapseRightPanel === "function") collapseRightPanel();
+      } else if (step.spotlight === "#right-panel") {
+        if (typeof expandRightPanel === "function") expandRightPanel();
       }
       // Highlights the actual element a non-tool step is talking about
       // (Ask AI, the templates strip, Undo/History, Finish) — separate
