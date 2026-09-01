@@ -7229,11 +7229,11 @@
 
       0%,
       100% {
-        transform: translate(214px, 29px);
+        transform: translate(227px, 25px);
       }
 
       50% {
-        transform: translate(156px, 29px);
+        transform: translate(168px, 28px);
       }
     }
 
@@ -9102,40 +9102,58 @@
       <div class="ai-scanner-status-txt" id="ai-scanner-status-txt">Enhancing image resolution &amp; optical contrast…
       </div>
 
-      <!-- Construction Viewport - a small warehouse assembling itself,
+      <!-- Construction Viewport - a big warehouse assembling itself,
            phase by phase, with a crane working in the background the
            entire time the overlay is open (see .bld-crane-trolley - its
            motion never stops, so the scene never reads as "frozen" even
            while waiting past the 5 defined phases for a real, possibly
-           much slower API response). -->
+           much slower API response).
+
+           Was drawn as a small peaked-roof house (a triangular gable, two
+           narrow tall doors, a squarish footprint) - read as a residence,
+           not the industrial cross-dock hub this tool actually builds.
+           Redrawn at real-warehouse proportions instead: a low, wide,
+           FLAT-roofed shell (a fascia band, not a gable peak) with two
+           WIDE, SHORT dock/roller-shutter doors at its base rather than
+           house-style doors, and more visible shelving through the
+           cutaway. Same 7 element ids as before (bld-walls/bld-roof/
+           bld-door1/bld-door2/bld-racks/bld-flow/bld-flag), so the phase-
+           reveal logic in showAiVisionScanner/hideAiVisionScanner needs
+           no changes - only the geometry moved. The topping-out flag
+           (bld-flag, revealed only on a successful finish - see
+           hideAiVisionScanner) is a real construction-industry tradition,
+           not a residential detail, so it stayed - just re-anchored to
+           the new flat roof instead of a gable peak. -->
       <div class="ai-scanner-viewport">
         <div class="ai-scanner-grid-bg"></div>
         <div class="ai-build-scene">
           <svg viewBox="0 0 300 160" class="ai-build-svg" preserveAspectRatio="xMidYMid meet">
-            <line x1="12" y1="140" x2="288" y2="140" class="bld-ground" />
+            <line x1="10" y1="142" x2="290" y2="142" class="bld-ground" />
             <g class="bld-crane">
-              <line x1="246" y1="140" x2="246" y2="26" class="bld-crane-mast" />
-              <line x1="246" y1="26" x2="140" y2="32" class="bld-crane-arm" />
-              <line x1="246" y1="26" x2="272" y2="34" class="bld-crane-arm" />
+              <line x1="256" y1="142" x2="256" y2="24" class="bld-crane-mast" />
+              <line x1="256" y1="24" x2="110" y2="30" class="bld-crane-arm" />
+              <line x1="256" y1="24" x2="280" y2="32" class="bld-crane-arm" />
               <g class="bld-crane-trolley">
                 <line x1="0" y1="0" x2="0" y2="30" class="bld-crane-cable" />
                 <rect x="-7" y="30" width="14" height="9" rx="2" class="bld-crane-hook" />
               </g>
             </g>
-            <polygon points="42,78 112,40 182,78" class="bld-roof" id="bld-roof" />
+            <rect x="24" y="82" width="200" height="10" rx="1" class="bld-roof" id="bld-roof" />
             <g class="bld-flag" id="bld-flag">
-              <line x1="112" y1="40" x2="112" y2="24" stroke="#78716C" stroke-width="2" />
-              <polygon points="112,24 130,29 112,34" fill="#22C55E" />
+              <line x1="124" y1="82" x2="124" y2="64" stroke="#78716C" stroke-width="2" />
+              <polygon points="124,64 142,69 124,74" fill="#22C55E" />
             </g>
-            <rect x="52" y="78" width="120" height="62" class="bld-walls" id="bld-walls" />
-            <rect x="65" y="106" width="22" height="34" class="bld-door" id="bld-door1" />
-            <rect x="97" y="106" width="22" height="34" class="bld-door" id="bld-door2" />
+            <rect x="30" y="92" width="188" height="50" class="bld-walls" id="bld-walls" />
+            <rect x="52" y="118" width="42" height="24" class="bld-door" id="bld-door1" />
+            <rect x="124" y="118" width="42" height="24" class="bld-door" id="bld-door2" />
             <g id="bld-racks" class="bld-racks">
-              <rect x="132" y="88" width="8" height="50" />
-              <rect x="146" y="88" width="8" height="50" />
-              <rect x="160" y="88" width="8" height="50" />
+              <rect x="170" y="100" width="6" height="38" />
+              <rect x="180" y="100" width="6" height="38" />
+              <rect x="190" y="100" width="6" height="38" />
+              <rect x="200" y="100" width="6" height="38" />
+              <rect x="210" y="100" width="6" height="38" />
             </g>
-            <path d="M20,150 C90,150 140,150 210,150" id="bld-flow" class="bld-flow" />
+            <path d="M18,150 C90,150 210,150 282,150" id="bld-flow" class="bld-flow" />
           </svg>
         </div>
         <img src="" id="ai-scanner-preview-img" class="ai-scanner-preview-img" alt="Floor plan preview"
