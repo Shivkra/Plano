@@ -2814,7 +2814,15 @@
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
-      z-index: 20;
+      /* Was 20 - below aside.palette / aside.right-panel's z-index:25.
+         Since #editor is a flex container, z-index applies to this header
+         as a flex item even without its own `position`, and a header/
+         sidebar comparison happens directly in that shared stacking
+         context - so anything inside the header (the Finish dropdown,
+         z-index:60) was trapped under the header's own z:20 and rendered
+         behind an open sidebar despite its own higher z-index. 26 clears
+         both siblings' 25 while staying just above them. */
+      z-index: 26;
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
       user-select: none;
     }
@@ -7664,7 +7672,7 @@
           accept="image/jpeg,image/png,image/webp,image/svg+xml,application/pdf,.dwg,.dxf" style="display:none;">
         <div class="finish-split-btn" id="finish-split-btn">
           <button class="btn primary sm finish-main-btn" id="ed-finish"
-            title="Finish - view your layout as a 3D isometric render">✓ Finish</button>
+            title="Finish - view your layout as a 3D isometric render">✓ Finish in 3D</button>
           <button class="btn primary sm finish-caret-btn" id="finish-caret-btn" title="More options"
             aria-label="More options">▾</button>
           <div class="finish-dropdown" id="finish-dropdown">
@@ -7960,8 +7968,7 @@
              Not sticky (unlike the templates strip below it) since it's a
              set-once-in-a-while control, not something reached for while
              scrolled deep into the canvas. -->
-        <div class="page-tabs-strip" id="page-tabs-strip"
-          style="margin:12px auto 0; width:fit-content;">
+        <div class="page-tabs-strip" id="page-tabs-strip" style="margin:12px auto 0; width:fit-content;">
           <!-- Injected by renderPageTabs() -->
         </div>
 
@@ -13764,7 +13771,19 @@
 
     // Finish split-button dropdown (Present / Export tucked inside it)
     function hideFinishDropdown() { $("#finish-dropdown")?.classList.remove("on"); }
-    function toggleFinishDropdown() { $("#finish-dropdown")?.classList.toggle("on"); }
+    function toggleFinishDropdown() {
+      const dd = $("#finish-dropdown");
+      if (!dd) return;
+      const opening = !dd.classList.contains("on");
+      dd.classList.toggle("on");
+      // The dropdown sits against the header's right edge, right next to
+      // the Properties panel - collapsing it when the menu opens keeps
+      // the two from crowding each other.
+      if (opening && typeof collapseRightPanel === "function") {
+        const rp = $("#right-panel");
+        if (rp && !rp.classList.contains("is-collapsed")) collapseRightPanel();
+      }
+    }
     $("#finish-caret-btn")?.addEventListener("click", ev => { ev.stopPropagation(); toggleFinishDropdown(); });
     document.addEventListener("pointerdown", ev => {
       const grp = $("#finish-split-btn");
@@ -16546,6 +16565,11 @@
 
     function onPointerDown(ev) {
       hideBin();
+      // Clicking the canvas itself is "clicking away" from whatever left
+      // flyout drawer (Objects/Room/Zone/Draw) might still be open - it
+      // used to just sit there until the user picked something from it or
+      // clicked a different tool icon.
+      closeDrawers();
       if (tool === "flow") {
         if (layerLocks.flow) return toast("Flow layer is locked");
         const rect = canvas().getBoundingClientRect();
