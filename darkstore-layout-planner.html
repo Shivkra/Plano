@@ -10244,22 +10244,8 @@
       showAiVisionScanner(file, isPdf ? "Analyzing PDF Blueprint with AI" : "AI Spatial Blueprint Scanning");
 
       try {
-        let data = null;
-        try {
-          const { image, mimeType } = await fileToVisionPayload(file, VISION_IMAGE_MAX_DIM, VISION_IMAGE_QUALITY);
-          if (statusTxt) statusTxt.textContent = "📐 AI Vision: Reading footprint & door positions…";
-          data = await apiFetch("/api/vision-import", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ image, mimeType }),
-          });
-        } catch (apiErr) {
-          console.warn("Vision API fallback:", apiErr);
-          data = await vectorizeUploadedImage(file);
-        }
-        if (!data || !data.walls || !data.walls.length) {
-          data = await vectorizeUploadedImage(file);
-        }
+        if (statusTxt) statusTxt.textContent = "📐 AI Vision: Reading footprint & door positions…";
+        const data = await callVisionImport(file);
 
         if (data) {
           if (statusTxt) statusTxt.textContent = "✨ Building the site to your operating basis…";
@@ -10342,6 +10328,7 @@
         }
       } catch (err) {
         console.error(err);
+        failAiVisionScanner();
         toast(`Error reading blueprint: ${err.message}`);
       } finally {
         if (statusEl) statusEl.style.display = "none";
@@ -11123,6 +11110,19 @@
       hideAiVisionScanner("Dismissed");
     });
 
+    // hideAiVisionScanner() always plays the success fanfare and finishes
+    // the little building animation with its flag raised, whatever text
+    // you pass it - there's no "this failed" state, only "this succeeded,
+    // here's the message". That's wrong for a genuine failure (network
+    // error, AI couldn't read the image), so this closes the overlay
+    // honestly instead: no fanfare, no completed-building animation,
+    // straight to dismissed.
+    function failAiVisionScanner() {
+      clearTimeout(aiScannerInterval);
+      clearTimeout(aiScannerTimeout);
+      $("#ai-vision-scanner-overlay")?.classList.remove("on");
+    }
+
     function fileToRawBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -11137,97 +11137,34 @@
     }
 
     /* =====================================================================
-       CLIENT-SIDE SKETCH & BLUEPRINT PIXEL VECTORIZER (Fast, Accurate)
+       AI VISION IMPORT - shared call, used by all three upload entry
+       points (library "AI Blueprint Upload", the in-editor photo import,
+       and the legacy wizard's photo step). Replaces what used to be
+       vectorizeUploadedImage() here plus a matching hardcoded fallback in
+       server.js's handleVisionImport - despite the name, that function
+       never actually looked at the uploaded image at all; every single
+       upload silently got back the exact same hardcoded "12,000 sq ft
+       Mother-Hub" layout the instant the real Gemini call failed OR
+       returned anything Gemini itself considered sparse, with no
+       indication to the manager that their actual photo was never
+       analyzed. This throws instead, so a real failure looks like one -
+       every caller already has its own catch block to show that honestly.
     ===================================================================== */
-    async function vectorizeUploadedImage(file) {
-      const motherHubDefaultLayout = {
-        dimensionsFt: { length: 120, width: 100 },
-        summary: "12,000 sq ft Mother-Hub with Inward & Dispatch Docks, Office Room, Bags & Storage, Damaged Items, RTO Zone, Left Sorting Lines & 2x4 Dispatch Sorting Matrix",
-        walls: [
-          // Outer perimeter envelope
-          { x0: 0.02, y0: 0.02, x1: 0.98, y1: 0.02 },
-          { x0: 0.98, y0: 0.02, x1: 0.98, y1: 0.98 },
-          { x0: 0.98, y0: 0.98, x1: 0.02, y1: 0.98 },
-          { x0: 0.02, y0: 0.98, x1: 0.02, y1: 0.02 },
-          // Top wall partitions: Office, Bags/Storage, Damaged Items
-          { x0: 0.02, y0: 0.18, x1: 0.22, y1: 0.18 },
-          { x0: 0.22, y0: 0.02, x1: 0.22, y1: 0.18 },
-          { x0: 0.22, y0: 0.14, x1: 0.54, y1: 0.14 },
-          { x0: 0.54, y0: 0.02, x1: 0.54, y1: 0.14 },
-          { x0: 0.54, y0: 0.14, x1: 0.76, y1: 0.14 },
-          { x0: 0.76, y0: 0.02, x1: 0.76, y1: 0.14 },
-          // Right wall partition: RTO & Exceptional Shipments
-          { x0: 0.86, y0: 0.36, x1: 0.98, y1: 0.36 },
-          { x0: 0.86, y0: 0.36, x1: 0.86, y1: 0.74 },
-          { x0: 0.86, y0: 0.74, x1: 0.98, y1: 0.74 },
-          // Bottom wall rooms: Bathroom, Medical, Sec, UPS
-          { x0: 0.02, y0: 0.88, x1: 0.12, y1: 0.88 },
-          { x0: 0.12, y0: 0.88, x1: 0.12, y1: 0.98 },
-          { x0: 0.12, y0: 0.90, x1: 0.24, y1: 0.90 },
-          { x0: 0.24, y0: 0.90, x1: 0.24, y1: 0.98 },
-          { x0: 0.46, y0: 0.90, x1: 0.54, y1: 0.90 },
-          { x0: 0.46, y0: 0.90, x1: 0.46, y1: 0.98 },
-          { x0: 0.54, y0: 0.90, x1: 0.54, y1: 0.98 },
-          { x0: 0.78, y0: 0.90, x1: 0.94, y1: 0.90 },
-          { x0: 0.78, y0: 0.90, x1: 0.78, y1: 0.98 },
-          { x0: 0.94, y0: 0.90, x1: 0.94, y1: 0.98 }
-        ],
-        rooms: [
-          { name: "Office Room", type: "office", x: 0.03, y: 0.03, w: 0.18, h: 0.14 },
-          { name: "Bags & Storage Items", type: "store", x: 0.23, y: 0.03, w: 0.30, h: 0.10 },
-          { name: "Damaged Items", type: "store", x: 0.55, y: 0.03, w: 0.20, h: 0.10 },
-          { name: "RTO & Exceptional Shipments", type: "outboundLane", x: 0.87, y: 0.38, w: 0.10, h: 0.34 },
-          { name: "Bathroom", type: "bathroom", x: 0.03, y: 0.89, w: 0.08, h: 0.08 },
-          { name: "Medical", type: "medical", x: 0.13, y: 0.91, w: 0.10, h: 0.06 },
-          { name: "Sec", type: "security", x: 0.47, y: 0.91, w: 0.06, h: 0.06 },
-          { name: "UPS", type: "ups", x: 0.79, y: 0.91, w: 0.14, h: 0.06 },
-          { name: "Trolley / Cages Staging", type: "inboundStage", x: 0.26, y: 0.78, w: 0.18, h: 0.08 }
-        ],
-        racks: [
-          // Left vertical parallel rows of sorting units (circles/stations)
-          { type: "sortbox", x0: 0.16, y0: 0.38, x1: 0.16, y1: 0.72 },
-          { type: "sortbox", x0: 0.22, y0: 0.38, x1: 0.22, y1: 0.72 },
-          // Dispatch sorting 2x4 matrix (8 large dispatch sort bays)
-          { type: "doublerack", x0: 0.44, y0: 0.36, x1: 0.54, y1: 0.36 },
-          { type: "doublerack", x0: 0.58, y0: 0.36, x1: 0.68, y1: 0.36 },
-          { type: "doublerack", x0: 0.44, y0: 0.48, x1: 0.54, y1: 0.48 },
-          { type: "doublerack", x0: 0.58, y0: 0.48, x1: 0.68, y1: 0.48 },
-          { type: "doublerack", x0: 0.44, y0: 0.60, x1: 0.54, y1: 0.60 },
-          { type: "doublerack", x0: 0.58, y0: 0.60, x1: 0.68, y1: 0.60 },
-          { type: "doublerack", x0: 0.44, y0: 0.72, x1: 0.54, y1: 0.72 },
-          { type: "doublerack", x0: 0.58, y0: 0.72, x1: 0.68, y1: 0.72 }
-        ],
-        equipment: [
-          { type: "conveyor", x0: 0.22, y0: 0.36, x1: 0.42, y1: 0.36 }
-        ],
-        entries: [{ x: 0.34, y: 0.98 }],
-        exits: [{ x: 0.64, y: 0.98 }]
-      };
-
-      return new Promise((resolve) => {
-        if (!file || file.type === "application/pdf") {
-          return resolve(motherHubDefaultLayout);
-        }
-
-        const img = new Image();
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          img.onload = () => {
-            try {
-              // Return complete mother-hub architecture customized to user's sketch
-              resolve(motherHubDefaultLayout);
-            } catch (err) {
-              console.warn("Vectorizer error:", err);
-              resolve(motherHubDefaultLayout);
-            }
-          };
-          img.onerror = () => {
-            resolve(motherHubDefaultLayout);
-          };
-          img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
+    async function callVisionImport(file) {
+      if (!file) throw new Error("No file to analyze");
+      const { image, mimeType } = await fileToVisionPayload(file, VISION_IMAGE_MAX_DIM, VISION_IMAGE_QUALITY);
+      const data = await apiFetch("/api/vision-import", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image, mimeType }),
       });
+      const hasContent = data && (
+        (data.walls && data.walls.length) || (data.rooms && data.rooms.length) ||
+        (data.racks && data.racks.length) || (data.sortStations && data.sortStations.length) ||
+        (data.equipment && data.equipment.length)
+      );
+      if (!hasContent) {
+        throw new Error("Couldn't find a clear floor plan in that image - try a clearer photo, or a tighter crop of just the floor plan.");
+      }
+      return data;
     }
     function applyVisionResultToCanvas(data) {
       wizCanvasSnapshot();
@@ -11327,19 +11264,7 @@
       if (btn) { btn.disabled = true; btn.textContent = isPdf ? "Reading PDF…" : "Reading photo…"; }
       showAiVisionScanner(file, isPdf ? "Analyzing PDF Floor Plan" : "AI Vision Blueprint Scanner");
       try {
-        let data = null;
-        try {
-          const { image, mimeType } = await fileToVisionPayload(file, VISION_IMAGE_MAX_DIM, VISION_IMAGE_QUALITY);
-          data = await apiFetch("/api/vision-import", {
-            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image, mimeType }),
-          });
-        } catch (apiErr) {
-          console.warn("Vision API fallback:", apiErr);
-          data = await vectorizeUploadedImage(file);
-        }
-        if (!data || !data.walls || !data.walls.length) {
-          data = await vectorizeUploadedImage(file);
-        }
+        const data = await callVisionImport(file);
 
         if (data) {
           const nWalls = (data.walls || []).length, nEntries = (data.entries || []).length, nExits = (data.exits || []).length;
@@ -11360,7 +11285,7 @@
           toast(`✓ Blueprint imported: ${nWalls} wall${nWalls === 1 ? "" : "s"}, ${nEntries} entry, ${nExits} exit${dimNote} - editing in Pro Canvas!`);
         }
       } catch (e) {
-        hideAiVisionScanner("Fallback layout applied");
+        failAiVisionScanner();
         toast(e.message || `Could not read that ${isPdf ? "PDF" : "photo"}`);
       } finally {
         if (btn) { btn.disabled = false; btn.textContent = origLabel; }
@@ -13543,19 +13468,7 @@
       if (btn) { btn.disabled = true; btn.textContent = isPdf ? "Analyzing PDF with AI…" : "Analyzing Image with AI…"; }
       showAiVisionScanner(file, isPdf ? "Analyzing PDF Blueprint with AI" : "AI Spatial Blueprint Scanning");
       try {
-        let data = null;
-        try {
-          const { image, mimeType } = await fileToVisionPayload(file, VISION_IMAGE_MAX_DIM, VISION_IMAGE_QUALITY);
-          data = await apiFetch("/api/vision-import", {
-            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image, mimeType }),
-          });
-        } catch (apiErr) {
-          console.warn("Vision API fallback:", apiErr);
-          data = await vectorizeUploadedImage(file);
-        }
-        if (!data || !data.walls || !data.walls.length) {
-          data = await vectorizeUploadedImage(file);
-        }
+        const data = await callVisionImport(file);
 
         if (data && site) {
           const nWalls = (data.walls || []).length, nRooms = (data.rooms || []).length, nRacks = (data.racks || []).length;
@@ -13576,7 +13489,7 @@
           toast(`✓ AI analyzed layout: ${nWalls} walls, ${nRooms} rooms & ${nRacks} racking runs${colsNote}${dimNote} rendered on canvas!`);
         }
       } catch (e) {
-        hideAiVisionScanner("Fallback layout applied");
+        failAiVisionScanner();
         toast(e.message || "Could not analyze layout image");
       } finally {
         if (btn) { btn.disabled = false; btn.textContent = origLabel; }
@@ -18422,13 +18335,17 @@
 
     function appendAiStudioMsg(role, contentHtml) {
       const chat = document.getElementById("ai-studio-chat-history");
-      if (!chat) return;
+      if (!chat) return null;
       chat.style.display = "flex";
       const msg = document.createElement("div");
       msg.className = `ai-chat-msg ${role}`;
       msg.innerHTML = `<div class="ai-msg-bubble">${contentHtml}</div>`;
       chat.appendChild(msg);
       chat.scrollTop = chat.scrollHeight;
+      // Returned so a caller can swap a "Thinking…" placeholder for the
+      // real response in place, instead of leaving the placeholder sitting
+      // there alongside a second, separate message.
+      return msg;
     }
 
     function submitGeminiPromptIntake() {
@@ -18527,210 +18444,131 @@
     }
 
     // Comprehensive Natural Language AI Prompt Handler (Questions + Objects + Layouts)
-    function handleAiCanvasPrompt(text) {
+    // Was a client-side keyword/regex matcher with no real AI call at all -
+    // a message hitting none of a couple dozen specific keywords fell
+    // through to silently regenerating the ENTIRE layout from scratch as a
+    // generic template, overwriting whatever the manager had built, with
+    // no confirmation and no undo hint. Now a real call to /api/ai-tweak
+    // (Gemini): the model returns a plain-language summary plus a small
+    // set of bounded, validated zone-level actions (see AI_TWEAK_SYSTEM /
+    // sanitizeAiTweakActions in server.js) that applyAiTweakActions below
+    // actually applies - or, for a genuine question, just the summary with
+    // no actions, same as before but with a real answer instead of a
+    // hardcoded one.
+    async function handleAiCanvasPrompt(text) {
       if (!site) return;
       appendAiStudioMsg("user", escapeHtml(text));
-      const lower = text.toLowerCase().trim();
+      const thinkingMsg = appendAiStudioMsg("assistant", "🤔 Thinking…");
+      const setMsg = (html) => { if (thinkingMsg) thinkingMsg.querySelector(".ai-msg-bubble").innerHTML = html; };
 
-      // -------------------------------------------------------------
-      // 1. KNOWLEDGE / Q&A QUESTIONS
-      // -------------------------------------------------------------
-      const isQuestion = lower.includes("?") ||
-        /^(what|why|how|can|is|are|tell|explain|describe|where|when|which|should|do|does)\b/.test(lower) ||
-        lower.includes("meaning") || lower.includes("difference") || lower.includes("calculation") || lower.includes("clearance");
-
-      if (isQuestion && !lower.includes("generate") && !lower.includes("create layout") && !lower.includes("add ") && !lower.includes("place ")) {
-        let answer = "";
-        if (lower.includes("staging") || lower.includes("buffer")) {
-          answer = `<strong>Staging Area in Dark Stores &amp; Warehouses:</strong><br>
-          • <strong>Inward Staging:</strong> Temporary buffer between unloading dock doors and put-away storage racks where incoming cartons/pallets undergo QC and barcode scanning.<br>
-          • <strong>Outbound Staging (Marshalling):</strong> Dedicated lanes adjacent to dispatch gates where picked and packed orders are grouped by delivery route/rider hub before vehicle loading.<br>
-          • <strong>Standard Sizing:</strong> Typically consumes <strong>15%–22%</strong> of active floor area. For cross-dock facilities, staging buffer supports 1.5–2 hours of peak throughput volume.`;
-        } else if (lower.includes("forklift") || lower.includes("aisle") || lower.includes("clearance")) {
-          answer = `<strong>Standard Warehouse Aisle Width Guidelines:</strong><br>
-          • <strong>Manual Picking (Trolleys / Pick-Carts):</strong> 4.0 – 6.0 ft (1.2 – 1.8 m) for single/two-way picker pass.<br>
-          • <strong>Rolling Cages &amp; Pallet Jacks:</strong> 6.0 – 8.0 ft (1.8 – 2.4 m) for turning radius and safe clearance.<br>
-          • <strong>Reach Trucks (Narrow Aisle / VNA):</strong> 8.5 – 10.0 ft (2.6 – 3.0 m).<br>
-          • <strong>Standard Counterbalance Forklifts:</strong> 11.0 – 13.0 ft (3.3 – 4.0 m) for 90° pallet rack insertion.<br>
-          • <strong>Safety Clearance:</strong> Always maintain a minimum 3.0 ft clear zone around fire exits and electrical panels.`;
-        } else if (lower.includes("picking") || lower.includes("travel") || lower.includes("walk")) {
-          answer = `<strong>Techniques to Optimize Picking Flow &amp; Minimize Travel:</strong><br>
-          • <strong>ABC Velocity Slotting:</strong> Place Class A fast-movers (top 20% SKUs generating 80% volume) closest to packing stations and main dispatch spine.<br>
-          • <strong>Spine vs Loop-Back Routing:</strong> Straight spine layouts eliminate U-turns for long-aisle warehouses; perimeter loops are best for cross-dock sortation.<br>
-          • <strong>Zoned Batch Picking:</strong> Pickers stay in dedicated aisles; orders are consolidated downstream at sorting/packing tables.`;
-        } else if (lower.includes("rack") || lower.includes("density") || lower.includes("capacity")) {
-          const sqft = site.L * site.W;
-          const estPallets = Math.round(sqft / 45);
-          answer = `<strong>Storage Capacity Estimation for Current Facility (${site.L}×${site.W} ft = ${fmtNum(sqft)} sq ft):</strong><br>
-          • <strong>Estimated Storage Capacity:</strong> ~${fmtNum(estPallets)} pallet locations across standard 3-tier racking.<br>
-          • <strong>Pallet Racks (4×4 ft):</strong> Best for heavy bulk/carton storage.<br>
-          • <strong>Shelf Units (3×1.5 ft):</strong> Ideal for high-density bin picking with 5–7 shelf tiers.<br>
-          • <strong>Target Floor Efficiency:</strong> Aim for 45%–55% storage footprint, 20% staging/marshalling, and 25% aisle pathways.`;
-        } else {
-          answer = `<strong>AI Logistics Architect Response:</strong><br>
-          Based on your Sortation &amp; Dispatch Mother Hub (${site.L}×${site.W} ft, ${site.cols}×${site.rows} grid cells):<br>
-          • <strong>Intake to Dispatch Flow:</strong> Receiving Dock Doors ➔ Inward Intake Buffer ➔ Destination Sortation Matrix (Hub Bins &amp; Cages) ➔ Outbound Dispatch Marshalling Lanes ➔ Outbound Docks.<br>
-          • <strong>Throughput Focus:</strong> Fast cross-dock sorting of client boxes with zero unnecessary dwell time.<br>
-          • <em>Tip: You can ask me to place sortation bins (e.g. "Add 12 destination sortation bins") or create operational rooms (e.g. "Add an operations office" or "Add inward staging area")!</em>`;
-        }
-
-        appendAiStudioMsg("assistant", answer);
-        return;
-      }
-
-      // -------------------------------------------------------------
-      // 2. SPECIFIC OBJECT OR ROOM GENERATION
-      // -------------------------------------------------------------
-      const isRoomCommand = lower.includes("room") || lower.includes("office") || lower.includes("battery") || lower.includes("charging") || lower.includes("zone") || lower.includes("staging") || lower.includes("marshalling");
-      const isObjectCommand = lower.includes("packing") || lower.includes("rack") || lower.includes("pallet") || lower.includes("conveyor") || lower.includes("table") || lower.includes("cage") || lower.includes("sortbox") || lower.includes("wall") || lower.includes("bin") || lower.includes("lane");
-
-      if (isRoomCommand && !lower.includes("generate 300") && !lower.includes("mother warehouse") && !lower.includes("mother hub")) {
-        snapshot();
-        // Parse room dimensions
-        const dimMatch = text.match(/(\d{1,3})\s*[xX*×byBY\s]+\s*(\d{1,3})/);
-        const rW = dimMatch ? Math.max(10, Math.min(site.L - 10, parseInt(dimMatch[1]))) : 36;
-        const rH = dimMatch ? Math.max(10, Math.min(site.W - 10, parseInt(dimMatch[2]))) : 24;
-
-        let rType = "office";
-        let rName = "Operations Control Office";
-        if (lower.includes("battery") || lower.includes("charging")) { rType = "battery"; rName = "MHE Battery Charging Bay"; }
-        else if (lower.includes("returns") || lower.includes("qc") || lower.includes("exception") || lower.includes("missort")) { rType = "returns"; rName = "Missort & Exception Area"; }
-        else if (lower.includes("staging") || lower.includes("inward") || lower.includes("intake")) { rType = "staging"; rName = "Inward Staging & Scanning Area"; }
-        else if (lower.includes("dispatch") || lower.includes("outbound") || lower.includes("marshalling")) { rType = "staging"; rName = "Outbound Dispatch Marshalling"; }
-
-        // Find clear placement position (e.g. top-left corner)
-        const posX = lower.includes("right") ? Math.max(0, site.L - rW - 4) : 4;
-        const posY = lower.includes("bottom") ? Math.max(0, site.W - rH - 4) : 4;
-
-        const newZone = {
-          id: "z_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
-          name: rName,
-          type: rType,
-          x: posX, y: posY, w: rW, h: rH
-        };
-        site.zones = site.zones || [];
-        site.zones.push(newZone);
-
-        redraw();
-        updateStats();
-        queueSave();
-
-        const resp = `<span class="ai-msg-action-badge">✓ Room / Zone Created</span><br>
-        Added <strong>${rName}</strong> (${rW} × ${rH} ft = ${fmtNum(rW * rH)} sq ft) at position (${posX}, ${posY} ft).`;
-        appendAiStudioMsg("assistant", resp);
-        toast(`✓ Added: ${rName} (${rW}×${rH} ft)`);
-        return;
-      }
-
-      if (isObjectCommand && (lower.includes("place") || lower.includes("add") || lower.includes("put") || lower.includes("tables") || lower.includes("racks") || lower.includes("boxes") || lower.includes("conveyor"))) {
-        snapshot();
-        // Parse quantity
-        const qtyMatch = text.match(/\b(\d{1,2})\b/);
-        const qty = qtyMatch ? Math.min(20, Math.max(1, parseInt(qtyMatch[1]))) : 4;
-
-        let objDef = PAINT_DEFS.rack;
-        let objName = "Storage Racks";
-        if (lower.includes("packing") || lower.includes("table")) { objDef = PAINT_DEFS.packing; objName = "Packing Tables"; }
-        else if (lower.includes("pallet")) { objDef = PAINT_DEFS.palletrack; objName = "Pallet Racks"; }
-        else if (lower.includes("conveyor")) { objDef = PAINT_DEFS.conveyor; objName = "Conveyor Belts"; }
-        else if (lower.includes("sortbox") || lower.includes("box")) { objDef = PAINT_DEFS.sortbox; objName = "Sorting Boxes"; }
-        else if (lower.includes("cage") || lower.includes("trolley")) { objDef = PAINT_DEFS.trolleycage; objName = "Trolley Cages"; }
-        else if (lower.includes("staging")) { objDef = PAINT_DEFS.staging; objName = "Staging Pallets"; }
-
-        // Determine starting grid placement
-        let startR = Math.floor(site.rows / 2);
-        let startC = Math.floor(site.cols / 2) - Math.floor(qty / 2);
-
-        if (lower.includes("bottom")) { startR = Math.max(1, site.rows - 3); }
-        else if (lower.includes("top")) { startR = 2; }
-        else if (lower.includes("left")) { startC = 2; }
-        else if (lower.includes("right")) { startC = Math.max(1, site.cols - qty - 2); }
-
-        startC = Math.max(1, Math.min(site.cols - qty, startC));
-        startR = Math.max(1, Math.min(site.rows - 2, startR));
-
-        let placed = 0;
-        for (let i = 0; i < qty; i++) {
-          const c = startC + i;
-          const r = startR;
-          if (c < site.cols - 1 && r < site.rows - 1) {
-            setPaintCell(c, r, objDef.id);
-            placed++;
+      const facts = {
+        dimensionsFt: { length: site.L, width: site.W },
+        zones: (site.zones || []).map(z => ({
+          label: z.label || (ZONE_DEFS[z.type] || {}).name || z.type,
+          type: z.type, x: z.x, y: z.y, w: z.w, h: z.h,
+        })),
+        objectCounts: (() => {
+          const counts = {};
+          for (let i = 0; i < site.cells.length; i++) {
+            const v = site.cells[i]; if (!v) continue;
+            const def = PAINT_BY_ID[v]; const n = def ? def.name : "Item";
+            counts[n] = (counts[n] || 0) + 1;
           }
-        }
+          return counts;
+        })(),
+      };
 
-        redraw();
-        updateStats();
-        queueSave();
-
-        const resp = `<span class="ai-msg-action-badge">✓ Objects Placed</span><br>
-        Successfully placed <strong>${placed} × ${objName}</strong> (${objDef.glyph}) along row ${startR + 1}.`;
-        appendAiStudioMsg("assistant", resp);
-        toast(`✓ Placed ${placed} × ${objName}`);
+      let data;
+      try {
+        data = await apiFetch("/api/ai-tweak", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ instruction: text, facts }),
+        });
+      } catch (e) {
+        setMsg(escapeHtml(e.message || "Something went wrong - try again?"));
         return;
       }
 
-      // -------------------------------------------------------------
-      // 3. COMPLETE FACILITY LAYOUT GENERATION
-      // -------------------------------------------------------------
-      // Parse dimensions if given (e.g. 300x170, 300 x 170, 200*120)
-      const dimMatch = text.match(/(\d{2,4})\s*[xX*×]\s*(\d{2,4})/);
-      if (dimMatch && site) {
-        const newL = Math.max(20, Math.min(1000, parseInt(dimMatch[1])));
-        const newW = Math.max(20, Math.min(1000, parseInt(dimMatch[2])));
-        site.L = newL; site.W = newW;
-        site.cols = Math.round(newL / CELL_FT);
-        site.rows = Math.round(newW / CELL_FT);
-        sizeCanvas();
+      const actions = Array.isArray(data.actions) ? data.actions : [];
+      if (!actions.length) {
+        setMsg(escapeHtml(data.summary || "I didn't find anything to change for that."));
+        return;
       }
 
-      // Parse target throughput volume
-      let targetVol = 15000;
-      if (lower.includes("30000") || lower.includes("30k") || lower.includes("mega") || lower.includes("30,000")) {
-        targetVol = 30000;
-      } else if (lower.includes("5000") || lower.includes("5k") || lower.includes("compact") || lower.includes("5,000")) {
-        targetVol = 5000;
-      }
+      snapshot();
+      const result = applyAiTweakActions(actions);
+      redraw();
+      updateStats();
+      queueSave();
 
-      // Parse aisle clearance
-      let aisleFt = 6;
-      if (lower.includes("4ft") || lower.includes("4 ft") || lower.includes("4'")) aisleFt = 4;
-      else if (lower.includes("5ft") || lower.includes("5 ft") || lower.includes("5'")) aisleFt = 5;
-      else if (lower.includes("8ft") || lower.includes("8 ft") || lower.includes("8'")) aisleFt = 8;
-      else if (lower.includes("12ft") || lower.includes("12 ft") || lower.includes("12'")) aisleFt = 12;
-
-      // Parse building flow shape
-      const flowShape = (lower.includes("corner") || lower.includes("l-shape") || lower.includes("l shape")) ? "corner"
-        : (lower.includes("loop") || lower.includes("u-flow") || lower.includes("u flow") || lower.includes("single wall")) ? "loop"
-          : "spine";
-
-      // Parse archetype
-      if (lower.includes("sort") || lower.includes("cross") || lower.includes("matrix")) {
-        generateOptimalAiLayout({ archetype: "cross_dock", targetVolume: targetVol, aisleWidthFt: aisleFt, flowShape });
-        const resp = `<span class="ai-msg-action-badge">✓ Cross-Dock Synthesized</span><br>
-        Generated high-velocity <strong>Cross-Dock Sortation Matrix</strong> (${site.L}×${site.W} ft) with ${aisleFt}ft aisles and automated sorting lanes.`;
-        appendAiStudioMsg("assistant", resp);
-      } else if (lower.includes("dense") || lower.includes("compact") || lower.includes("micro")) {
-        generateOptimalAiLayout({ archetype: "micro_hub", targetVolume: targetVol, aisleWidthFt: aisleFt, flowShape });
-        const resp = `<span class="ai-msg-action-badge">✓ Micro-Hub Synthesized</span><br>
-        Generated compact <strong>Dark Store Micro-Hub</strong> (${site.L}×${site.W} ft) optimized for rapid 10-minute dispatch picking.`;
-        appendAiStudioMsg("assistant", resp);
-      } else if (lower.includes("optimize") || lower.includes("efficient") || lower.includes("standards")) {
-        optimizeCurrentLayout();
-        const resp = `<span class="ai-msg-action-badge">⚡ Layout Optimized</span><br>
-        Enforced industrial clearance standards, cleared dock buffers, structured 6ft sorting aisles, and maximized space efficiency!`;
-        appendAiStudioMsg("assistant", resp);
-      } else if (lower.includes("fix") || lower.includes("bottleneck") || lower.includes("clear")) {
-        autoFixLayoutBottlenecks();
-        const resp = `<span class="ai-msg-action-badge">✓ Bottlenecks Cleared</span><br>
-        Resolved docking lane obstructions and colliding aisle clearance points.`;
-        appendAiStudioMsg("assistant", resp);
+      if (result.applied > 0) {
+        const skippedNote = result.skipped.length
+          ? `<br><span style="opacity:.75; font-size:12px;">(Couldn't find: ${result.skipped.map(escapeHtml).join(", ")})</span>`
+          : "";
+        setMsg(`<span class="ai-msg-action-badge">✓ Layout Updated</span><br>${escapeHtml(data.summary || "Done.")}${skippedNote}`);
+        toast(`✓ AI updated your layout (${result.applied} change${result.applied === 1 ? "" : "s"})`);
       } else {
-        generateOptimalAiLayout({ archetype: "motherhub", targetVolume: targetVol, aisleWidthFt: aisleFt, flowShape });
-        const resp = `<span class="ai-msg-action-badge">✓ Mother Warehouse Synthesized</span><br>
-        Generated optimal <strong>Mother Warehouse Mega Hub</strong> (${site.L}×${site.W} ft) with ${fmtNum(targetVol)} orders/day throughput, high-density racking, and dedicated staging buffers.`;
-        appendAiStudioMsg("assistant", resp);
+        setMsg(escapeHtml(`Couldn't find ${result.skipped.map(s => `"${s}"`).join(", ")} in your layout - check the name and try again.`));
       }
+    }
+
+    // Applies the small, validated action set AI_TWEAK_SYSTEM is allowed to
+    // propose (server.js sanitizes the shape/values; this is the client-
+    // side execution + a second round of target-matching, since the server
+    // never sees zone ids, only the labels/types it was given in `facts`).
+    // A "target" is matched against existing zones by exact label, partial
+    // label, then type/type-name - the first match wins; nothing is ever
+    // invented if no zone matches.
+    function applyAiTweakActions(actions) {
+      let applied = 0;
+      const skipped = [];
+      const findZone = (target) => {
+        if (!target || !site.zones) return null;
+        const t = String(target).toLowerCase();
+        return site.zones.find(z => (z.label || "").toLowerCase() === t)
+          || site.zones.find(z => (z.label || "").toLowerCase().includes(t))
+          || site.zones.find(z => z.type && (z.type.toLowerCase() === t || ((ZONE_DEFS[z.type] || {}).name || "").toLowerCase() === t));
+      };
+      actions.forEach(a => {
+        if (a.op === "addZone") {
+          const def = ZONE_DEFS[a.type] || { name: "Zone" };
+          const nz = mkZone(a.type, a.x || 0, a.y || 0, a.w || 20, a.h || 15, a.label || def.name);
+          site.zones = site.zones || [];
+          site.zones.push(nz);
+          clearPaintUnderZone(nz);
+          applied++;
+        } else if (a.op === "resizeZone") {
+          const z = findZone(a.target);
+          if (z) { z.w = a.w; z.h = a.h; clearPaintUnderZone(z); applied++; }
+          else skipped.push(a.target);
+        } else if (a.op === "moveZone") {
+          const z = findZone(a.target);
+          if (z) { z.x = a.x; z.y = a.y; clearPaintUnderZone(z); applied++; }
+          else skipped.push(a.target);
+        } else if (a.op === "deleteZone") {
+          const z = findZone(a.target);
+          if (z) {
+            site.zones = site.zones.filter(zz => zz.id !== z.id);
+            if (typeof pruneDanglingFlows === "function") pruneDanglingFlows();
+            applied++;
+          } else skipped.push(a.target);
+        } else if (a.op === "recolorZone") {
+          const z = findZone(a.target);
+          if (z) { z.color = a.color; applied++; }
+          else skipped.push(a.target);
+        } else if (a.op === "renameZone") {
+          const z = findZone(a.target);
+          if (z) { z.label = a.label; applied++; }
+          else skipped.push(a.target);
+        } else if (a.op === "setDimensions") {
+          site.L = a.length; site.W = a.width;
+          site.cols = Math.round(site.L / CELL_FT);
+          site.rows = Math.round(site.W / CELL_FT);
+          sizeCanvas();
+          applied++;
+        }
+      });
+      return { applied, skipped };
     }
 
     // Comprehensive Spatial Optimization Engine (Enforces standards & maximizes space efficiency)
@@ -18814,12 +18652,6 @@
       const beforeStats = captureLayoutStats();
       const beforeState = snapshotState();
 
-      let actionsCount = 0;
-      let dockCleared = 0;
-      let aislesAligned = 0;
-      let cellsOptimized = 0;
-      let newRoomsCreated = 0;
-
       const cols = site.cols;
       const rows = site.rows;
 
@@ -18846,7 +18678,6 @@
           if (!site.cells[r * cols + 0] && !cellLocked({ c: 0, r })) setPaintCell(0, r, PAINT_DEFS.wall.id);
           if (!site.cells[r * cols + (cols - 1)] && !cellLocked({ c: cols - 1, r })) setPaintCell(cols - 1, r, PAINT_DEFS.wall.id);
         }
-        actionsCount++;
       }
 
       // If missing dock doors on perimeter, add standard Receiving & Dispatch gates
@@ -18855,7 +18686,6 @@
         setPaintCell(0, midR, PAINT_DEFS.entry.id);
         setPaintCell(0, midR + 1, PAINT_DEFS.entry.id);
         entryCount = 2;
-        actionsCount++;
       }
       if (exitCount === 0 && !cellLocked({ c: Math.max(2, cols - 1), r: Math.max(2, Math.floor(rows * 0.75)) })) {
         const exitC = Math.max(2, cols - 1);
@@ -18863,7 +18693,6 @@
         setPaintCell(exitC, midR, PAINT_DEFS.exit.id);
         setPaintCell(exitC, midR + 1, PAINT_DEFS.exit.id);
         exitCount = 2;
-        actionsCount++;
       }
 
       // 2. CLEAR DOCK DOOR BUFFER CORRIDORS (Standard OSHA / Logistics clearance)
@@ -18878,8 +18707,6 @@
                   const innerV = site.cells[nr * cols + nc];
                   if (innerV && innerV !== PAINT_DEFS.entry?.id && innerV !== PAINT_DEFS.exit?.id) {
                     setPaintCell(nc, nr, 0);
-                    dockCleared++;
-                    actionsCount++;
                   }
                 }
               }
@@ -18888,124 +18715,50 @@
         }
       }
 
-      // 3. SCAN EXISTING ELEMENTS
-      let existingElements = [];
-      let elementCounts = {};
-      for (let r = 1; r < rows - 1; r++) {
-        for (let c = 1; c < cols - 1; c++) {
-          const v = site.cells[r * cols + c];
-          if (v && v !== PAINT_DEFS.wall.id && v !== PAINT_DEFS.entry.id && v !== PAINT_DEFS.exit.id) {
-            existingElements.push(v);
-            elementCounts[v] = (elementCounts[v] || 0) + 1;
-          }
-        }
-      }
-
-      // 4. Essential Support Rooms - added BEFORE the floor filler below so
-      // that pass correctly treats these as claimed territory (cellLocked)
-      // instead of painting objects first and only then dropping a room on
-      // top of them. Only add one if its proposed rectangle doesn't land on
-      // top of a zone that's already there; skip rather than overlap.
-      function rectOverlapsAnyZone(x, y, w, h) {
-        return site.zones.some(z => x < z.x + z.w && x + w > z.x && y < z.y + z.h && y + h > z.y);
-      }
-      site.zones = site.zones || [];
-      const hasOffice = site.zones.some(z => z.type === "office");
-      const hasBattery = site.zones.some(z => z.type === "battery");
-      const hasException = site.zones.some(z => z.type === "returns");
-
-      if (!hasOffice && site.L >= 60 && site.W >= 40 && !rectOverlapsAnyZone(4, 4, 24, 18)) {
-        const nz = { id: "z_office_" + Date.now(), label: "Operations Control Office", type: "office", x: 4, y: 4, w: 24, h: 18 };
-        site.zones.push(nz);
-        clearPaintUnderZone(nz);
-        newRoomsCreated++;
-      }
-
-      if (!hasBattery && site.L >= 80 && site.W >= 50 && !rectOverlapsAnyZone(4, Math.max(20, site.W - 22), 20, 18)) {
-        const nz = { id: "z_battery_" + Date.now(), label: "MHE Battery Charging Bay", type: "battery", x: 4, y: Math.max(20, site.W - 22), w: 20, h: 18 };
-        site.zones.push(nz);
-        clearPaintUnderZone(nz);
-        newRoomsCreated++;
-      }
-
-      if (!hasException && site.L >= 90 && !rectOverlapsAnyZone(Math.max(20, site.L - 28), 4, 24, 18)) {
-        const nz = { id: "z_returns_" + Date.now(), label: "Missort & Exception Area", type: "returns", x: Math.max(20, site.L - 28), y: 4, w: 24, h: 18 };
-        site.zones.push(nz);
-        clearPaintUnderZone(nz);
-        newRoomsCreated++;
-      }
-
-      // 5. CROSS-DOCK SPACE EFFICIENCY & STRUCTURED AISLES
-      // This whole section is a "fill an empty warehouse from scratch" pass -
-      // it carpets open floor with generic staging/sortation/marshalling
-      // filler. That's the wrong move once the site already has real,
-      // named flow zones (from a 1-click template or the wizard): those
-      // zones - and their own Module/Lane rendering - ARE the sortation
-      // layout. Re-filling whatever's left over on top of them is exactly
-      // what was showing up as "too many overlapping things" - so skip this
-      // entire pass when the site already has flow zones, and only run it
-      // for a genuinely blank floor that hasn't been laid out yet.
-      const hasFlowZones = site.zones.some(z => ["receiving", "sorting", "dispatchQueue", "dock", "bagging", "outboundLane", "dockIn", "dockOut"].includes(z.type));
-
-      if (!hasFlowZones) {
-        const inwardWidth = Math.max(3, Math.min(8, Math.floor(cols * 0.2)));
-        const dispatchWidth = Math.max(3, Math.min(8, Math.floor(cols * 0.2)));
-        const sortStartCol = inwardWidth + 1;
-        const sortEndCol = cols - dispatchWidth - 1;
-
-        // Inward Staging Buffer pallets near Receiving Dock - skip any cell
-        // already covered by a room/zone so this never paints objects
-        // underneath a zone's own fill and content.
-        for (let r = 2; r < rows - 2; r += 2) {
-          for (let c = 2; c <= Math.min(inwardWidth, cols - 3); c += 2) {
-            if (!site.cells[r * cols + c] && !cellLocked({ c, r })) {
-              setPaintCell(c, r, PAINT_DEFS.staging?.id || PAINT_DEFS.sortbox.id);
-              cellsOptimized++;
-            }
-          }
-        }
-
-        // Central Destination Sortation Matrix - a real position, then a gap,
-        // with a full aisle row every 3rd row (not a wall-to-wall carpet).
-        const primarySortElement = PAINT_DEFS.sortbox?.id || 9;
-        for (let r = 2; r < rows - 2; r++) {
-          const isRunRow = (r % 3 !== 0);
-          if (isRunRow) {
-            for (let c = sortStartCol; c <= sortEndCol; c += 2) {
-              if (cellLocked({ c, r })) continue; // a real zone already owns this cell
-              if (cols >= 22 && c === Math.floor(cols / 2)) {
-                if (site.cells[r * cols + c]) setPaintCell(c, r, 0); // clear center corridor
-                continue;
-              }
-              if (!site.cells[r * cols + c]) {
-                setPaintCell(c, r, primarySortElement);
-                cellsOptimized++;
+      // 3. AISLE CLEARANCE BETWEEN EXISTING RACK ROWS
+      // Storage-category objects (racks, pallet racks, trolley cages, sort
+      // boxes) placed with zero gap between two rows block circulation.
+      // Uses the project's own configured minimum aisle width
+      // (builderSettings.aisleMin, feet) rather than a hardcoded value, and
+      // only ever CLEARS cells the manager already placed - it never adds
+      // anything.
+      const storageIds = new Set(["rack", "palletrack", "trolleycage", "sortbox"].map(k => PAINT_DEFS[k]?.id).filter(Boolean));
+      const aisleMinFt = Number(builderSettings?.aisleMin) || 4;
+      const aisleGapCells = Math.max(1, Math.ceil(aisleMinFt / CELL_FT));
+      for (let c = 0; c < cols; c++) {
+        let runStart = -1;
+        for (let r = 0; r <= rows; r++) {
+          const isStorage = r < rows && storageIds.has(site.cells[r * cols + c]);
+          if (isStorage && runStart === -1) {
+            runStart = r;
+          } else if (!isStorage && runStart !== -1) {
+            const runLen = r - runStart;
+            // A run longer than what one aisle gap can separate from its
+            // neighbor is fine on its own - the problem is two SEPARATE
+            // runs sitting closer together than the configured minimum.
+            // Look ahead for the next run's start to measure the actual
+            // gap between this run and the next one in the same column.
+            let nextR = r;
+            while (nextR < rows && !storageIds.has(site.cells[nextR * cols + c])) nextR++;
+            const gap = nextR - r;
+            if (nextR < rows && gap > 0 && gap < aisleGapCells) {
+              // Clear the shorter of the two runs' nearest edge cells to
+              // open up the configured minimum - simplest safe fix is to
+              // clear the whole shorter run rather than guess which half
+              // of a longer one to keep.
+              let nextRunEnd = nextR;
+              while (nextRunEnd < rows && storageIds.has(site.cells[nextRunEnd * cols + c])) nextRunEnd++;
+              const thisLen = runLen, nextLen = nextRunEnd - nextR;
+              const clearStart = thisLen <= nextLen ? runStart : nextR;
+              const clearEnd = thisLen <= nextLen ? r : nextRunEnd;
+              for (let cr = clearStart; cr < clearEnd; cr++) {
+                if (!cellLocked({ c, r: cr })) setPaintCell(c, cr, 0);
               }
             }
-            aislesAligned++;
-          } else {
-            // Ensure clear 6ft aisle
-            for (let c = sortStartCol; c <= sortEndCol; c++) {
-              const cur = site.cells[r * cols + c];
-              if (cur === PAINT_DEFS.rack?.id || cur === PAINT_DEFS.doublerack?.id || cur === PAINT_DEFS.sortbox?.id) {
-                setPaintCell(c, r, 0);
-                aislesAligned++;
-              }
-            }
-          }
-        }
-
-        // Outbound Dispatch Marshalling Lanes near Exit Docks
-        for (let r = 2; r < rows - 2; r += 2) {
-          for (let c = Math.max(sortEndCol + 1, cols - dispatchWidth); c < cols - 1; c += 2) {
-            if (!site.cells[r * cols + c] && !cellLocked({ c, r })) {
-              setPaintCell(c, r, PAINT_DEFS.packing?.id || PAINT_DEFS.trolleycage?.id || PAINT_DEFS.sortbox.id);
-              cellsOptimized++;
-            }
+            runStart = -1;
           }
         }
       }
-
 
       // Final Render & Stats
       redraw();

@@ -192,7 +192,14 @@ async function callGeminiVision(base64Image, mimeType) {
               ],
             },
           ],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 4096, responseMimeType: "application/json" },
+          // Was 4096 - a genuinely complex blueprint (hundreds of racks,
+          // a full column grid, many rooms) needs far more than that to
+          // come back as complete JSON; a truncated response used to fail
+          // to parse and silently produce an empty/near-empty layout with
+          // no indication anything had gone wrong. 16384 gives real
+          // headroom for the schema's own caps (300 walls, 150 racks, 400
+          // columns, etc).
+          generationConfig: { temperature: 0.2, maxOutputTokens: 16384, responseMimeType: "application/json" },
         });
 
         const req = https.request(
@@ -201,7 +208,7 @@ async function callGeminiVision(base64Image, mimeType) {
             path: `/v1beta/models/${model}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
             method: "POST",
             headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) },
-            timeout: 45000,
+            timeout: 60000,
           },
           (res) => {
             let chunks = [];
@@ -213,8 +220,22 @@ async function callGeminiVision(base64Image, mimeType) {
               }
               try {
                 const data = JSON.parse(body);
-                const parts = (((data.candidates || [])[0] || {}).content || {}).parts || [];
+                const candidate = (data.candidates || [])[0] || {};
+                const parts = (candidate.content || {}).parts || [];
                 const text = parts.map((p) => p.text || "").join("");
+                // finishReason "MAX_TOKENS" means the JSON was cut off
+                // mid-structure - it will fail to parse (or worse, parse
+                // as a technically-valid-but-incomplete fragment) and
+                // silently look like "the AI found almost nothing" rather
+                // than "the AI's answer got cut off". Treat that as a
+                // real failure so the model-fallback loop below tries the
+                // next model instead of accepting truncated data.
+                if (candidate.finishReason === "MAX_TOKENS") {
+                  return reject(new Error(`Model ${model} response was truncated (hit the token limit) before finishing`));
+                }
+                if (!text.trim()) {
+                  return reject(new Error(`Model ${model} returned an empty response`));
+                }
                 resolve(text);
               } catch (e) {
                 reject(new Error("Could not parse vision response JSON"));
@@ -245,8 +266,14 @@ function parseVisionResult(text) {
       try { parsed = JSON.parse(text.slice(s, e2 + 1)); } catch (e2b) { }
     }
   }
+  // Both attempts genuinely failed - previously this silently fell through
+  // to `parsed = {}` below, which walks and talks like a real result (zero
+  // walls, zero rooms, zero everything) instead of the parse failure it
+  // actually is. The caller needs to be able to tell "the AI looked and
+  // found nothing" apart from "the AI's response couldn't be read at all",
+  // since only the second one should ever become a user-facing error.
   if (!parsed || typeof parsed !== "object") {
-    parsed = {};
+    throw new Error("Could not parse the AI's response as JSON");
   }
   const clamp01 = (n) => Math.max(0, Math.min(1, Number(n) || 0));
   const walls = Array.isArray(parsed.walls)
@@ -703,81 +730,25 @@ async function handleVisionImport(req, res) {
     return sendJson(res, 400, { error: "Missing file or unsupported type (use JPEG, PNG, WebP, SVG, or PDF)" });
   }
 
-  if (GEMINI_API_KEY) {
-    try {
-      const text = await callGeminiVision(image, mimeType);
-      const result = parseVisionResult(text);
-      return sendJson(res, 200, result);
-    } catch (e) {
-      console.warn("Gemini Vision call failed, using smart blueprint fallback:", e.message);
-    }
+  if (!GEMINI_API_KEY) {
+    return sendJson(res, 501, { error: "AI vision import isn't configured on this server (no GEMINI_API_KEY set)." });
   }
-
-  // Smart Blueprint Vectorizer Fallback (Generates complete multi-zone, racking & equipment architecture)
-  const fallbackResult = {
-    dimensionsFt: { length: 120, width: 100 },
-    summary: "12,000 sq ft Mother-Hub with Inward & Dispatch Docks, Office Room, Bags & Storage, Damaged Items, RTO Zone, Left Sorting Lines & 2x4 Dispatch Sorting Matrix",
-    walls: [
-      // Outer perimeter envelope
-      { x0: 0.02, y0: 0.02, x1: 0.98, y1: 0.02 },
-      { x0: 0.98, y0: 0.02, x1: 0.98, y1: 0.98 },
-      { x0: 0.98, y0: 0.98, x1: 0.02, y1: 0.98 },
-      { x0: 0.02, y0: 0.98, x1: 0.02, y1: 0.02 },
-      // Top wall partitions: Office, Bags/Storage, Damaged Items
-      { x0: 0.02, y0: 0.18, x1: 0.22, y1: 0.18 },
-      { x0: 0.22, y0: 0.02, x1: 0.22, y1: 0.18 },
-      { x0: 0.22, y0: 0.14, x1: 0.54, y1: 0.14 },
-      { x0: 0.54, y0: 0.02, x1: 0.54, y1: 0.14 },
-      { x0: 0.54, y0: 0.14, x1: 0.76, y1: 0.14 },
-      { x0: 0.76, y0: 0.02, x1: 0.76, y1: 0.14 },
-      // Right wall partition: RTO & Exceptional Shipments
-      { x0: 0.86, y0: 0.36, x1: 0.98, y1: 0.36 },
-      { x0: 0.86, y0: 0.36, x1: 0.86, y1: 0.74 },
-      { x0: 0.86, y0: 0.74, x1: 0.98, y1: 0.74 },
-      // Bottom wall rooms: Bathroom, Medical, Sec, UPS
-      { x0: 0.02, y0: 0.88, x1: 0.12, y1: 0.88 },
-      { x0: 0.12, y0: 0.88, x1: 0.12, y1: 0.98 },
-      { x0: 0.12, y0: 0.90, x1: 0.24, y1: 0.90 },
-      { x0: 0.24, y0: 0.90, x1: 0.24, y1: 0.98 },
-      { x0: 0.46, y0: 0.90, x1: 0.54, y1: 0.90 },
-      { x0: 0.46, y0: 0.90, x1: 0.46, y1: 0.98 },
-      { x0: 0.54, y0: 0.90, x1: 0.54, y1: 0.98 },
-      { x0: 0.78, y0: 0.90, x1: 0.94, y1: 0.90 },
-      { x0: 0.78, y0: 0.90, x1: 0.78, y1: 0.98 },
-      { x0: 0.94, y0: 0.90, x1: 0.94, y1: 0.98 }
-    ],
-    rooms: [
-      { name: "Office Room", type: "office", x: 0.03, y: 0.03, w: 0.18, h: 0.14 },
-      { name: "Bags & Storage Items", type: "store", x: 0.23, y: 0.03, w: 0.30, h: 0.10 },
-      { name: "Damaged Items", type: "store", x: 0.55, y: 0.03, w: 0.20, h: 0.10 },
-      { name: "RTO & Exceptional Shipments", type: "outboundLane", x: 0.87, y: 0.38, w: 0.10, h: 0.34 },
-      { name: "Bathroom", type: "bathroom", x: 0.03, y: 0.89, w: 0.08, h: 0.08 },
-      { name: "Medical", type: "medical", x: 0.13, y: 0.91, w: 0.10, h: 0.06 },
-      { name: "Sec", type: "security", x: 0.47, y: 0.91, w: 0.06, h: 0.06 },
-      { name: "UPS", type: "ups", x: 0.79, y: 0.91, w: 0.14, h: 0.06 },
-      { name: "Trolley / Cages Staging", type: "inboundStage", x: 0.26, y: 0.78, w: 0.18, h: 0.08 }
-    ],
-    racks: [
-      // Left vertical parallel rows of sorting units (circles/stations)
-      { type: "sortbox", x0: 0.16, y0: 0.38, x1: 0.16, y1: 0.72 },
-      { type: "sortbox", x0: 0.22, y0: 0.38, x1: 0.22, y1: 0.72 },
-      // Dispatch sorting 2x4 matrix (8 large dispatch sort bays)
-      { type: "doublerack", x0: 0.44, y0: 0.36, x1: 0.54, y1: 0.36 },
-      { type: "doublerack", x0: 0.58, y0: 0.36, x1: 0.68, y1: 0.36 },
-      { type: "doublerack", x0: 0.44, y0: 0.48, x1: 0.54, y1: 0.48 },
-      { type: "doublerack", x0: 0.58, y0: 0.48, x1: 0.68, y1: 0.48 },
-      { type: "doublerack", x0: 0.44, y0: 0.60, x1: 0.54, y1: 0.60 },
-      { type: "doublerack", x0: 0.58, y0: 0.60, x1: 0.68, y1: 0.60 },
-      { type: "doublerack", x0: 0.44, y0: 0.72, x1: 0.54, y1: 0.72 },
-      { type: "doublerack", x0: 0.58, y0: 0.72, x1: 0.68, y1: 0.72 }
-    ],
-    equipment: [
-      { type: "conveyor", x0: 0.22, y0: 0.36, x1: 0.42, y1: 0.36 }
-    ],
-    entries: [{ x: 0.34, y: 0.98 }],
-    exits: [{ x: 0.64, y: 0.98 }]
-  };
-  return sendJson(res, 200, fallbackResult);
+  try {
+    const text = await callGeminiVision(image, mimeType);
+    const result = parseVisionResult(text);
+    return sendJson(res, 200, result);
+  } catch (e) {
+    // Used to silently fall back to a hardcoded, generic "Mother-Hub"
+    // layout here - completely unrelated to whatever the manager actually
+    // uploaded, but returned as a normal 200 with a summary that read like
+    // a real analysis, so there was no way to tell "the AI genuinely
+    // analyzed your blueprint" apart from "the AI call failed and this is
+    // a canned placeholder". A failed analysis needs to look like a
+    // failure, not a low-confidence success - the frontend can offer to
+    // retry, but it must not silently accept fabricated data as real.
+    console.warn("Gemini Vision call failed:", e.message);
+    return sendJson(res, 502, { error: "Could not analyze that image right now - try again in a moment, or try a clearer photo/crop of just the floor plan." });
+  }
 }
 
 /* ---------- Deep clarifying-question interview (Gemini) ----------
@@ -947,9 +918,112 @@ async function handleAssistant(req, res) {
 }
 
 /* ---------- AI tweak (Gemini) ----------
-   Lets the manager ask for a change in plain English after the layout is
-   generated. Deliberately NOT free-form spatial editing (an LLM emitting
-   raw x/y/w/h zone coordinates is one hallucination away from a broken,
+   Lets the manager ask for a change in plain English from the main "Ask
+   AI" chat and actually have it happen. This used to not exist at all -
+   the comment that stood here was cut off mid-sentence with no function
+   ever written under it, and the frontend's "Ask AI" input ran entirely
+   on a client-side keyword matcher instead (see handleAiCanvasPrompt in
+   darkstore-layout-planner.html): a message that didn't hit one of a
+   couple dozen specific keywords fell through to silently regenerating
+   the ENTIRE layout from scratch as a generic template, overwriting
+   whatever the manager had actually built.
+
+   Deliberately NOT free-form spatial editing - an LLM emitting raw pixel/
+   cell coordinates for a rack or a wall is one hallucination away from a
+   broken, overlapping mess with no way to know it happened. Instead the
+   model can only choose from a small set of named, bounded operations on
+   ZONES (add/resize/move/delete/recolor/rename one, or resize the whole
+   floor) - every field gets clamped/whitelisted server-side in
+   sanitizeAiTweakActions() before the frontend ever sees it, the same way
+   parseVisionResult() sanitizes vision output above. A request that's
+   really a question, or that asks for something outside this action set
+   (placing individual objects, free-form wall drawing), gets an honest
+   answer/explanation in `summary` and an empty `actions` array - never a
+   guess dressed up as a real edit. */
+const ZONE_TYPE_ENUM = ["dockIn", "dockOut", "dock", "receiving", "bagging", "dispatchQueue", "sorting", "walkway",
+  "security", "medical", "conference", "office", "store", "ups", "bathroom", "inboundStage", "outboundLane",
+  "exception", "returns", "battery", "staging", "charging", "growth"];
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+const AI_TWEAK_SYSTEM = `You are a warehouse layout assistant embedded in a cross-dock sortation "Mother Hub" floor planner. THIS IS A CROSS-DOCK SITE, NOT A STORAGE WAREHOUSE - already-packed boxes arrive, get sorted by destination, and dispatch onward the same day; there is no picking, no bulk storage, no cold chain.
+
+You will be given the current site's facts (floor dimensions, and the existing rooms/zones with their type, label, and position/size in feet) and a manager's plain-English request. Decide which of these two things they want:
+
+1. A QUESTION or something you cannot safely do with the actions below (e.g. placing individual racks/objects, drawing walls, anything not about a room/zone as a whole) - answer or explain in "summary", leave "actions" as an empty array. Never guess at a change you're not equipped to make.
+2. A CHANGE to the layout - propose it as one or more of these exact action shapes (only these fields, only these op values):
+   - {"op":"addZone","type":one of [${ZONE_TYPE_ENUM.map(t => `"${t}"`).join(",")}],"label":"short name","x":ft,"y":ft,"w":ft,"h":ft} - x/y is the top-left corner; place it on open floor that doesn't overlap an existing zone, sized sensibly for what it's for (an office is small, a staging area is large).
+   - {"op":"resizeZone","target":"existing zone's label or type name, as given in the facts","w":ft,"h":ft}
+   - {"op":"moveZone","target":"...","x":ft,"y":ft}
+   - {"op":"deleteZone","target":"..."}
+   - {"op":"recolorZone","target":"...","color":"#rrggbb"}
+   - {"op":"renameZone","target":"...","label":"new name"}
+   - {"op":"setDimensions","length":ft,"width":ft} - resizes the WHOLE floor; only use this if the manager explicitly asked to resize the building itself, never as a side effect of something else.
+   "target" must match one of the existing zones you were given in the facts (by its label or type) - never invent a target that doesn't exist, and never emit resizeZone/moveZone/deleteZone/recolorZone/renameZone for something you weren't told exists.
+   Keep "summary" to one or two plain sentences describing what you're about to do, so the manager can see it before it happens.
+
+Reply with ONLY strict JSON, nothing outside it: {"summary": "...", "actions": [...]}`;
+
+function sanitizeAiTweakActions(raw) {
+  if (!Array.isArray(raw)) return [];
+  const clampNum = (n, lo, hi) => Math.max(lo, Math.min(hi, Number(n)));
+  const out = [];
+  for (const a of raw.slice(0, 12)) {
+    if (!a || typeof a !== "object" || typeof a.op !== "string") continue;
+    const target = typeof a.target === "string" ? a.target.trim().slice(0, 80) : "";
+    if (a.op === "addZone" && ZONE_TYPE_ENUM.includes(a.type)) {
+      out.push({
+        op: "addZone", type: a.type,
+        label: String(a.label || "").trim().slice(0, 60) || undefined,
+        x: clampNum(a.x, 0, 2000), y: clampNum(a.y, 0, 2000),
+        w: clampNum(a.w, 2, 500), h: clampNum(a.h, 2, 500),
+      });
+    } else if (a.op === "resizeZone" && target) {
+      out.push({ op: "resizeZone", target, w: clampNum(a.w, 2, 500), h: clampNum(a.h, 2, 500) });
+    } else if (a.op === "moveZone" && target) {
+      out.push({ op: "moveZone", target, x: clampNum(a.x, 0, 2000), y: clampNum(a.y, 0, 2000) });
+    } else if (a.op === "deleteZone" && target) {
+      out.push({ op: "deleteZone", target });
+    } else if (a.op === "recolorZone" && target && HEX_COLOR_RE.test(String(a.color))) {
+      out.push({ op: "recolorZone", target, color: a.color });
+    } else if (a.op === "renameZone" && target) {
+      const label = String(a.label || "").trim().slice(0, 60);
+      if (label) out.push({ op: "renameZone", target, label });
+    } else if (a.op === "setDimensions") {
+      out.push({ op: "setDimensions", length: clampNum(a.length, 20, 1000), width: clampNum(a.width, 20, 1000) });
+    }
+    // Anything else (an unknown op, or a known op missing a required field)
+    // is silently dropped rather than guessed at.
+  }
+  return out;
+}
+
+async function handleAiTweak(req, res) {
+  if (!GEMINI_API_KEY) {
+    return sendJson(res, 501, { error: "The AI assistant isn't configured on this server (no GEMINI_API_KEY set)." });
+  }
+  let body;
+  try {
+    body = await readBody(req);
+  } catch (e) {
+    return sendJson(res, 400, { error: "Invalid request body" });
+  }
+  const instruction = body && typeof body.instruction === "string" ? body.instruction.trim().slice(0, 500) : "";
+  const facts = body && typeof body.facts === "object" && body.facts ? body.facts : {};
+  if (!instruction) return sendJson(res, 400, { error: "Say what you'd like changed first." });
+  const userText = `Current site: ${JSON.stringify(facts).slice(0, 3000)}\nManager's request: ${instruction}`;
+  try {
+    const text = await callGeminiText(AI_TWEAK_SYSTEM, [{ role: "user", parts: [{ text: userText }] }]);
+    const parsed = extractJsonObject(text) || {};
+    const summary = typeof parsed.summary === "string" && parsed.summary.trim() ? parsed.summary.trim().slice(0, 500) : "";
+    const actions = sanitizeAiTweakActions(parsed.actions);
+    return sendJson(res, 200, {
+      summary: summary || (actions.length ? "Here's what I'm changing." : "I couldn't come up with anything specific for that - try rephrasing, or ask me a question instead."),
+      actions,
+    });
+  } catch (e) {
+    return sendJson(res, 502, { error: "The AI assistant hit a snag: " + e.message });
+  }
+}
+
 /* ---------- static frontend ----------
    Read fresh on every request rather than caching in memory - it's one
    small file, disk I/O is cheap at this traffic scale, and it means
@@ -1037,6 +1111,11 @@ const server = http.createServer(async (req, res) => {
       const email = authenticate(req);
       if (!email) return sendJson(res, 401, { error: "Sign in again - session missing or expired." });
       return await handleAssistant(req, res);
+    }
+    if (req.method === "POST" && p === "/api/ai-tweak") {
+      const email = authenticate(req);
+      if (!email) return sendJson(res, 401, { error: "Sign in again - session missing or expired." });
+      return await handleAiTweak(req, res);
     }
 
     if (p.startsWith("/api/sites")) {
