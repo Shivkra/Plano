@@ -34,7 +34,15 @@ const path = require("path");
 const crypto = require("crypto");
 
 const PORT = process.env.PORT || 8934;
-const DATA_DIR = path.join(__dirname, "data");
+// Was hardcoded to ./data next to server.js - fine on Railway, where the
+// persistent volume gets mounted at exactly that relative path (/app/
+// server/data). Other hosts (Render's persistent disks in particular)
+// mount at a path the platform config chooses, which doesn't necessarily
+// line up with the app's own working directory - so this now reads
+// DATA_DIR from the environment when set (e.g. render.yaml points it at
+// the disk's real mount path) and only falls back to the old relative
+// default for local/Railway use, where nothing needs to change.
+const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(__dirname, "data");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const SITES_FILE = path.join(DATA_DIR, "sites.json");
 const TOTP_FILE = path.join(DATA_DIR, "totp.json");

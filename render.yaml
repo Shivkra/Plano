@@ -1,0 +1,27 @@
+# Render Blueprint - deploys the same always-on Node server + persistent
+# disk architecture this app already used on Railway, so the migration
+# needs zero rewriting of server/server.js beyond making DATA_DIR
+# configurable (see that file). Connect this repo in the Render dashboard
+# (New -> Blueprint) and Render will read this file and provision
+# everything below automatically - the one thing it can't do for you is
+# the GEMINI_API_KEY value itself (marked sync: false), which you paste
+# in once during setup.
+services:
+  - type: web
+    name: blitz-planogram-planner
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: "echo 'No build step - zero npm dependencies'"
+    startCommand: "node server/server.js"
+    healthCheckPath: /api/vision-status
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: planogram-data
+      mountPath: /var/data
+      sizeGB: 1
