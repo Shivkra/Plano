@@ -553,11 +553,112 @@ function verifyTotp(secretBase32, code) {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/* ---------- tiny JSON-file datastore ---------- */
+/* ---------- tiny JSON datastore: local files, or Upstash Redis ----------
+   Was unconditionally flat JSON files on disk - fine on Railway (whose
+   volume mounted at exactly the app's working directory) but Render's
+   FREE web service tier has no persistent disk at all, so that would
+   reset every restart/redeploy/idle-spindown. Rather than rewrite the
+   whole storage model, every call site below still calls the exact same
+   loadJson(file, fallback)/saveJson(file, data)/getSecret() - only what's
+   underneath changes: when UPSTASH_REDIS_REST_URL/TOKEN are set, they're
+   backed by Upstash's Redis REST API (plain HTTPS, no SDK - same zero-
+   npm-dependency pattern as the Gemini calls above); otherwise it's the
+   original local-file behavior, unchanged, so local dev and any host
+   with a real disk (Railway, Render Starter+) need zero config.
+
+   Reads are served from an in-memory cache populated ONCE at startup
+   (initStorage(), awaited before server.listen() - see the bottom of
+   this file) rather than an HTTP round-trip per read, so every loadJson
+   call site stays perfectly synchronous - no async threading through the
+   request-handling pipeline. A write updates that cache immediately (so
+   a read later in the same request sees its own prior write) and
+   persists to Upstash in the background; a failed background write is
+   logged, not thrown, so a transient network hiccup can't crash a
+   request whose response was already sent. */
+const UPSTASH_URL = (process.env.UPSTASH_REDIS_REST_URL || "").replace(/\/+$/, "");
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || "";
+const USE_REDIS = !!(UPSTASH_URL && UPSTASH_TOKEN);
+
+function redisRequest(path, body) {
+  return new Promise((resolve, reject) => {
+    let url;
+    try {
+      url = new URL(UPSTASH_URL + path);
+    } catch (e) {
+      return reject(new Error("Invalid UPSTASH_REDIS_REST_URL"));
+    }
+    const payload = body != null ? Buffer.from(body, "utf8") : null;
+    // Real Upstash endpoints are always https with no explicit port - but
+    // hardcoding the https module and dropping url.port broke testing
+    // this against a local http mock (caught before shipping: an https
+    // TLS handshake against a plain http server fails with a blank
+    // error.message, which is exactly the "load failed: <nothing>" the
+    // logs showed). Respecting the URL's own protocol/port costs nothing
+    // in production and makes this actually testable outside of it.
+    const mod = url.protocol === "http:" ? http : https;
+    const req = mod.request(
+      {
+        hostname: url.hostname,
+        port: url.port || undefined,
+        path: url.pathname + url.search,
+        method: "POST",
+        headers: Object.assign(
+          { Authorization: "Bearer " + UPSTASH_TOKEN },
+          payload ? { "Content-Type": "text/plain", "Content-Length": payload.length } : {}
+        ),
+        timeout: 10000,
+      },
+      (res) => {
+        let chunks = [];
+        res.on("data", (c) => chunks.push(c));
+        res.on("end", () => {
+          try {
+            const parsed = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+            if (parsed.error) return reject(new Error("Upstash error: " + parsed.error));
+            resolve(parsed.result);
+          } catch (e) {
+            reject(new Error("Could not parse Upstash response"));
+          }
+        });
+      }
+    );
+    req.on("timeout", () => req.destroy(new Error("Upstash request timed out")));
+    req.on("error", reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+const redisGet = (key) => redisRequest("/get/" + encodeURIComponent(key));
+const redisSet = (key, value) => redisRequest("/set/" + encodeURIComponent(key), value);
+
+// Cache keyed by the same absolute file-path constants every call site
+// already uses (USERS_FILE/SITES_FILE/TOTP_FILE/SECRET_FILE) - they only
+// need to be stable, unique strings to work as Redis keys too, which they
+// already are.
+const storageCache = new Map();
+async function initStorage() {
+  ensureDataDir();
+  if (!USE_REDIS) return; // local-file mode - nothing to preload, fs reads happen on demand as before
+  for (const file of [USERS_FILE, SITES_FILE, TOTP_FILE, SECRET_FILE]) {
+    try {
+      const raw = await redisGet(file);
+      storageCache.set(file, raw != null ? raw : null);
+    } catch (e) {
+      console.warn("Upstash load failed for", file, "- starting empty:", e.message);
+      storageCache.set(file, null);
+    }
+  }
+}
 function ensureDataDir() {
+  if (USE_REDIS) return;
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 function loadJson(file, fallback) {
+  if (USE_REDIS) {
+    const cached = storageCache.get(file);
+    if (cached == null) return fallback;
+    try { return JSON.parse(cached); } catch (e) { return fallback; }
+  }
   try {
     return JSON.parse(fs.readFileSync(file, "utf8"));
   } catch (e) {
@@ -565,17 +666,34 @@ function loadJson(file, fallback) {
   }
 }
 function saveJson(file, data) {
+  const json = JSON.stringify(data);
+  if (USE_REDIS) {
+    storageCache.set(file, json);
+    redisSet(file, json).catch((e) => console.warn("Upstash save failed for", file, ":", e.message));
+    return;
+  }
   ensureDataDir();
-  fs.writeFileSync(file, JSON.stringify(data), "utf8");
+  fs.writeFileSync(file, json, "utf8");
 }
 function getSecret() {
+  if (USE_REDIS) {
+    const cached = storageCache.get(SECRET_FILE);
+    if (cached) return cached;
+    const secret = crypto.randomBytes(32).toString("hex");
+    storageCache.set(SECRET_FILE, secret);
+    redisSet(SECRET_FILE, secret).catch((e) => console.warn("Upstash save failed for secret:", e.message));
+    return secret;
+  }
   ensureDataDir();
   if (fs.existsSync(SECRET_FILE)) return fs.readFileSync(SECRET_FILE, "utf8").trim();
   const secret = crypto.randomBytes(32).toString("hex");
   fs.writeFileSync(SECRET_FILE, secret, "utf8");
   return secret;
 }
-const SECRET = getSecret();
+// Computed once initStorage() (see server.listen below) has populated the
+// Redis cache, if Redis mode is on - getSecret() reads/creates from that
+// cache synchronously, same as it always read/created the local file.
+let SECRET;
 
 /* ---------- auth token: base64url(email) + "." + hmac(email) ---------- */
 function issueToken(email) {
@@ -1256,8 +1374,16 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  ensureDataDir();
-  console.log(`Warehouse Layout Planner running at http://localhost:${PORT}`);
-  console.log(`Data stored in ${DATA_DIR}`);
-});
+// initStorage() must resolve (populating the Redis cache, in Redis mode)
+// before SECRET is computed and before the server starts accepting
+// requests - both getSecret() and every loadJson/saveJson call site read
+// that cache synchronously and have no await of their own, so the cache
+// needs to already be warm the moment the first request can arrive.
+(async () => {
+  await initStorage();
+  SECRET = getSecret();
+  server.listen(PORT, () => {
+    console.log(`Warehouse Layout Planner running at http://localhost:${PORT}`);
+    console.log(USE_REDIS ? `Data stored in Upstash Redis (${UPSTASH_URL})` : `Data stored in ${DATA_DIR}`);
+  });
+})();
