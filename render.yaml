@@ -1,11 +1,17 @@
-# Render Blueprint - deploys the same always-on Node server + persistent
-# disk architecture this app already used on Railway, so the migration
-# needs zero rewriting of server/server.js beyond making DATA_DIR
-# configurable (see that file). Connect this repo in the Render dashboard
-# (New -> Blueprint) and Render will read this file and provision
-# everything below automatically - the one thing it can't do for you is
-# the GEMINI_API_KEY value itself (marked sync: false), which you paste
-# in once during setup.
+# Render Blueprint - deploys the same always-on Node server this app used
+# on Railway. Render's FREE web service plan doesn't support persistent
+# disks at all (only paid plans do) - so instead of a mounted volume, the
+# JSON "database" (server/server.js) is backed by Upstash's free-forever
+# Redis via its REST API when UPSTASH_REDIS_REST_URL/TOKEN are set (see
+# that file's storage-layer comment). Connect this repo in the Render
+# dashboard (New -> Blueprint) and Render will read this file and
+# provision the service automatically - the three things it can't fill in
+# for you (marked sync: false) are GEMINI_API_KEY and the two Upstash
+# credentials, which you paste in once during setup:
+#   1. Create a free database at https://console.upstash.com (Redis,
+#      "Regional" type - the free tier needs no credit card).
+#   2. Copy its REST URL and REST TOKEN from that database's page.
+#   3. Paste those two plus your Gemini key in when Render prompts.
 services:
   - type: web
     name: blitz-planogram-planner
@@ -19,9 +25,7 @@ services:
     envVars:
       - key: GEMINI_API_KEY
         sync: false
-      - key: DATA_DIR
-        value: /var/data
-    disk:
-      name: planogram-data
-      mountPath: /var/data
-      sizeGB: 1
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
