@@ -9702,6 +9702,20 @@
       if (name === "library" || name === "landing" || name === "design-choice") {
         $("#ai-vision-scanner-overlay")?.classList.remove("on");
       }
+      // The interactive Guide (Chief Maya's onboarding overlay) is canvas-
+      // only onboarding - it used to just stay open (and keep whatever
+      // spotlight/drawer side effects the current step had applied) when
+      // navigating away to any other screen (3D view, Presentation, back
+      // to the site library, ...), since nothing ever closed it except
+      // finishing or skipping the tour itself. Force it closed on every
+      // screen except the editor, same cleanup completeOnboarding() does
+      // minus marking the tour as permanently finished - reopening the
+      // Guide button back on the canvas still works normally.
+      if (name !== "editor") {
+        $("#onboarding-overlay")?.classList.remove("on");
+        if (typeof clearOnboardingSpotlight === "function") clearOnboardingSpotlight();
+        onboardingSuppressPaletteHighlight = false;
+      }
       if (typeof renderUserChip === "function") renderUserChip();
     }
 
@@ -12471,14 +12485,15 @@
     // shapes produce; a genuinely irregular remainder just comes back as a
     // few adjacent rectangles instead of one, which is still fully
     // accounted for, just not maximally tidy about it.
-    function fillLeftoverAsWalkway(zones, L, W) {
-      const cols = Math.max(1, Math.round(L / CELL_FT)), rows = Math.max(1, Math.round(W / CELL_FT));
-      const claimed = new Array(cols * rows).fill(false);
-      zones.forEach(z => {
-        const c0 = clamp(Math.floor(z.x / CELL_FT), 0, cols), c1 = clamp(Math.ceil((z.x + z.w) / CELL_FT), 0, cols);
-        const r0 = clamp(Math.floor(z.y / CELL_FT), 0, rows), r1 = clamp(Math.ceil((z.y + z.h) / CELL_FT), 0, rows);
-        for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) claimed[r * cols + c] = true;
-      });
+    // Core rectangle-packing scan shared by fillLeftoverAsWalkway (from-
+    // scratch generation - only zones exist yet, nothing's painted) and
+    // Optimize Layout's own open-floor pass below (a real site, where
+    // racks/sortboxes/etc. can occupy cells with no zone covering them at
+    // all) - both need "find the largest unclaimed rectangles and turn
+    // each into a walkway zone," they just disagree on what counts as
+    // already claimed. Kept as one column-scan implementation so a future
+    // fix to the packing logic itself can't drift between two copies.
+    function findOpenFloorRects(claimed, cols, rows, label) {
       const MIN_STRIP_SQFT = 60; // below this, it's rounding noise, not a real pocket of floor
       const out = [];
       for (let c = 0; c < cols; c++) {
@@ -12495,13 +12510,44 @@
           }
           const w = (c1 - c) * CELL_FT, h = (r1 - r) * CELL_FT;
           if (w * h >= MIN_STRIP_SQFT) {
-            out.push(mkZone("walkway", c * CELL_FT, r * CELL_FT, w, h, "Open Floor"));
+            out.push(mkZone("walkway", c * CELL_FT, r * CELL_FT, w, h, label));
           }
           for (let rr = r; rr < r1; rr++) for (let cc = c; cc < c1; cc++) claimed[rr * cols + cc] = true;
           r = r1;
         }
       }
       return out;
+    }
+    function fillLeftoverAsWalkway(zones, L, W) {
+      const cols = Math.max(1, Math.round(L / CELL_FT)), rows = Math.max(1, Math.round(W / CELL_FT));
+      const claimed = new Array(cols * rows).fill(false);
+      zones.forEach(z => {
+        const c0 = clamp(Math.floor(z.x / CELL_FT), 0, cols), c1 = clamp(Math.ceil((z.x + z.w) / CELL_FT), 0, cols);
+        const r0 = clamp(Math.floor(z.y / CELL_FT), 0, rows), r1 = clamp(Math.ceil((z.y + z.h) / CELL_FT), 0, rows);
+        for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) claimed[r * cols + c] = true;
+      });
+      return findOpenFloorRects(claimed, cols, rows, "Open Floor");
+    }
+    // Same idea, for a real already-built site rather than a fresh
+    // generation pass: a site can have racks/sortboxes/whatever painted
+    // directly onto cells with no zone covering them, which the plain
+    // zones-only claim check above would misread as "open" and happily
+    // drop a walkway zone straight on top of. Used by Optimize Layout to
+    // turn every stretch of GENUINELY open floor into an explicit,
+    // visible "Moving Area" zone - so there's no ambiguous blank canvas
+    // left over, on the same "report what's really there, never invent"
+    // principle every other Optimize Layout pass already follows (it
+    // paints nothing new, it only labels floor that was already empty).
+    function findOpenFloorZonesForSite(s) {
+      const cols = s.cols, rows = s.rows;
+      const claimed = new Array(cols * rows).fill(false);
+      s.zones.forEach(z => {
+        const c0 = clamp(Math.floor(z.x / CELL_FT), 0, cols), c1 = clamp(Math.ceil((z.x + z.w) / CELL_FT), 0, cols);
+        const r0 = clamp(Math.floor(z.y / CELL_FT), 0, rows), r1 = clamp(Math.ceil((z.y + z.h) / CELL_FT), 0, rows);
+        for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) claimed[r * cols + c] = true;
+      });
+      for (let i = 0; i < s.cells.length; i++) if (s.cells[i]) claimed[i] = true;
+      return findOpenFloorRects(claimed, cols, rows, "Moving Area");
     }
     /* Lays out sortCount boxes as a grid within a fixed max width, wrapping
        to additional rows once a single row would run past maxW - the same
@@ -18702,7 +18748,26 @@
       };
       check(ranges.office, supportArea, "Support rooms (office/security/medical/etc.)");
       Object.keys(byType).forEach(type => check(ranges[type], byType[type], (ZONE_DEFS[type] || {}).name || type));
-      return advisories.slice(0, 4); // keep the popup short - most impactful few, not an exhaustive audit
+
+      // User-requested policy, not a reference-data claim - several real
+      // hubs on file (reference/mother-hub-layouts.json) run 60-70% open
+      // floor and that's genuinely normal for them. This manager
+      // specifically wants tighter floor use: if open/moving-area floor
+      // is large AND the Sorting zone is already at or above the low end
+      // of its own typical share (so it's not simply undersized - that
+      // case is already caught by the check() above), recommend growing
+      // sorting into the surplus for more throughput capacity instead of
+      // leaving it all as circulation. Purely advisory, same as every
+      // other line here - it never resizes or paints anything itself.
+      const OPEN_FLOOR_EXCESS_PCT = 40;
+      const walkwayPct = ((byType.walkway || 0) / totalArea) * 100;
+      const sortingPct = ((byType.sorting || 0) / totalArea) * 100;
+      if (walkwayPct > OPEN_FLOOR_EXCESS_PCT && ranges.sorting && sortingPct >= ranges.sorting.minPct) {
+        advisories.unshift(
+          `Open/moving floor is ${walkwayPct.toFixed(1)}% of the site - Sorting is already a healthy ${sortingPct.toFixed(1)}%, so consider expanding it into some of that open floor for more capacity rather than leaving it all as circulation.`
+        );
+      }
+      return advisories.slice(0, 5); // keep the popup short - most impactful few, not an exhaustive audit
     }
 
     let optimizeRevertState = null;
@@ -18729,8 +18794,17 @@
         if (d > 0) lines.push(`<div class="opt-res-line">＋ <span><b>${d}</b> ${n}${d === 1 ? "" : "s"} added</span></div>`);
         else if (d < 0) lines.push(`<div class="opt-res-line">− <span><b>${-d}</b> ${n}${d === -1 ? "" : "s"} removed</span></div>`);
       });
-      const newRooms = after.roomNames.filter(n => !before.roomNames.includes(n));
-      newRooms.forEach(n => lines.push(`<div class="opt-res-line">＋ <span>Room added: <b>${n}</b></span></div>`));
+      // Grouped by label with a count, not one line per zone - marking
+      // open floor as Moving Area can legitimately add a dozen-plus small
+      // disconnected pockets in one pass (real floor plans are rarely one
+      // single open rectangle), which used to print that many identical
+      // "Room added: Moving Area" lines in a row.
+      const newRoomCounts = {};
+      after.roomNames.filter(n => !before.roomNames.includes(n)).forEach(n => { newRoomCounts[n] = (newRoomCounts[n] || 0) + 1; });
+      Object.keys(newRoomCounts).forEach(n => {
+        const c = newRoomCounts[n];
+        lines.push(`<div class="opt-res-line">＋ <span>Room added: <b>${n}</b>${c > 1 ? ` ×${c}` : ""}</span></div>`);
+      });
 
       // Zone-balance advisory (from reference/mother-hub-layouts.json via
       // /api/design-knowledge) - purely informational, never applied
@@ -18875,6 +18949,20 @@
           }
         }
       }
+
+      // 4. MARK GENUINELY OPEN FLOOR AS AN EXPLICIT MOVING AREA
+      // Every previous pass here only clears/completes real structure - it
+      // never touches floor that was already blank, so a site could come
+      // out of Optimize with large stretches of ambiguous, unlabeled empty
+      // canvas: is that intentional circulation space, or just unfinished?
+      // This doesn't paint anything new either - it only gives whatever
+      // open floor genuinely exists a real, visible "Moving Area" zone, so
+      // there's no floor left that isn't accounted for one way or another.
+      // Re-running Optimize is idempotent: a "Moving Area" zone from a
+      // previous run is itself a zone, so the next run's claim check sees
+      // it as already-claimed and won't stack a duplicate on top.
+      const openFloorZones = findOpenFloorZonesForSite(site);
+      openFloorZones.forEach(z => site.zones.push(z));
 
       // Final Render & Stats
       redraw();
