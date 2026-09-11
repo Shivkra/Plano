@@ -8717,15 +8717,6 @@
                   <option value="#e0f2fe">Soft Blueprint (#e0f2fe)</option>
                 </select>
               </div>
-
-              <div class="setting-card">
-                <div class="info">
-                  <h5>Destination Hub Prefix Tag</h5>
-                  <p>Automatic label prefix generated for sorting mini-boxes.</p>
-                </div>
-                <input type="text" id="set-prefix-tag" class="setting-select" style="width:100px; text-align:center;"
-                  value="H">
-              </div>
             </div>
           </div>
 
@@ -9221,7 +9212,6 @@
         // "4.0"/"5.0" as strings, so both selects opened blank every time.
         cellSize: "4x6",
         aisleMin: "4.0",
-        prefixTag: "H",
         showPreparedBy: true,
       };
     }
@@ -20992,7 +20982,6 @@
       const inCell = $("#set-cell-size"); if (inCell) inCell.value = builderSettings.cellSize;
       const inAisle = $("#set-aisle-min"); if (inAisle) inAisle.value = builderSettings.aisleMin;
       const inGridColor = $("#set-grid-color"); if (inGridColor) inGridColor.value = customGridColor || "default";
-      const inPrefix = $("#set-prefix-tag"); if (inPrefix) inPrefix.value = builderSettings.prefixTag;
 
       modal.classList.add("on");
       modal.style.display = "flex";
@@ -21027,7 +21016,6 @@
         builderSettings.units = $("#set-units")?.value || "imperial";
         builderSettings.cellSize = $("#set-cell-size")?.value || "4x6";
         builderSettings.aisleMin = $("#set-aisle-min")?.value || "4.0";
-        builderSettings.prefixTag = ($("#set-prefix-tag")?.value || "H").trim();
         const chosenColor = $("#set-grid-color")?.value;
         customGridColor = (chosenColor && chosenColor !== "default") ? chosenColor : null;
         redraw();
