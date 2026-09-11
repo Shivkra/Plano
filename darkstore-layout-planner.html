@@ -16397,20 +16397,48 @@
         }
         g.restore();
       } else if (def.id === 5) {
-        // Conveyor belt chevron pattern
+        // Conveyor belt: two side rails + roller rungs (the standard
+        // plan-view conveyor symbol - a "ladder" of frame rails with
+        // perpendicular rollers between them) plus one small directional
+        // arrow. Replaces 3 small stacked chevrons, which didn't read as
+        // "conveyor" on their own (looked like a generic arrow icon) and,
+        // being confined to the center of each cell, made a whole run of
+        // conveyor cells look like a row of separate decorated blocks
+        // rather than one continuous belt. The rails are drawn spanning
+        // each cell's FULL local width, so adjacent conveyor cells' rails
+        // line up edge-to-edge into a single unbroken track automatically
+        // - no special-casing for "first/middle/last cell in the run"
+        // needed, since every cell draws the identical full-width rail.
         g.save();
-        g.strokeStyle = "rgba(255,255,255,.85)";
-        g.lineWidth = Math.max(1, Math.min(w, h) * 0.09);
+        const railY = h * 0.28; // distance from centerline to each rail
+        g.strokeStyle = "rgba(255,255,255,.9)";
         g.lineCap = "round";
-        g.lineJoin = "round";
-        const s = Math.min(w, h) * 0.16;
-        for (const off of [-s * 1.6, 0, s * 1.6]) {
+        g.lineWidth = Math.max(1, Math.min(w, h) * 0.07);
+        g.beginPath();
+        g.moveTo(-w / 2, -railY); g.lineTo(w / 2, -railY);
+        g.moveTo(-w / 2, railY); g.lineTo(w / 2, railY);
+        g.stroke();
+        // Roller rungs, evenly spaced across this cell's own span.
+        g.lineWidth = Math.max(1, Math.min(w, h) * 0.05);
+        const rungCount = 3;
+        for (let i = 0; i < rungCount; i++) {
+          const x = -w / 2 + (w * (i + 0.5)) / rungCount;
           g.beginPath();
-          g.moveTo(off - s * 0.6, -s);
-          g.lineTo(off + s * 0.6, 0);
-          g.lineTo(off - s * 0.6, s);
+          g.moveTo(x, -railY);
+          g.lineTo(x, railY);
           g.stroke();
         }
+        // One clear arrowhead per cell, on the belt centerline, pointing
+        // in the direction of travel - simpler and more legible than the
+        // old triple-chevron, and still reads correctly once rotated.
+        g.fillStyle = "rgba(255,255,255,.95)";
+        const s = Math.min(w, h) * 0.15;
+        g.beginPath();
+        g.moveTo(s, 0);
+        g.lineTo(-s * 0.55, -s * 0.8);
+        g.lineTo(-s * 0.55, s * 0.8);
+        g.closePath();
+        g.fill();
         g.restore();
       } else if (def.id === 6 || def.id === 7) {
         // Entry / Exit directional arrow
