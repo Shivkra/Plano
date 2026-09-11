@@ -861,19 +861,37 @@ async function handleTotpVerify(req, res) {
 }
 
 function handleListSites(req, res, email) {
+  // Was also unconditionally including anything owned by
+  // "siva.k@blitznow.in" or "lead.architect@blitznow.in", regardless of
+  // who was actually asking - meaning every account, not just those two,
+  // saw both of their site libraries mixed into its own. A real data-
+  // isolation bug (reported directly by a user seeing someone else's
+  // projects), not a display quirk - fixed to the same rule
+  // handleSaveSite/handleDeleteSite already correctly enforce: only the
+  // real owner, plus ownerless legacy sites predating per-user ownership
+  // (a real, deliberate one-time migration path - the first person to
+  // open/save one of those claims it going forward, not a leak).
   const sites = loadJson(SITES_FILE, {});
   const list = [];
   Object.keys(sites).forEach((id) => {
-    if (sites[id].owner === email || sites[id].owner === "siva.k@blitznow.in" || sites[id].owner === "lead.architect@blitznow.in" || !sites[id].owner) {
+    if (sites[id].owner === email || !sites[id].owner) {
       list.push(sites[id]);
     }
   });
   return sendJson(res, 200, list);
 }
 function handleGetSite(req, res, email, id) {
+  // Was returning any site by id with no ownership check at all - a
+  // regression from this app's own previously-verified behavior (a
+  // second user used to correctly get 404 fetching another user's site
+  // directly by id, not just filtered out of the list). Restored: only
+  // the real owner, or an ownerless legacy site (same migration-path
+  // exception as handleListSites/handleSaveSite), can fetch it - anyone
+  // else gets the same 404 as "doesn't exist," not a 403 that would
+  // confirm the id is real.
   const sites = loadJson(SITES_FILE, {});
   const site = sites[id];
-  if (!site) return sendJson(res, 404, { error: "Not found" });
+  if (!site || (site.owner && site.owner !== email)) return sendJson(res, 404, { error: "Not found" });
   return sendJson(res, 200, site);
 }
 async function handleSaveSite(req, res, email) {
