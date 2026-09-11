@@ -7699,13 +7699,6 @@
         <div class="ed-nav-sep"></div>
         <button class="btn ghost icon sm" id="ed-back" title="Back to sites">←</button>
         <div class="ed-title-wrap"><input id="ed-name" value="" placeholder="Store Name"></div>
-        <div class="ed-nav-sep"></div>
-        <div class="btn-group-pill" style="padding:2px 3px; gap:2px;">
-          <button class="btn-tool-pill" id="ed-undo" title="Undo (Cmd/Ctrl+Z)"
-            style="padding:4px 8px; font-size:12px;">↩</button>
-          <button class="btn-tool-pill" id="ed-redo" title="Redo (Cmd/Ctrl+Shift+Z)"
-            style="padding:4px 8px; font-size:12px;">↪</button>
-        </div>
       </div>
 
       <div class="ed-nav-center">
@@ -7719,8 +7712,19 @@
       </div>
 
       <div class="ed-nav-right">
-        <button class="btn-tool-pill" id="ed-history-btn" title="Version History (Cmd/Ctrl+H)"
-          style="padding:4px 8px; font-size:11px;">🕒 History</button>
+        <!-- Undo/Redo/History used to live crammed into the left corner
+             next to the brand pill, back button and store-name field -
+             moved here, between Guide and Ask AI, so it isn't fighting
+             three other controls for space in one tight corner. -->
+        <div class="btn-group-pill" style="padding:2px 3px; gap:2px;">
+          <button class="btn-tool-pill" id="ed-undo" title="Undo (Cmd/Ctrl+Z)"
+            style="padding:4px 8px; font-size:12px;">↩</button>
+          <button class="btn-tool-pill" id="ed-redo" title="Redo (Cmd/Ctrl+Shift+Z)"
+            style="padding:4px 8px; font-size:12px;">↪</button>
+          <button class="btn-tool-pill" id="ed-history-btn" title="Version History (Cmd/Ctrl+H)"
+            style="padding:4px 8px; font-size:11px;">🕒 History</button>
+        </div>
+        <div class="ed-nav-sep"></div>
         <button class="ai-nav-btn" id="ed-ai-assistant"
           title="Ask AI questions, generate objects, or synthesize a full layout" onclick="openAiStudioModal()">
           <span class="ai-nav-sparkle">✨</span> Ask AI
@@ -13859,13 +13863,29 @@
       };
 
       const now = Date.now();
-      // For auto-saves, debounce so we don't spam identical snapshots every few seconds
+      // For auto-saves, debounce so we don't spam identical snapshots every
+      // few seconds. This used to gauge the 3-minute window from the
+      // entry's own `timestamp`, which gets refreshed on every merge below
+      // - so the window re-armed on every single save, and a manager
+      // editing continuously (a save at least once every 3 minutes, easily
+      // true during active work) could go for HOURS without ever exceeding
+      // the gap, collapsing an entire session into one checkpoint. Gauging
+      // it from `createdAt` (set once, never touched again) instead gives
+      // a real fixed window, so continuous work actually accumulates
+      // periodic checkpoints roughly every 3 minutes like the feature
+      // intends. Also refresh the entry's `name` on merge - previously a
+      // milestone name like "Initial Layout Setup" stayed frozen on this
+      // entry forever even after many more edits had folded into it,
+      // silently and permanently mislabeling real ongoing work as if it
+      // were still the initial, empty state.
       if (type === "auto" && !force && site.versions.length > 0) {
         const latest = site.versions[0];
-        if (latest && latest.type === "auto" && (now - latest.timestamp < 180000)) { // 3 min threshold
+        const createdAt = latest.createdAt || latest.timestamp;
+        if (latest && latest.type === "auto" && (now - createdAt < 180000)) { // 3 min threshold
           latest.state = snapshotState();
           latest.timestamp = now;
           latest.summary = summary;
+          latest.name = name || latest.name;
           if ($("#history-drawer")?.classList.contains("on")) renderVersionHistory();
           return;
         }
@@ -13875,6 +13895,7 @@
         id: "ver_" + uid(),
         name: name || (type === "named" ? "Milestone Checkpoint" : type === "ai" ? "AI Generated Layout" : type === "restore" ? "Restored Version" : "Auto-saved Layout"),
         timestamp: now,
+        createdAt: now,
         type: type,
         summary: summary,
         state: snapshotState()
@@ -16433,20 +16454,44 @@
         return;
       }
 
-      // Conveyor draws its own thin belt band instead of a full-cell
-      // block - see drawConveyorSymbol - so it skips this generic
-      // background fill entirely rather than having it painted over.
-      if (def.id !== 5) {
+      // Conveyor and wall both draw their own thin band instead of a
+      // full-cell block - see drawConveyorSymbol and the wall branch
+      // below - so both skip this generic background fill entirely
+      // rather than having it painted over.
+      if (def.id !== 5 && def.id !== 8) {
         g.fillStyle = fillColor;
         roundRectPath(g, -w / 2, -h / 2, w, h, Math.max(1, Math.min(w, h) * 0.14));
         g.fill();
       }
 
       if (def.id === 8) {
-        // Wall hatch
+        // Wall: used to fill the ENTIRE cell (a full 3ft-square block for
+        // a wall whose own declared footprint is 1x1ft), which is why it
+        // read as much thicker/bigger than a real wall regardless of that
+        // declared size - a real wall is a thin continuous band, not a
+        // solid block. Checks its actual neighbors in site.cells and
+        // draws a strip only along whichever direction(s) this cell's
+        // wall run actually continues in, so a real wall run still reads
+        // as one unbroken line corner-to-corner (no gaps between "1x1ft"
+        // islands), while a lone, disconnected wall cell (no wall
+        // neighbor either side) draws as a small centered block instead
+        // of filling the cell.
+        const wallId = def.id;
+        const hasWallNeighbor = (dc, dr) => {
+          const nc = c + dc, nr = r + dr;
+          if (nc < 0 || nr < 0 || nc >= site.cols || nr >= site.rows) return false;
+          return site.cells[nr * site.cols + nc] === wallId;
+        };
+        const horiz = hasWallNeighbor(-1, 0) || hasWallNeighbor(1, 0);
+        const vert = hasWallNeighbor(0, -1) || hasWallNeighbor(0, 1);
+        const thick = Math.min(w, h) / 3; // this cell's real ~1ft out of its ~3ft span
         g.save();
         g.beginPath();
-        roundRectPath(g, -w / 2, -h / 2, w, h, Math.max(1, Math.min(w, h) * 0.14));
+        if (horiz) g.rect(-w / 2, -thick / 2, w, thick);
+        if (vert) g.rect(-thick / 2, -h / 2, thick, h);
+        if (!horiz && !vert) g.rect(-thick / 2, -thick / 2, thick, thick);
+        g.fillStyle = fillColor;
+        g.fill();
         g.clip();
         g.strokeStyle = "rgba(255,255,255,.25)";
         g.lineWidth = Math.max(1, Math.min(w, h) * 0.08);
