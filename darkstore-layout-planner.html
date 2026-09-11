@@ -16365,6 +16365,58 @@
       };
     }
 
+    // Shared conveyor plan-view symbol, used by the live editor canvas,
+    // the Presentation screen, and the full-plan export - all three used
+    // to draw their own copy (two of them never got the rails/rungs
+    // redesign at all, and still had the original stacked-chevron icon
+    // sitting inside a full solid-color block per cell). A full colored
+    // block per cell, decoration or not, reads as "a row of rectangles"
+    // once several conveyor cells sit next to each other - real belts
+    // are a thin strip, not a wide block. This draws only a thin belt
+    // band spanning the cell's own full local width (so adjacent cells'
+    // bands line up into one continuous line, same reasoning as the old
+    // rail design), plus a short perpendicular "outing" every 4th cell
+    // along the run, alternating sides - the takeaway spur real
+    // sortation lines use to divert parcels off the belt at a few
+    // points, not continuously. Assumes the caller has already
+    // translated to the cell's center and applied its rotation.
+    function drawConveyorSymbol(g, w, h, color, alongIdx) {
+      const beltH = h * 0.32;
+      g.fillStyle = color;
+      g.fillRect(-w / 2, -beltH / 2, w, beltH);
+      g.strokeStyle = "rgba(255,255,255,.85)";
+      g.lineWidth = Math.max(0.75, Math.min(w, h) * 0.05);
+      g.beginPath();
+      g.moveTo(-w / 2, -beltH / 2); g.lineTo(w / 2, -beltH / 2);
+      g.moveTo(-w / 2, beltH / 2); g.lineTo(w / 2, beltH / 2);
+      g.stroke();
+      // A couple of light roller ticks for belt texture - subtle, not
+      // the dominant feature the old rungs were.
+      g.globalAlpha = 0.55;
+      g.lineWidth = Math.max(0.5, Math.min(w, h) * 0.03);
+      [0.32, 0.68].forEach(t => {
+        const x = -w / 2 + w * t;
+        g.beginPath(); g.moveTo(x, -beltH / 2); g.lineTo(x, beltH / 2); g.stroke();
+      });
+      g.globalAlpha = 1;
+      g.fillStyle = "rgba(255,255,255,.95)";
+      const s = Math.min(w, h) * 0.14;
+      g.beginPath();
+      g.moveTo(s, 0); g.lineTo(-s * 0.55, -s * 0.8); g.lineTo(-s * 0.55, s * 0.8); g.closePath();
+      g.fill();
+      if (alongIdx % 4 === 0) {
+        const side = (Math.floor(alongIdx / 4) % 2 === 0) ? 1 : -1;
+        const outLen = h * 0.34;
+        g.strokeStyle = color;
+        g.lineWidth = Math.max(1, Math.min(w, h) * 0.07);
+        g.lineCap = "round";
+        g.beginPath();
+        g.moveTo(0, side * beltH / 2);
+        g.lineTo(0, side * (beltH / 2 + outLen));
+        g.stroke();
+      }
+    }
+
     function drawPaintCell(g, c, r, def, rot, customDim) {
       const pl = getCellObjectPlacement(c, r, def, rot, customDim);
       const cx = pl.cx;
@@ -16393,9 +16445,14 @@
         return;
       }
 
-      g.fillStyle = fillColor;
-      roundRectPath(g, -w / 2, -h / 2, w, h, Math.max(1, Math.min(w, h) * 0.14));
-      g.fill();
+      // Conveyor draws its own thin belt band instead of a full-cell
+      // block - see drawConveyorSymbol - so it skips this generic
+      // background fill entirely rather than having it painted over.
+      if (def.id !== 5) {
+        g.fillStyle = fillColor;
+        roundRectPath(g, -w / 2, -h / 2, w, h, Math.max(1, Math.min(w, h) * 0.14));
+        g.fill();
+      }
 
       if (def.id === 8) {
         // Wall hatch
@@ -16414,48 +16471,12 @@
         }
         g.restore();
       } else if (def.id === 5) {
-        // Conveyor belt: two side rails + roller rungs (the standard
-        // plan-view conveyor symbol - a "ladder" of frame rails with
-        // perpendicular rollers between them) plus one small directional
-        // arrow. Replaces 3 small stacked chevrons, which didn't read as
-        // "conveyor" on their own (looked like a generic arrow icon) and,
-        // being confined to the center of each cell, made a whole run of
-        // conveyor cells look like a row of separate decorated blocks
-        // rather than one continuous belt. The rails are drawn spanning
-        // each cell's FULL local width, so adjacent conveyor cells' rails
-        // line up edge-to-edge into a single unbroken track automatically
-        // - no special-casing for "first/middle/last cell in the run"
-        // needed, since every cell draws the identical full-width rail.
+        // Thin belt strip + occasional takeaway "outing" - see
+        // drawConveyorSymbol for the shape itself. c+r gives a stable
+        // along-the-run position for this cell without needing to look
+        // at its neighbors.
         g.save();
-        const railY = h * 0.28; // distance from centerline to each rail
-        g.strokeStyle = "rgba(255,255,255,.9)";
-        g.lineCap = "round";
-        g.lineWidth = Math.max(1, Math.min(w, h) * 0.07);
-        g.beginPath();
-        g.moveTo(-w / 2, -railY); g.lineTo(w / 2, -railY);
-        g.moveTo(-w / 2, railY); g.lineTo(w / 2, railY);
-        g.stroke();
-        // Roller rungs, evenly spaced across this cell's own span.
-        g.lineWidth = Math.max(1, Math.min(w, h) * 0.05);
-        const rungCount = 3;
-        for (let i = 0; i < rungCount; i++) {
-          const x = -w / 2 + (w * (i + 0.5)) / rungCount;
-          g.beginPath();
-          g.moveTo(x, -railY);
-          g.lineTo(x, railY);
-          g.stroke();
-        }
-        // One clear arrowhead per cell, on the belt centerline, pointing
-        // in the direction of travel - simpler and more legible than the
-        // old triple-chevron, and still reads correctly once rotated.
-        g.fillStyle = "rgba(255,255,255,.95)";
-        const s = Math.min(w, h) * 0.15;
-        g.beginPath();
-        g.moveTo(s, 0);
-        g.lineTo(-s * 0.55, -s * 0.8);
-        g.lineTo(-s * 0.55, s * 0.8);
-        g.closePath();
-        g.fill();
+        drawConveyorSymbol(g, w, h, fillColor, c + r);
         g.restore();
       } else if (def.id === 6 || def.id === 7) {
         // Entry / Exit directional arrow
@@ -19714,14 +19735,14 @@
         const def = PAINT_BY_ID[v];
         const x = cIdx * cellPxP, y = r * cellPxP;
         const pad = Math.max(.5, cellPxP * 0.08);
-        g.fillStyle = def.color;
-        roundRectPath(g, x + pad, y + pad, cellPxP - 2 * pad, cellPxP - 2 * pad, Math.max(1, cellPxP * 0.12)); g.fill();
+        if (def.id !== 5) {
+          g.fillStyle = def.color;
+          roundRectPath(g, x + pad, y + pad, cellPxP - 2 * pad, cellPxP - 2 * pad, Math.max(1, cellPxP * 0.12)); g.fill();
+        }
         if (def.id === 5) {
           const rot = site.rots[r * site.cols + cIdx] || 0;
           g.save(); g.translate(x + cellPxP / 2, y + cellPxP / 2); g.rotate(rot * Math.PI / 2);
-          g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = Math.max(1, cellPxP * 0.1); g.lineCap = "round"; g.lineJoin = "round";
-          const s = cellPxP * 0.16;
-          for (const off of [-s * 1.6, 0, s * 1.6]) { g.beginPath(); g.moveTo(off - s * 0.6, -s); g.lineTo(off + s * 0.6, 0); g.lineTo(off - s * 0.6, s); g.stroke(); }
+          drawConveyorSymbol(g, cellPxP - 2 * pad, cellPxP - 2 * pad, def.color, r + cIdx);
           g.restore();
         } else if (def.id === 6 || def.id === 7) {
           const rot = site.rots[r * site.cols + cIdx] || 0;
@@ -19868,13 +19889,13 @@
       for (let r = 0; r < site.rows; r++) for (let cIdx = 0; cIdx < site.cols; cIdx++) {
         const v = site.cells[r * site.cols + cIdx]; if (!v) continue;
         const def = PAINT_BY_ID[v]; const x = cIdx * cellPxP, y = r * cellPxP; const pad = Math.max(.5, cellPxP * 0.08);
-        g.fillStyle = def.color; roundRectPath(g, x + pad, y + pad, cellPxP - 2 * pad, cellPxP - 2 * pad, Math.max(1, cellPxP * 0.12)); g.fill();
+        if (def.id !== 5) {
+          g.fillStyle = def.color; roundRectPath(g, x + pad, y + pad, cellPxP - 2 * pad, cellPxP - 2 * pad, Math.max(1, cellPxP * 0.12)); g.fill();
+        }
         if (def.id === 5) {
           const rot = site.rots[r * site.cols + cIdx] || 0;
           g.save(); g.translate(x + cellPxP / 2, y + cellPxP / 2); g.rotate(rot * Math.PI / 2);
-          g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = Math.max(1, cellPxP * 0.1); g.lineCap = "round"; g.lineJoin = "round";
-          const sz = cellPxP * 0.16;
-          for (const off2 of [-sz * 1.6, 0, sz * 1.6]) { g.beginPath(); g.moveTo(off2 - sz * 0.6, -sz); g.lineTo(off2 + sz * 0.6, 0); g.lineTo(off2 - sz * 0.6, sz); g.stroke(); }
+          drawConveyorSymbol(g, cellPxP - 2 * pad, cellPxP - 2 * pad, def.color, r + cIdx);
           g.restore();
         } else if (def.id === 6 || def.id === 7) {
           const rot = site.rots[r * site.cols + cIdx] || 0;
