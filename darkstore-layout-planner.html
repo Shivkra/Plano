@@ -8756,7 +8756,7 @@
 
       <div
         style="padding:14px 28px; background:var(--bg-soft); border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
-        <span style="font-size:var(--fs-xs); color:var(--ink-faint);">Blitz Studio · v3.8.0 Enterprise</span>
+        <button class="btn danger" id="set-signout-footer" onclick="switchUserFromSettings()">Sign Out</button>
         <div style="display:flex; align-items:center; gap:8px;">
           <button class="btn ghost" onclick="closeSettingsModal()">Cancel</button>
           <button class="btn primary" id="set-save-close" onclick="saveSettings()">Save & Done</button>
@@ -9413,7 +9413,7 @@
       trolley: { id: 34, key: "", name: "Normal Trolley (2×1.5 ft)", short: "Trolley", glyph: "🛒", color: "#0EA5E9", category: "equip", w: 2, d: 1.5, h: 3 },
 
       // Infrastructure & Safety
-      wall: { id: 8, key: "8", name: "Wall / Blocked (2×2 ft)", short: "Wall", glyph: "", color: "#44403C", category: "infra", w: 2, d: 2, h: 8 },
+      wall: { id: 8, key: "8", name: "Wall / Blocked (1×1 ft)", short: "Wall", glyph: "", color: "#44403C", category: "infra", w: 1, d: 1, h: 8 },
       column: { id: 24, key: "", name: "Structural Column (2×2 ft)", short: "Column", glyph: "🏛️", color: "#292524", category: "infra", w: 2, d: 2, h: 12 },
       entry: { id: 6, key: "6", name: "Entry Door (3×0.5 ft)", short: "Entry", glyph: "▶", color: "#16A34A", category: "infra", w: 3, d: 0.5, h: 7 },
       exit: { id: 7, key: "7", name: "Exit Shutter (6×1 ft)", short: "Exit", glyph: "◀", color: "#DC2626", category: "infra", w: 6, d: 1, h: 8 },
@@ -17351,20 +17351,55 @@
     // callers building a brand-new site (e.g. applyFullVisionDataToSite,
     // before it's ever assigned to the global `site`) don't reach past
     // their own object into whatever site happens to be open elsewhere.
+    // Shrinks a zone's own rect (in place) away from any real wall cells it
+    // currently overlaps - same row/col-at-a-time approach
+    // applyFullVisionDataToSite's trimRoomAwayFromWalls uses for AI-imported
+    // rooms, generalized so every other way a zone's rect can change (manual
+    // draw, manual resize/move, Ask AI edits, the 3D isometric drag) gets the
+    // same guarantee. Previously a manually drawn/resized room could freely
+    // land on top of a wall - clearPaintUnderZone deliberately left the wall
+    // cell itself alone ("structural, don't delete it") but said nothing
+    // about the ZONE's own rectangle, so the zone's fill simply rendered
+    // over the wall. Bounded to 8 iterations (perimeter walls are 1 cell
+    // thick in practice) and never shrinks a side below 2 cells wide, so a
+    // zone that's mostly wall keeps some real footprint rather than
+    // collapsing to nothing.
+    function trimZoneAwayFromWalls(z, s) {
+      const wallId = PAINT_DEFS.wall ? PAINT_DEFS.wall.id : -1;
+      if (wallId < 0) return;
+      let xFt = z.x, yFt = z.y, wFt = z.w, hFt = z.h;
+      for (let iter = 0; iter < 8; iter++) {
+        const c0 = clamp(Math.floor(xFt / CELL_FT), 0, s.cols - 1);
+        const c1 = clamp(Math.ceil((xFt + wFt) / CELL_FT) - 1, 0, s.cols - 1);
+        const r0 = clamp(Math.floor(yFt / CELL_FT), 0, s.rows - 1);
+        const r1 = clamp(Math.ceil((yFt + hFt) / CELL_FT) - 1, 0, s.rows - 1);
+        const rowHasWall = (r) => { for (let c = c0; c <= c1; c++) if (s.cells[r * s.cols + c] === wallId) return true; return false; };
+        const colHasWall = (c) => { for (let r = r0; r <= r1; r++) if (s.cells[r * s.cols + c] === wallId) return true; return false; };
+        let changed = false;
+        if (hFt > CELL_FT * 2 && r0 <= r1 && rowHasWall(r0)) { yFt += CELL_FT; hFt -= CELL_FT; changed = true; }
+        if (hFt > CELL_FT * 2 && r0 <= r1 && rowHasWall(r1)) { hFt -= CELL_FT; changed = true; }
+        if (wFt > CELL_FT * 2 && c0 <= c1 && colHasWall(c0)) { xFt += CELL_FT; wFt -= CELL_FT; changed = true; }
+        if (wFt > CELL_FT * 2 && c0 <= c1 && colHasWall(c1)) { wFt -= CELL_FT; changed = true; }
+        if (!changed) break;
+      }
+      z.x = snap2(xFt); z.y = snap2(yFt); z.w = snap2(wFt); z.h = snap2(hFt);
+    }
     function clearPaintUnderZone(z, s) {
       s = s || site;
       if (!s) return;
+      trimZoneAwayFromWalls(z, s);
       const c0 = Math.floor(z.x / CELL_FT), c1 = Math.ceil((z.x + z.w) / CELL_FT);
       const r0 = Math.floor(z.y / CELL_FT), r1 = Math.ceil((z.y + z.h) / CELL_FT);
       const wallId = PAINT_DEFS.wall ? PAINT_DEFS.wall.id : -1;
       for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) {
         if (r < 0 || c < 0 || r >= s.rows || c >= s.cols) continue;
         const i = r * s.cols + c;
-        // Walls are structural - dropping or resizing a room/zone on top of
-        // one should overlap it (the zone's fill renders over the wall, same
-        // as it always has), not silently delete the wall. Every other
-        // painted object (racks, tables, etc.) is still cleared, keeping the
-        // existing "a room's interior stays free of furniture" behavior.
+        // A zone that's mostly wall (see trimZoneAwayFromWalls' 2-cell-min
+        // guard) can still have a residual wall cell inside its trimmed
+        // rect - leave it in place rather than deleting real structure.
+        // Every other painted object (racks, tables, etc.) is still
+        // cleared, keeping the existing "a room's interior stays free of
+        // furniture" behavior.
         if (s.cells[i] === wallId) continue;
         s.cells[i] = 0; s.rots[i] = 0;
       }
@@ -19456,6 +19491,23 @@
       if (selectedZoneId) showZoneToolbar();
       updateZoomTxt();
     });
+    // Trackpad pinch-to-zoom on the canvas. Browsers report a two-finger
+    // pinch gesture as a wheel event with ctrlKey set - Chrome, Firefox and
+    // Safari all do this (indistinguishable from an actual ctrl+wheel on a
+    // mouse, the same de-facto convention canvas apps like Figma and Google
+    // Maps rely on for exactly this reason). preventDefault stops that from
+    // also triggering the browser's own page-zoom. A plain two-finger swipe
+    // (no ctrlKey) is left alone, so it keeps panning #boardwrap via its
+    // native scroll the way it already did.
+    $("#boardwrap")?.addEventListener("wheel", ev => {
+      if (!ev.ctrlKey) return;
+      ev.preventDefault();
+      cellPx = clamp(cellPx - ev.deltaY * 0.4, 10, 50);
+      hideBin(); hideZoneToolbar(); sizeCanvas(); redraw(); positionOverlays();
+      if (selectedZoneId) showZoneToolbar();
+      updateZoomTxt();
+      const zoomSlider = $("#zoom"); if (zoomSlider) zoomSlider.value = cellPx;
+    }, { passive: false });
 
     /* ---------- Stats ---------- */
     function updateStats() {
