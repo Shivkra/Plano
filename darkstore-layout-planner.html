@@ -9197,36 +9197,53 @@
     var currentUser = localStorage.getItem(CURRENT_USER_KEY) || "siva.k@blitznow.in";
     var authToken = localStorage.getItem(AUTH_TOKEN_KEY) || "token-auth-valid";
 
-    var builderSettings = {
-      name: "Siva Kumar",
-      role: "Lead Industrial Architect",
-      org: "BlitzNow Logistics - Bangalore Hub 1",
-      units: "imperial",
-      // Both of these must match one of their <select>'s option VALUES
-      // exactly (strings, e.g. "4x6"/"4.0") - openSettingsModal sets the
-      // select's .value to these on every open, and a value that doesn't
-      // match any option renders as nothing selected. They used to be
-      // numbers (3 and 4.0), which never matched "4x6"/"3x3" or
-      // "4.0"/"5.0" as strings, so both selects opened blank every time.
-      cellSize: "4x6",
-      aisleMin: "4.0",
-      prefixTag: "H",
-      showPreparedBy: true,
-    };
-    try {
-      const savedSettings = localStorage.getItem(SETTINGS_KEY);
-      if (savedSettings) builderSettings = Object.assign(builderSettings, JSON.parse(savedSettings));
-    } catch (e) { }
-    // A build before the string-vs-number fix above could already have
-    // saved cellSize/aisleMin as a number (or NaN, if a blank select got
-    // coerced through Number(...) on save) into someone's localStorage -
-    // and a saved value always overrides the defaults on load, so fixing
-    // the defaults alone doesn't repair an already-corrupted cache. Re-
-    // validate against the real option sets and fall back if what's
-    // stored matches neither, so this heals on next load instead of
-    // silently showing an unselected dropdown forever.
-    if (!["4x6", "4x4", "3x3"].includes(builderSettings.cellSize)) builderSettings.cellSize = "4x6";
-    if (!["4.0", "5.0", "6.0", "8.0"].includes(builderSettings.aisleMin)) builderSettings.aisleMin = "4.0";
+    // builderSettings (display name/role/org + display prefs) used to
+    // load from ONE flat localStorage key shared by every account that
+    // ever signed in on this browser - so a brand-new account inherited
+    // whatever name the LAST account had set (or the hardcoded "Siva
+    // Kumar" default, if nobody had customized it yet), regardless of
+    // who was actually signed in. Now scoped per-email: settingsKeyFor()
+    // gives each account its own storage slot, and loadBuilderSettings()
+    // rebuilds the object from that slot - called once at module load
+    // (below) and again from enterApp() every time a sign-in confirms
+    // (possibly different) identity, so switching accounts mid-session
+    // picks up the right settings immediately, not just on a hard reload.
+    function settingsKeyFor(email) { return SETTINGS_KEY + ":" + (email || "anon"); }
+    function defaultBuilderSettings() {
+      return {
+        name: "", role: "", org: "",
+        units: "imperial",
+        // Both of these must match one of their <select>'s option VALUES
+        // exactly (strings, e.g. "4x6"/"4.0") - openSettingsModal sets the
+        // select's .value to these on every open, and a value that doesn't
+        // match any option renders as nothing selected. They used to be
+        // numbers (3 and 4.0), which never matched "4x6"/"3x3" or
+        // "4.0"/"5.0" as strings, so both selects opened blank every time.
+        cellSize: "4x6",
+        aisleMin: "4.0",
+        prefixTag: "H",
+        showPreparedBy: true,
+      };
+    }
+    function loadBuilderSettings(email) {
+      const settings = defaultBuilderSettings();
+      try {
+        const saved = localStorage.getItem(settingsKeyFor(email));
+        if (saved) Object.assign(settings, JSON.parse(saved));
+      } catch (e) { }
+      // A build before the string-vs-number fix above could already have
+      // saved cellSize/aisleMin as a number (or NaN, if a blank select got
+      // coerced through Number(...) on save) into someone's localStorage -
+      // and a saved value always overrides the defaults on load, so fixing
+      // the defaults alone doesn't repair an already-corrupted cache. Re-
+      // validate against the real option sets and fall back if what's
+      // stored matches neither, so this heals on next load instead of
+      // silently showing an unselected dropdown forever.
+      if (!["4x6", "4x4", "3x3"].includes(settings.cellSize)) settings.cellSize = "4x6";
+      if (!["4.0", "5.0", "6.0", "8.0"].includes(settings.aisleMin)) settings.aisleMin = "4.0";
+      return settings;
+    }
+    var builderSettings = loadBuilderSettings(currentUser);
 
     function escapeHtml(s) { return (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
     const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -9536,18 +9553,20 @@
       return "http://localhost:8934";
     }
 
-    function getLocalSites() {
+    function localSitesKeyFor(email) { return LOCAL_SITES_KEY + ":" + (email || "anon"); }
+
+    function getLocalSites(email) {
       try {
-        const raw = localStorage.getItem(LOCAL_SITES_KEY);
+        const raw = localStorage.getItem(localSitesKeyFor(email || currentUser));
         return raw ? JSON.parse(raw) : [];
       } catch (e) {
         return [];
       }
     }
 
-    function saveLocalSites(list) {
+    function saveLocalSites(list, email) {
       try {
-        localStorage.setItem(LOCAL_SITES_KEY, JSON.stringify(list));
+        localStorage.setItem(localSitesKeyFor(email || currentUser), JSON.stringify(list));
       } catch (e) { }
     }
 
@@ -9584,16 +9603,17 @@
     }
 
     async function loadAllSites() {
+      // A successful API response is authoritative even when it's empty -
+      // a brand-new account (or one with no sites left) legitimately gets
+      // back [] and that must not fall through to whatever was cached
+      // locally, which could be a different, previously signed-in
+      // account's data. Only a genuine request failure (network error,
+      // 401, etc. - caught below) falls back to this account's own cache.
       try {
         const sites = await apiFetch("/api/sites");
-        if (Array.isArray(sites) && sites.length) {
-          saveLocalSites(sites);
-          return sites;
-        } else if (sites && typeof sites === "object" && Object.keys(sites).length) {
-          const list = Object.values(sites);
-          saveLocalSites(list);
-          return list;
-        }
+        const list = Array.isArray(sites) ? sites : (sites && typeof sites === "object" ? Object.values(sites) : []);
+        saveLocalSites(list);
+        return list;
       } catch (e) { }
       return getLocalSites();
     }
@@ -9909,9 +9929,6 @@
       try {
         all = await loadAllSites();
       } catch (e) {
-        all = getLocalSites();
-      }
-      if (!all || (Array.isArray(all) && all.length === 0)) {
         all = getLocalSites();
       }
 
@@ -20914,6 +20931,12 @@
     }
 
     function enterApp() {
+      // Re-derive every piece of per-account state from the identity that
+      // was JUST confirmed (initLogin on reload, or a fresh sign-in via
+      // verifyTotp) - this is the one place both paths funnel through, so
+      // it's the right spot to make sure a session never keeps showing
+      // whatever the PREVIOUS account on this browser had loaded.
+      builderSettings = loadBuilderSettings(currentUser);
       showScreen("library");
       try { renderUserChip(); } catch (e) { console.error("renderUserChip error:", e); }
       try { renderLibrary(); } catch (e) { console.error("renderLibrary error:", e); }
@@ -20970,8 +20993,16 @@
 
     function saveSettings() {
       try {
-        builderSettings.name = ($("#set-input-name")?.value || "").trim() || "Siva Kumar";
-        builderSettings.role = ($("#set-input-role")?.value || "").trim() || "Lead Industrial Architect";
+        // Was falling back to the hardcoded "Siva Kumar" / "Lead
+        // Industrial Architect" whenever the field was left blank - fine
+        // as a one-time seed value for that one real account, wrong as a
+        // fallback for every other account, which would otherwise save
+        // (and then keep showing) someone else's name the moment they
+        // saved Settings with the name field empty. Leaving it blank now
+        // just leaves it unset - renderUserChip() already falls back to
+        // the signed-in email itself when name is empty.
+        builderSettings.name = ($("#set-input-name")?.value || "").trim();
+        builderSettings.role = ($("#set-input-role")?.value || "").trim();
         builderSettings.units = $("#set-units")?.value || "imperial";
         builderSettings.cellSize = $("#set-cell-size")?.value || "4x6";
         builderSettings.aisleMin = $("#set-aisle-min")?.value || "4.0";
@@ -20980,7 +21011,7 @@
         customGridColor = (chosenColor && chosenColor !== "default") ? chosenColor : null;
         redraw();
 
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(builderSettings));
+        localStorage.setItem(settingsKeyFor(currentUser), JSON.stringify(builderSettings));
       } catch (err) {
         console.error("saveSettings error:", err);
       }
