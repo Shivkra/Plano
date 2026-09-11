@@ -3220,6 +3220,7 @@
       padding: 5px 8px;
       line-height: 1.45;
     }
+
     body.dark-mode .opt-res-advisory-line {
       color: #f3d38a;
       background: rgba(217, 168, 44, 0.14);
@@ -7479,8 +7480,7 @@
            time for this email - shows a secret to scan/enter, plus the
            code field to confirm it) or "verify" (already enrolled - just
            the code field). See /api/totp-begin, /api/totp-verify. -->
-      <form id="otp-form" novalidate style="display:none;"
-        onsubmit="event.preventDefault(); verifyTotp();">
+      <form id="otp-form" novalidate style="display:none;" onsubmit="event.preventDefault(); verifyTotp();">
         <div id="otp-setup-block" style="display:none; margin-bottom:16px;">
           <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin:0 0 10px;">
             First time here - set up an authenticator app (Google Authenticator, Authy, 1Password, etc). Add a new
@@ -7577,8 +7577,6 @@
     <div class="choice-body">
       <div class="choice-hero">
         <h1>How would you like to design your layout?</h1>
-        <p>Upload an architectural blueprint for instant AI spatial extraction, or open the interactive CAD canvas
-          editor to draw your floor plan from scratch.</p>
       </div>
 
       <div class="choice-cards-grid">
@@ -7587,8 +7585,8 @@
           <div class="choice-badge ai">✨ AI Vision Engine</div>
           <div class="choice-card-icon ai-icon">📁</div>
           <h2>Upload Blueprint / Plan</h2>
-          <p class="desc">Drop any image or architectural CAD blueprint. Our AI vision model analyzes the file, detects
-            perimeter, docks, support rooms & generates the best warehouse layout.</p>
+          <p class="desc">Drop any image or architectural CAD blueprint. Our AI analyzes the file, detects
+            perimeter, docks & generates the best warehouse layout.</p>
 
           <input type="file" id="choice-blueprint-file"
             accept="image/jpeg,image/png,image/webp,image/svg+xml,application/pdf,.dwg,.dxf" style="display:none;">
@@ -7624,7 +7622,7 @@
 
         <!-- Option 2: Start Drawing (Canvas CAD Editor) -->
         <div class="choice-card" id="card-start-drawing">
-          <div class="choice-badge cad">⚡ CAD Canvas Editor</div>
+          <div class="choice-badge cad">⚡ AI Canvas Editor</div>
           <div class="choice-card-icon cad-icon">✏️</div>
           <h2>Start Drawing from Scratch</h2>
           <p class="desc">Directly launch the interactive CAD canvas editor. Sketch walls, drag & drop smart racks, pack
