@@ -639,15 +639,25 @@ const storageCache = new Map();
 async function initStorage() {
   ensureDataDir();
   if (!USE_REDIS) return; // local-file mode - nothing to preload, fs reads happen on demand as before
-  for (const file of [USERS_FILE, SITES_FILE, TOTP_FILE, SECRET_FILE]) {
-    try {
-      const raw = await redisGet(file);
-      storageCache.set(file, raw != null ? raw : null);
-    } catch (e) {
-      console.warn("Upstash load failed for", file, "- starting empty:", e.message);
-      storageCache.set(file, null);
-    }
-  }
+  // These 4 keys don't depend on each other, but were being fetched one
+  // at a time (await in a for-loop) - on a cold start (Render's free tier
+  // sleeps the whole process after 15 min idle, so this runs fresh on the
+  // next request) that serialized 4 network round-trips to Upstash before
+  // the server could even start listening, adding real, avoidable latency
+  // on top of Render's own container spin-up time. Running them
+  // concurrently cuts that part to about the time of the single slowest
+  // one instead of the sum of all four.
+  await Promise.all(
+    [USERS_FILE, SITES_FILE, TOTP_FILE, SECRET_FILE].map(async (file) => {
+      try {
+        const raw = await redisGet(file);
+        storageCache.set(file, raw != null ? raw : null);
+      } catch (e) {
+        console.warn("Upstash load failed for", file, "- starting empty:", e.message);
+        storageCache.set(file, null);
+      }
+    })
+  );
 }
 function ensureDataDir() {
   if (USE_REDIS) return;

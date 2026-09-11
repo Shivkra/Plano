@@ -1,0 +1,36 @@
+name: Keep Render service warm
+
+# Render's free web-service plan sleeps the whole container after 15
+# minutes with no incoming requests, and the next request has to wait for
+# a full cold start (container spin-up + this app's own boot sequence) -
+# that's the "very high buffer time... taking a lot of time to open" a
+# manager hits when the app has been idle. This pings the deployed app
+# every 10 minutes (safely inside the 15-minute window, with margin for
+# GitHub's own scheduling jitter) so it never actually goes to sleep
+# during normal usage hours - no new account/service needed, since this
+# runs on the GitHub repo already in place, and minutes are unlimited for
+# a public repo like this one.
+#
+# This does NOT eliminate cold starts entirely - a period with no traffic
+# AND no successful ping in a given 15-minute window (GitHub infra outage,
+# Render itself down, or genuinely nobody + this workflow both quiet for
+# 15+ minutes) still sleeps the service, and the very first request after
+# that is still a real cold start. For a truly always-on service with
+# zero cold starts under any circumstance, Render's paid Starter plan
+# (~$7/mo) is the only real fix - this is the free mitigation.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the deployed app
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" -m 30 "https://blitz-planogram-planner.onrender.com/api/vision-status")
+          echo "Response status: $code"
+          if [ "$code" -lt 200 ] || [ "$code" -ge 500 ]; then
+            echo "::warning::Keep-alive ping got HTTP $code - the service may be down, not just asleep."
+          fi
